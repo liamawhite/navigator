@@ -1,0 +1,50 @@
+name: hygiene
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Nix
+      uses: cachix/install-nix-action@v25
+    
+    - name: Check code formatting
+      run: |
+        make fmt
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "Code is not formatted. Run 'make fmt' to fix."
+          git status --porcelain
+          exit 1
+        fi
+        echo "Code is properly formatted."
+
+  generate:
+    name: generate
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Nix
+      uses: cachix/install-nix-action@v25
+    
+    - name: Check generated files are up to date
+      run: |
+        make generate
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "Generated files are out of date. Run 'make generate' to update."
+          git status --porcelain
+          exit 1
+        fi
+        echo "Generated files are up to date."

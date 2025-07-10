@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package navigator.backend.v1alpha1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
+
+// ServiceRegistryService provides APIs for service discovery and management.
+// It enables listing and retrieving services from Kubernetes clusters via kubeconfig.
+service ServiceRegistryService {
+  // ListServices returns all services in the specified namespace, or all namespaces if not specified.
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
+    option (google.api.http) = {
+      get: "/api/v1alpha1/services"
+    };
+  }
+  
+  // GetService returns detailed information about a specific service.
+  rpc GetService(GetServiceRequest) returns (GetServiceResponse) {
+    option (google.api.http) = {
+      get: "/api/v1alpha1/services/{id}"
+    };
+  }
+}
+
+// ListServicesRequest specifies which namespace to list services from.
+message ListServicesRequest {
+  // namespace is the Kubernetes namespace to list services from.
+  // If not specified, services from all namespaces are returned.
+  optional string namespace = 1;
+}
+
+// ListServicesResponse contains the list of services in the requested namespace(s).
+message ListServicesResponse {
+  // services is the list of services found in the namespace(s).
+  repeated Service services = 1;
+}
+
+// GetServiceRequest specifies which service to retrieve.
+message GetServiceRequest {
+  // id is the unique identifier of the service to retrieve.
+  string id = 1;
+}
+
+// GetServiceResponse contains the requested service details.
+message GetServiceResponse {
+  // service contains the detailed service information.
+  Service service = 1;
+}
+
+// Service represents a Kubernetes service with its backing instances.
+message Service {
+  // id is a unique identifier for the service (typically namespace/name).
+  string id = 1;
+  
+  // name is the service name.
+  string name = 2;
+  
+  // namespace is the Kubernetes namespace containing the service.
+  string namespace = 3;
+  
+  // instances are the backend instances (pods) that serve this service.
+  repeated ServiceInstance instances = 4;
+}
+
+// ServiceInstance represents a single backend instance serving a service.
+message ServiceInstance {
+  // ip is the IP address of the instance.
+  string ip = 1;
+  
+  // pod is the name of the Kubernetes pod backing this instance.
+  // Empty for external services or endpoints without pod references.
+  string pod = 2;
+  
+  // namespace is the Kubernetes namespace containing the pod.
+  string namespace = 3;
+}
