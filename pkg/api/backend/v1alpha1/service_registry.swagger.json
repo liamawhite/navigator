@@ -1,0 +1,182 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "backend/v1alpha1/service_registry.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "ServiceRegistryService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1alpha1/services": {
+      "get": {
+        "summary": "ListServices returns all services in the specified namespace, or all namespaces if not specified.",
+        "operationId": "ServiceRegistryService_ListServices",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ListServicesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "description": "namespace is the Kubernetes namespace to list services from.\nIf not specified, services from all namespaces are returned.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    },
+    "/api/v1alpha1/services/{id}": {
+      "get": {
+        "summary": "GetService returns detailed information about a specific service.",
+        "operationId": "ServiceRegistryService_GetService",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetServiceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "id is the unique identifier of the service to retrieve.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1alpha1GetServiceResponse": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "$ref": "#/definitions/v1alpha1Service",
+          "description": "service contains the detailed service information."
+        }
+      },
+      "description": "GetServiceResponse contains the requested service details."
+    },
+    "v1alpha1ListServicesResponse": {
+      "type": "object",
+      "properties": {
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Service"
+          },
+          "description": "services is the list of services found in the namespace(s)."
+        }
+      },
+      "description": "ListServicesResponse contains the list of services in the requested namespace(s)."
+    },
+    "v1alpha1Service": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "id is a unique identifier for the service (typically namespace/name)."
+        },
+        "name": {
+          "type": "string",
+          "description": "name is the service name."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the Kubernetes namespace containing the service."
+        },
+        "instances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServiceInstance"
+          },
+          "description": "instances are the backend instances (pods) that serve this service."
+        }
+      },
+      "description": "Service represents a Kubernetes service with its backing instances."
+    },
+    "v1alpha1ServiceInstance": {
+      "type": "object",
+      "properties": {
+        "ip": {
+          "type": "string",
+          "description": "ip is the IP address of the instance."
+        },
+        "pod": {
+          "type": "string",
+          "description": "pod is the name of the Kubernetes pod backing this instance.\nEmpty for external services or endpoints without pod references."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the Kubernetes namespace containing the pod."
+        }
+      },
+      "description": "ServiceInstance represents a single backend instance serving a service."
+    }
+  }
+}
