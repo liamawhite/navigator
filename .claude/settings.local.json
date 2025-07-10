@@ -11,7 +11,8 @@
       "Bash(go get:*)",
       "WebFetch(domain:github.com)",
       "Bash(ls:*)",
-      "Bash(make test-unit:*)"
+      "Bash(make test-unit:*)",
+      "Bash(make:*)"
     ],
     "deny": []
   }
