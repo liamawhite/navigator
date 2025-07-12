@@ -7,13 +7,13 @@ check: generate format lint test-unit dirty
 
 format:
 	gofmt -w .
-	cd ui && npm run format
+	cd ui && npm ci && npm run format
 
 lint:
 	go vet ./...
 	gosec -exclude-dir=testing ./...
 	golangci-lint run
-	cd ui && npm run lint:fix
+	cd ui && npm ci && npm run lint:fix
 
 test-unit: 
 	go test -v $(shell go list ./... | grep -v /testing/integration)
