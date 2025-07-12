@@ -68,7 +68,6 @@ message ServiceInstance {
   string ip = 1;
 
   // pod is the name of the Kubernetes pod backing this instance.
-  // Empty for external services or endpoints without pod references.
   string pod = 2;
 
   // namespace is the Kubernetes namespace containing the pod.

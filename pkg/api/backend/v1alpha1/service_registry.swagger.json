@@ -169,7 +169,7 @@
         },
         "pod": {
           "type": "string",
-          "description": "pod is the name of the Kubernetes pod backing this instance.\nEmpty for external services or endpoints without pod references."
+          "description": "pod is the name of the Kubernetes pod backing this instance."
         },
         "namespace": {
           "type": "string",

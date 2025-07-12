@@ -305,7 +305,6 @@ type ServiceInstance struct {
 	// ip is the IP address of the instance.
 	Ip string `protobuf:"bytes,1,opt,name=ip,proto3" json:"ip,omitempty"`
 	// pod is the name of the Kubernetes pod backing this instance.
-	// Empty for external services or endpoints without pod references.
 	Pod string `protobuf:"bytes,2,opt,name=pod,proto3" json:"pod,omitempty"`
 	// namespace is the Kubernetes namespace containing the pod.
 	Namespace string `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
