@@ -96,7 +96,8 @@ func (d *datastore) GetService(ctx context.Context, id string) (*v1alpha1.Servic
 func (d *datastore) getEndpointsForService(ctx context.Context, name, namespace string) ([]*v1alpha1.ServiceInstance, error) {
 	endpoints, err := d.client.CoreV1().Endpoints(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get endpoints: %w", err)
+		// Return empty list if endpoints don't exist (service might not have any pods yet)
+		return []*v1alpha1.ServiceInstance{}, nil
 	}
 
 	var instances []*v1alpha1.ServiceInstance

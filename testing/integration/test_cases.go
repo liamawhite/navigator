@@ -454,7 +454,7 @@ func executeAssertion(t *testing.T, ctx context.Context, client v1alpha1.Service
 		performAssertion(t, assertion, resp.Service.Instances[0].Pod)
 
 	case TargetTypeInstanceSidecar:
-		serviceID := namespace + "/" + assertion.Target.ServiceID
+		serviceID := namespace + ":" + assertion.Target.ServiceID
 		resp, err := client.GetService(ctx, &v1alpha1.GetServiceRequest{
 			Id: serviceID,
 		})
