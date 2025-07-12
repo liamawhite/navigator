@@ -847,7 +847,7 @@ func TestCheckForProxySidecar(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create fake kubernetes client with the test pod
 			client := fake.NewSimpleClientset(tt.pod)
-			
+
 			ds := &datastore{
 				client: client,
 			}

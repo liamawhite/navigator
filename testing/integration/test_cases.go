@@ -62,16 +62,16 @@ type AssertionTarget struct {
 type TargetType string
 
 const (
-	TargetTypeListServices  TargetType = "list_services"
-	TargetTypeGetService    TargetType = "get_service"
-	TargetTypeServiceCount  TargetType = "service_count"
-	TargetTypeServiceName   TargetType = "service_name"
-	TargetTypeServiceID     TargetType = "service_id"
-	TargetTypeInstanceCount     TargetType = "instance_count"
-	TargetTypeInstanceIP        TargetType = "instance_ip"
-	TargetTypeInstancePod       TargetType = "instance_pod"
-	TargetTypeInstanceSidecar   TargetType = "instance_sidecar"
-	TargetTypeError             TargetType = "error"
+	TargetTypeListServices    TargetType = "list_services"
+	TargetTypeGetService      TargetType = "get_service"
+	TargetTypeServiceCount    TargetType = "service_count"
+	TargetTypeServiceName     TargetType = "service_name"
+	TargetTypeServiceID       TargetType = "service_id"
+	TargetTypeInstanceCount   TargetType = "instance_count"
+	TargetTypeInstanceIP      TargetType = "instance_ip"
+	TargetTypeInstancePod     TargetType = "instance_pod"
+	TargetTypeInstanceSidecar TargetType = "instance_sidecar"
+	TargetTypeError           TargetType = "error"
 )
 
 // GetTestCases returns all integration test cases
