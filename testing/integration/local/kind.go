@@ -212,7 +212,6 @@ func (k *KindCluster) EnableIstioInjection(ctx context.Context, namespace string
 	return nil
 }
 
-
 // Cleanup removes temporary files created by the cluster
 func (k *KindCluster) Cleanup() error {
 	var errs []error

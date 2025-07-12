@@ -474,11 +474,13 @@ func TestGetEndpointsForService(t *testing.T) {
 		wantErr      string
 	}{
 		{
-			name:        "endpoints not found",
-			serviceName: "nonexistent-service",
-			namespace:   "default",
-			endpoints:   nil,
-			wantErr:     "failed to get endpoints",
+			name:         "endpoints not found",
+			serviceName:  "nonexistent-service",
+			namespace:    "default",
+			endpoints:    nil,
+			expectedIPs:  []string{},
+			expectedPods: []string{},
+			wantErr:      "",
 		},
 		{
 			name:        "external endpoints (no TargetRef)",
