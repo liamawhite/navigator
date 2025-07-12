@@ -704,3 +704,318 @@ func TestNamespaceIsolation(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckForProxySidecar(t *testing.T) {
+	tests := []struct {
+		name     string
+		pod      *corev1.Pod
+		expected bool
+	}{
+		{
+			name: "pod with istio-proxy sidecar by name",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.18.0",
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "pod with istio sidecar by image",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+						{
+							Name:  "sidecar",
+							Image: "istio/proxyv2:1.20.0",
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "pod with istio proxy in init container",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.18.0",
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "pod without istio proxy sidecar",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+						{
+							Name:  "logger",
+							Image: "fluent/fluent-bit:latest",
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "pod with only app container",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "pod with non-istio sidecar should return false",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pod",
+					Namespace: "default",
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+						{
+							Name:  "envoy",
+							Image: "envoyproxy/envoy:v1.27.0",
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake kubernetes client with the test pod
+			client := fake.NewSimpleClientset(tt.pod)
+			
+			ds := &datastore{
+				client: client,
+			}
+
+			result, err := ds.checkForProxySidecar(context.Background(), tt.pod.Name, tt.pod.Namespace)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestCheckForProxySidecar_PodNotFound(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	ds := &datastore{
+		client: client,
+	}
+
+	result, err := ds.checkForProxySidecar(context.Background(), "nonexistent-pod", "default")
+	assert.Error(t, err)
+	assert.False(t, result)
+	assert.Contains(t, err.Error(), "failed to get pod nonexistent-pod")
+}
+
+func TestGetEndpointsForService_WithProxySidecar(t *testing.T) {
+	// Create a pod with istio sidecar
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "app",
+					Image: "nginx:latest",
+				},
+				{
+					Name:  "istio-proxy",
+					Image: "istio/proxyv2:1.18.0",
+				},
+			},
+		},
+	}
+
+	// Create endpoints that reference the pod
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: "10.0.0.1",
+						TargetRef: &corev1.ObjectReference{
+							Kind:      "Pod",
+							Name:      "test-pod",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := fake.NewSimpleClientset(pod, endpoints)
+	ds := &datastore{
+		client: client,
+	}
+
+	instances, err := ds.getEndpointsForService(context.Background(), "test-service", "default")
+	require.NoError(t, err)
+	require.Len(t, instances, 1)
+
+	instance := instances[0]
+	assert.Equal(t, "10.0.0.1", instance.Ip)
+	assert.Equal(t, "test-pod", instance.Pod)
+	assert.Equal(t, "default", instance.Namespace)
+	assert.True(t, instance.HasProxySidecar)
+}
+
+func TestGetEndpointsForService_WithoutProxySidecar(t *testing.T) {
+	// Create a pod without sidecar
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "app",
+					Image: "nginx:latest",
+				},
+			},
+		},
+	}
+
+	// Create endpoints that reference the pod
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: "10.0.0.1",
+						TargetRef: &corev1.ObjectReference{
+							Kind:      "Pod",
+							Name:      "test-pod",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := fake.NewSimpleClientset(pod, endpoints)
+	ds := &datastore{
+		client: client,
+	}
+
+	instances, err := ds.getEndpointsForService(context.Background(), "test-service", "default")
+	require.NoError(t, err)
+	require.Len(t, instances, 1)
+
+	instance := instances[0]
+	assert.Equal(t, "10.0.0.1", instance.Ip)
+	assert.Equal(t, "test-pod", instance.Pod)
+	assert.Equal(t, "default", instance.Namespace)
+	assert.False(t, instance.HasProxySidecar)
+}
+
+func TestGetEndpointsForService_NoPodReference(t *testing.T) {
+	// Create endpoints without pod reference (e.g., external service)
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "default",
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: "10.0.0.1",
+						// No TargetRef - external endpoint
+					},
+				},
+			},
+		},
+	}
+
+	client := fake.NewSimpleClientset(endpoints)
+	ds := &datastore{
+		client: client,
+	}
+
+	instances, err := ds.getEndpointsForService(context.Background(), "test-service", "default")
+	require.NoError(t, err)
+	require.Len(t, instances, 1)
+
+	instance := instances[0]
+	assert.Equal(t, "10.0.0.1", instance.Ip)
+	assert.Equal(t, "", instance.Pod)
+	assert.Equal(t, "default", instance.Namespace)
+	assert.False(t, instance.HasProxySidecar)
+}
