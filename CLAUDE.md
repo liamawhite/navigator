@@ -2,6 +2,44 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Architecture Overview
+
+Navigator is a gRPC-based service registry that provides Kubernetes service discovery through both gRPC and HTTP APIs.
+
+### Core Components
+
+**API Definitions (`api/`)**
+- Protocol buffer definitions with HTTP annotations
+- Generates Go code, gRPC stubs, and OpenAPI specs
+- Uses buf for code generation and linting
+
+**CLI Layer (`internal/cli/`)**
+- Cobra-based command structure with root command and serve subcommand
+- Handles server configuration (port, kubeconfig path)
+- Manages graceful shutdown on SIGINT/SIGTERM
+
+**Datastore Pattern (`pkg/datastore/`)**
+- Abstract ServiceDatastore interface
+- Kubeconfig implementation uses Kubernetes client-go
+- Mock implementation for testing
+
+**gRPC Server (`internal/grpc/`)**
+- Dual-protocol server: gRPC (port N) + HTTP gateway (port N+1)
+- Uses grpc-gateway for automatic HTTP API generation
+- Implements ServiceRegistryService with reflection enabled
+
+**Service Registry (`internal/grpc/service_registry.go`)**
+- Core business logic for service discovery
+- Implements ListServices and GetService RPCs
+- Delegates to datastore abstraction
+
+### Data Flow
+1. CLI starts gRPC server with kubeconfig-based datastore
+2. gRPC server registers ServiceRegistryService
+3. HTTP gateway proxies REST calls to gRPC
+4. Service calls query Kubernetes API via client-go
+5. Kubernetes Services and Endpoints are transformed to proto messages
+
 ## Development Commands
 
 ### Build and Run
@@ -96,43 +134,23 @@ go mod tidy
 go mod verify
 ```
 
-## Architecture Overview
+## Development Environment
 
-Navigator is a gRPC-based service registry that provides Kubernetes service discovery through both gRPC and HTTP APIs.
+This project uses Nix flakes for development environment management:
 
-### Core Components
+```bash
+# Enter development shell
+nix develop
 
-**CLI Layer (`internal/cli/`)**
-- Cobra-based command structure with root command and serve subcommand
-- Handles server configuration (port, kubeconfig path)
-- Manages graceful shutdown on SIGINT/SIGTERM
-
-**gRPC Server (`internal/grpc/`)**
-- Dual-protocol server: gRPC (port N) + HTTP gateway (port N+1)
-- Uses grpc-gateway for automatic HTTP API generation
-- Implements ServiceRegistryService with reflection enabled
-
-**Service Registry (`internal/grpc/service_registry.go`)**
-- Core business logic for service discovery
-- Implements ListServices and GetService RPCs
-- Delegates to datastore abstraction
-
-**Datastore Pattern (`pkg/datastore/`)**
-- Abstract ServiceDatastore interface
-- Kubeconfig implementation uses Kubernetes client-go
-- Mock implementation for testing
-
-**API Definitions (`api/`)**
-- Protocol buffer definitions with HTTP annotations
-- Generates Go code, gRPC stubs, and OpenAPI specs
-- Uses buf for code generation and linting
-
-### Data Flow
-1. CLI starts gRPC server with kubeconfig-based datastore
-2. gRPC server registers ServiceRegistryService
-3. HTTP gateway proxies REST calls to gRPC
-4. Service calls query Kubernetes API via client-go
-5. Kubernetes Services and Endpoints are transformed to proto messages
+# Development shell includes:
+# - Go compiler
+# - buf (Protocol Buffer tooling)
+# - protobuf compiler
+# - git
+# - kind (Kubernetes in Docker)
+# - kubectl (Kubernetes CLI)
+# - docker (Container runtime)
+```
 
 ## Key Directory Structure
 
@@ -159,23 +177,9 @@ testing/integration/   # Integration tests
     local_test.go      # Local-specific test runner
 ```
 
-## Development Environment
+## Service IDs
 
-This project uses Nix flakes for development environment management:
-
-```bash
-# Enter development shell
-nix develop
-
-# Development shell includes:
-# - Go compiler
-# - buf (Protocol Buffer tooling)
-# - protobuf compiler
-# - git
-# - kind (Kubernetes in Docker)
-# - kubectl (Kubernetes CLI)
-# - docker (Container runtime)
-```
+Services are identified by `namespace:name` format (e.g., `default:nginx-service`). This convention is used throughout the API and datastore implementations.
 
 ## Testing Patterns
 

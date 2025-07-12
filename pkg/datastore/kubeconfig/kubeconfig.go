@@ -96,7 +96,8 @@ func (d *datastore) GetService(ctx context.Context, id string) (*v1alpha1.Servic
 func (d *datastore) getEndpointsForService(ctx context.Context, name, namespace string) ([]*v1alpha1.ServiceInstance, error) {
 	endpoints, err := d.client.CoreV1().Endpoints(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get endpoints: %w", err)
+		// Return empty list if endpoints don't exist (service might not have any pods yet)
+		return []*v1alpha1.ServiceInstance{}, nil
 	}
 
 	var instances []*v1alpha1.ServiceInstance
@@ -111,13 +112,48 @@ func (d *datastore) getEndpointsForService(ctx context.Context, name, namespace 
 				}
 			}
 
+			hasProxySidecar := false
+			if podName != "" {
+				hasProxySidecar, err = d.checkForProxySidecar(ctx, podName, podNamespace)
+				if err != nil {
+					// Log warning but don't fail the request
+					// In production, you might want to use a proper logger here
+					hasProxySidecar = false
+				}
+			}
+
 			instances = append(instances, &v1alpha1.ServiceInstance{
-				Ip:        address.IP,
-				Pod:       podName,
-				Namespace: podNamespace,
+				Ip:              address.IP,
+				Pod:             podName,
+				Namespace:       podNamespace,
+				HasProxySidecar: hasProxySidecar,
 			})
 		}
 	}
 
 	return instances, nil
+}
+
+// checkForProxySidecar checks if a pod has an Istio proxy sidecar container
+func (d *datastore) checkForProxySidecar(ctx context.Context, podName, namespace string) (bool, error) {
+	pod, err := d.client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to get pod %s: %w", podName, err)
+	}
+
+	// Check all containers in the pod for Istio proxy
+	for _, container := range pod.Spec.Containers {
+		if container.Name == "istio-proxy" || strings.HasPrefix(container.Image, "istio/proxyv2") {
+			return true, nil
+		}
+	}
+
+	// Check init containers as well
+	for _, container := range pod.Spec.InitContainers {
+		if container.Name == "istio-proxy" || strings.HasPrefix(container.Image, "istio/proxyv2") {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

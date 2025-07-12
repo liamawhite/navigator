@@ -26,6 +26,11 @@ func (e *SharedEnvironment) Setup(t *testing.T) error {
 		return err
 	}
 
+	// Enable Istio injection for test namespace
+	if err := e.sharedCluster.cluster.EnableIstioInjection(ctx, e.namespace); err != nil {
+		return fmt.Errorf("failed to enable Istio injection for namespace %s: %w", e.namespace, err)
+	}
+
 	// Clean up namespace when test is done
 	t.Cleanup(func() {
 		if err := e.fixtures.DeleteNamespace(context.Background()); err != nil {

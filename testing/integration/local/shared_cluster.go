@@ -69,6 +69,16 @@ func NewSharedCluster(clusterName string) (*SharedCluster, error) {
 	}
 	sc.client = client
 
+	// Install Istio
+	if err := sc.cluster.InstallIstio(ctx); err != nil {
+		return nil, fmt.Errorf("failed to install Istio: %w", err)
+	}
+
+	// Enable Istio injection for default namespace
+	if err := sc.cluster.EnableIstioInjection(ctx, "default"); err != nil {
+		return nil, fmt.Errorf("failed to enable Istio injection: %w", err)
+	}
+
 	// Create Navigator datastore
 	datastore, err := kubeconfigds.New(sc.kubeconfig)
 	if err != nil {

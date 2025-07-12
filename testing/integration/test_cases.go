@@ -62,15 +62,16 @@ type AssertionTarget struct {
 type TargetType string
 
 const (
-	TargetTypeListServices  TargetType = "list_services"
-	TargetTypeGetService    TargetType = "get_service"
-	TargetTypeServiceCount  TargetType = "service_count"
-	TargetTypeServiceName   TargetType = "service_name"
-	TargetTypeServiceID     TargetType = "service_id"
-	TargetTypeInstanceCount TargetType = "instance_count"
-	TargetTypeInstanceIP    TargetType = "instance_ip"
-	TargetTypeInstancePod   TargetType = "instance_pod"
-	TargetTypeError         TargetType = "error"
+	TargetTypeListServices    TargetType = "list_services"
+	TargetTypeGetService      TargetType = "get_service"
+	TargetTypeServiceCount    TargetType = "service_count"
+	TargetTypeServiceName     TargetType = "service_name"
+	TargetTypeServiceID       TargetType = "service_id"
+	TargetTypeInstanceCount   TargetType = "instance_count"
+	TargetTypeInstanceIP      TargetType = "instance_ip"
+	TargetTypeInstancePod     TargetType = "instance_pod"
+	TargetTypeInstanceSidecar TargetType = "instance_sidecar"
+	TargetTypeError           TargetType = "error"
 )
 
 // GetTestCases returns all integration test cases
@@ -297,6 +298,27 @@ func GetTestCases() []TestCase {
 				},
 			},
 		},
+		{
+			Name: "istio_sidecar_detection",
+			Setup: []ServiceSpec{
+				{Name: "istio-service", Replicas: 1, Type: ServiceTypeWeb},
+			},
+			Timeout: 3 * time.Minute,
+			Assertions: []Assertion{
+				{
+					Type:     AssertionTypeEqual,
+					Target:   AssertionTarget{Type: TargetTypeInstanceCount, ServiceID: "istio-service"},
+					Expected: 1,
+					Message:  "Should have exactly one instance",
+				},
+				{
+					Type:     AssertionTypeTrue,
+					Target:   AssertionTarget{Type: TargetTypeInstanceSidecar, ServiceID: "istio-service"},
+					Expected: true,
+					Message:  "Instance should have Istio proxy sidecar",
+				},
+			},
+		},
 	}
 }
 
@@ -430,6 +452,15 @@ func executeAssertion(t *testing.T, ctx context.Context, client v1alpha1.Service
 		require.NoError(t, err, assertion.Message)
 		require.Greater(t, len(resp.Service.Instances), 0, "Service should have at least one instance")
 		performAssertion(t, assertion, resp.Service.Instances[0].Pod)
+
+	case TargetTypeInstanceSidecar:
+		serviceID := namespace + ":" + assertion.Target.ServiceID
+		resp, err := client.GetService(ctx, &v1alpha1.GetServiceRequest{
+			Id: serviceID,
+		})
+		require.NoError(t, err, assertion.Message)
+		require.Greater(t, len(resp.Service.Instances), 0, "Service should have at least one instance")
+		performAssertion(t, assertion, resp.Service.Instances[0].HasProxySidecar)
 
 	case TargetTypeServiceName:
 		resp, err := client.ListServices(ctx, &v1alpha1.ListServicesRequest{

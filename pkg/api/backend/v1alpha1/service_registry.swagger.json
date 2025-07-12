@@ -174,6 +174,10 @@
         "namespace": {
           "type": "string",
           "description": "namespace is the Kubernetes namespace containing the pod."
+        },
+        "hasProxySidecar": {
+          "type": "boolean",
+          "description": "has_proxy_sidecar indicates whether this instance has a proxy sidecar (e.g., Istio, Envoy)."
         }
       },
       "description": "ServiceInstance represents a single backend instance serving a service."

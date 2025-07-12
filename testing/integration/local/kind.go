@@ -168,6 +168,50 @@ func (k *KindCluster) waitForReady(ctx context.Context) error {
 	return fmt.Errorf("cluster not ready within %v", timeout)
 }
 
+// InstallIstio installs Istio on the Kind cluster
+func (k *KindCluster) InstallIstio(ctx context.Context) error {
+	kubeconfig, err := k.GetKubeconfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get kubeconfig: %w", err)
+	}
+
+	// Check if istioctl is available
+	if _, err := exec.LookPath("istioctl"); err != nil {
+		return fmt.Errorf("istioctl not found in PATH: %w", err)
+	}
+
+	// Install Istio with demo profile for testing
+	cmd := exec.CommandContext(ctx, "istioctl", "install", "--set", "values.defaultRevision=default", "--kubeconfig", kubeconfig, "-y")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to install Istio: %w", err)
+	}
+
+	// istioctl install waits for Istio to be ready before returning
+	return nil
+}
+
+// EnableIstioInjection enables automatic Istio sidecar injection for a namespace
+func (k *KindCluster) EnableIstioInjection(ctx context.Context, namespace string) error {
+	kubeconfig, err := k.GetKubeconfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get kubeconfig: %w", err)
+	}
+
+	// Label namespace for Istio injection
+	cmd := exec.CommandContext(ctx, "kubectl", "--kubeconfig", kubeconfig, "label", "namespace", namespace, "istio-injection=enabled", "--overwrite")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to enable Istio injection for namespace %s: %w", namespace, err)
+	}
+
+	return nil
+}
+
 // Cleanup removes temporary files created by the cluster
 func (k *KindCluster) Cleanup() error {
 	var errs []error

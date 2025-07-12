@@ -72,4 +72,7 @@ message ServiceInstance {
 
   // namespace is the Kubernetes namespace containing the pod.
   string namespace = 3;
+
+  // has_proxy_sidecar indicates whether this instance has a proxy sidecar (e.g., Istio, Envoy).
+  bool has_proxy_sidecar = 4;
 }

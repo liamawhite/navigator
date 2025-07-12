@@ -20,6 +20,7 @@
               kind
               kubectl
               docker
+              istioctl
             ];
           };
         }
