@@ -48,7 +48,7 @@ func TestServiceRegistryServer_ListServices(t *testing.T) {
 		Services: map[string][]*v1alpha1.Service{
 			"default": {
 				{
-					Id:        "default/service-1",
+					Id:        "default:service-1",
 					Name:      "service-1",
 					Namespace: "default",
 					Instances: []*v1alpha1.ServiceInstance{
@@ -56,7 +56,7 @@ func TestServiceRegistryServer_ListServices(t *testing.T) {
 					},
 				},
 				{
-					Id:        "default/service-2",
+					Id:        "default:service-2",
 					Name:      "service-2",
 					Namespace: "default",
 					Instances: []*v1alpha1.ServiceInstance{
@@ -66,7 +66,7 @@ func TestServiceRegistryServer_ListServices(t *testing.T) {
 			},
 			"kube-system": {
 				{
-					Id:        "kube-system/kube-dns",
+					Id:        "kube-system:kube-dns",
 					Name:      "kube-dns",
 					Namespace: "kube-system",
 					Instances: []*v1alpha1.ServiceInstance{
@@ -105,7 +105,7 @@ func TestServiceRegistryServer_GetService(t *testing.T) {
 		{
 			name: "get existing service",
 			request: &v1alpha1.GetServiceRequest{
-				Id: "default/service-1",
+				Id: "default:service-1",
 			},
 			expectedName:  "service-1",
 			expectedError: false,
@@ -113,7 +113,7 @@ func TestServiceRegistryServer_GetService(t *testing.T) {
 		{
 			name: "get non-existent service",
 			request: &v1alpha1.GetServiceRequest{
-				Id: "default/non-existent",
+				Id: "default:non-existent",
 			},
 			expectedError: true,
 		},
@@ -124,7 +124,7 @@ func TestServiceRegistryServer_GetService(t *testing.T) {
 		Services: map[string][]*v1alpha1.Service{
 			"default": {
 				{
-					Id:        "default/service-1",
+					Id:        "default:service-1",
 					Name:      "service-1",
 					Namespace: "default",
 					Instances: []*v1alpha1.ServiceInstance{

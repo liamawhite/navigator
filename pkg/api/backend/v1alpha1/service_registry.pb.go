@@ -127,6 +127,7 @@ type GetServiceRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// id is the unique identifier of the service to retrieve.
+	// Format: namespace:service-name (e.g., "default:nginx-service")
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
@@ -219,12 +220,13 @@ func (x *GetServiceResponse) GetService() *Service {
 }
 
 // Service represents a Kubernetes service with its backing instances.
+// Services in different clusters that share the same name and namespace are considered the same service.
 type Service struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// id is a unique identifier for the service (typically namespace/name).
+	// id is a unique identifier for the service in format namespace:service-name (e.g., "default:nginx-service").
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// name is the service name.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -303,7 +305,6 @@ type ServiceInstance struct {
 	// ip is the IP address of the instance.
 	Ip string `protobuf:"bytes,1,opt,name=ip,proto3" json:"ip,omitempty"`
 	// pod is the name of the Kubernetes pod backing this instance.
-	// Empty for external services or endpoints without pod references.
 	Pod string `protobuf:"bytes,2,opt,name=pod,proto3" json:"pod,omitempty"`
 	// namespace is the Kubernetes namespace containing the pod.
 	Namespace string `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`

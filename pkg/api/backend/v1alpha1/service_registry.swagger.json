@@ -69,7 +69,7 @@
         "parameters": [
           {
             "name": "id",
-            "description": "id is the unique identifier of the service to retrieve.",
+            "description": "id is the unique identifier of the service to retrieve.\nFormat: namespace:service-name (e.g., \"default:nginx-service\")",
             "in": "path",
             "required": true,
             "type": "string"
@@ -139,7 +139,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "id is a unique identifier for the service (typically namespace/name)."
+          "description": "id is a unique identifier for the service in format namespace:service-name (e.g., \"default:nginx-service\")."
         },
         "name": {
           "type": "string",
@@ -158,7 +158,7 @@
           "description": "instances are the backend instances (pods) that serve this service."
         }
       },
-      "description": "Service represents a Kubernetes service with its backing instances."
+      "description": "Service represents a Kubernetes service with its backing instances.\nServices in different clusters that share the same name and namespace are considered the same service."
     },
     "v1alpha1ServiceInstance": {
       "type": "object",
@@ -169,7 +169,7 @@
         },
         "pod": {
           "type": "string",
-          "description": "pod is the name of the Kubernetes pod backing this instance.\nEmpty for external services or endpoints without pod references."
+          "description": "pod is the name of the Kubernetes pod backing this instance."
         },
         "namespace": {
           "type": "string",
