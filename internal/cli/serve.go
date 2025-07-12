@@ -12,6 +12,7 @@ import (
 
 	"github.com/liamawhite/navigator/internal/grpc"
 	"github.com/liamawhite/navigator/pkg/datastore/kubeconfig"
+	"github.com/liamawhite/navigator/pkg/logging"
 )
 
 var serveCmd = &cobra.Command{
@@ -23,15 +24,22 @@ and Envoy configuration analysis.`,
 		port, _ := cmd.Flags().GetInt("port")
 		kubeconfigPath, _ := cmd.Flags().GetString("kubeconfig")
 
+		logger := logging.For(logging.ComponentCLI)
+		logger.Info("starting navigator server",
+			"port", port,
+			"kubeconfig", kubeconfigPath)
+
 		// Create datastore
 		ds, err := kubeconfig.New(kubeconfigPath)
 		if err != nil {
+			logger.Error("failed to create datastore", "error", err)
 			return fmt.Errorf("failed to create datastore: %w", err)
 		}
 
 		// Create gRPC server
 		server, err := grpc.NewServer(ds, port)
 		if err != nil {
+			logger.Error("failed to create gRPC server", "error", err)
 			return fmt.Errorf("failed to create gRPC server: %w", err)
 		}
 
@@ -45,15 +53,18 @@ and Envoy configuration analysis.`,
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-		fmt.Printf("Navigator gRPC server listening on %s\n", server.Address())
-		fmt.Printf("Navigator HTTP gateway listening on %s\n", server.HTTPAddress())
+		logger.Info("navigator server started",
+			"grpc_address", server.Address(),
+			"http_address", server.HTTPAddress())
 
 		select {
 		case err := <-serverErrChan:
+			logger.Error("server error", "error", err)
 			return fmt.Errorf("server error: %w", err)
 		case sig := <-sigChan:
-			fmt.Printf("\nReceived signal %s, shutting down...\n", sig)
+			logger.Info("received shutdown signal", "signal", sig.String())
 			server.Stop()
+			logger.Info("server shutdown complete")
 			return nil
 		}
 	},

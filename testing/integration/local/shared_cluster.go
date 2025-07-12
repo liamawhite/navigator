@@ -102,7 +102,7 @@ func NewSharedCluster(clusterName string) (*SharedCluster, error) {
 	time.Sleep(2 * time.Second)
 
 	// Connect to gRPC server
-	conn, err := grpc.Dial(sc.grpcServer.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(sc.grpcServer.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (sc *SharedCluster) Cleanup() {
 	defer sc.mu.Unlock()
 
 	if sc.grpcConn != nil {
-		sc.grpcConn.Close()
+		_ = sc.grpcConn.Close()
 	}
 
 	if sc.grpcServer != nil {
@@ -138,7 +138,7 @@ func (sc *SharedCluster) Cleanup() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		if sc.cluster.Exists(ctx) {
-			sc.cluster.Delete(ctx)
+			_ = sc.cluster.Delete(ctx)
 		}
 	}
 }

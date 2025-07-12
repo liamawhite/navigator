@@ -15,7 +15,11 @@
       "Bash(make:*)",
       "Bash(mv:*)",
       "WebFetch(domain:github.com)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm run build:*)",
+      "Bash(golangci-lint run:*)",
+      "Bash(gosec:*)"
     ],
     "deny": []
   }

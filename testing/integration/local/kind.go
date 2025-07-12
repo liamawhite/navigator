@@ -50,10 +50,10 @@ func (k *KindCluster) Create(ctx context.Context) error {
 	k.ConfigPath = tmpFile.Name()
 
 	if _, err := tmpFile.Write(kindConfig); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return fmt.Errorf("failed to write config to temp file: %w", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	args := []string{"create", "cluster", "--name", k.Name, "--config", k.ConfigPath}
 

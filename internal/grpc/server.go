@@ -3,9 +3,9 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/datastore"
+	"github.com/liamawhite/navigator/pkg/logging"
 )
 
 // Server wraps the gRPC server and HTTP gateway, providing methods to start and stop them.
@@ -31,7 +32,11 @@ func NewServer(ds datastore.ServiceDatastore, port int) (*Server, error) {
 		return nil, fmt.Errorf("failed to listen on port %d: %w", port, err)
 	}
 
-	grpcServer := grpc.NewServer()
+	// Create gRPC server with logging interceptors
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(logging.UnaryServerInterceptor()),
+		grpc.StreamInterceptor(logging.StreamServerInterceptor()),
+	)
 
 	// Register the ServiceRegistryService
 	serviceRegistryServer := NewServiceRegistryServer(ds)
@@ -40,7 +45,7 @@ func NewServer(ds datastore.ServiceDatastore, port int) (*Server, error) {
 	// Enable reflection for easier debugging and testing
 	reflection.Register(grpcServer)
 
-	// Create HTTP gateway
+	// Create HTTP gateway with logging middleware
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
@@ -50,9 +55,13 @@ func NewServer(ds datastore.ServiceDatastore, port int) (*Server, error) {
 		return nil, fmt.Errorf("failed to register gateway: %w", err)
 	}
 
+	// Wrap the mux with logging middleware
+	httpHandler := logging.HTTPMiddleware()(mux)
+
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port+1),
-		Handler: mux,
+		Addr:              fmt.Sprintf(":%d", port+1),
+		Handler:           httpHandler,
+		ReadHeaderTimeout: 30 * time.Second,
 	}
 
 	return &Server{
@@ -65,13 +74,14 @@ func NewServer(ds datastore.ServiceDatastore, port int) (*Server, error) {
 
 // Start starts both gRPC and HTTP servers. This method blocks until the servers are stopped.
 func (s *Server) Start() error {
-	log.Printf("Starting gRPC server on port %d", s.port)
-	log.Printf("Starting HTTP gateway on port %d", s.port+1)
+	logger := logging.For(logging.ComponentServer)
+	logger.Info("starting gRPC server", "port", s.port)
+	logger.Info("starting HTTP gateway", "port", s.port+1)
 
 	// Start HTTP server in a goroutine
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("HTTP server error: %v", err)
+			logger.Error("HTTP server error", "error", err)
 		}
 	}()
 
@@ -80,10 +90,11 @@ func (s *Server) Start() error {
 
 // Stop gracefully stops both gRPC and HTTP servers.
 func (s *Server) Stop() {
-	log.Println("Stopping servers")
+	logger := logging.For(logging.ComponentServer)
+	logger.Info("stopping servers")
 	s.grpcServer.GracefulStop()
 	if err := s.httpServer.Shutdown(context.Background()); err != nil {
-		log.Printf("HTTP server shutdown error: %v", err)
+		logger.Error("HTTP server shutdown error", "error", err)
 	}
 }
 
