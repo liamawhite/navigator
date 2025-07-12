@@ -57,7 +57,7 @@ func (d *datastore) ListServices(ctx context.Context, namespace string) ([]*v1al
 		}
 
 		result = append(result, &v1alpha1.Service{
-			Id:        fmt.Sprintf("%s/%s", svc.Namespace, svc.Name),
+			Id:        fmt.Sprintf("%s:%s", svc.Namespace, svc.Name),
 			Name:      svc.Name,
 			Namespace: svc.Namespace,
 			Instances: endpoints,
@@ -68,10 +68,10 @@ func (d *datastore) ListServices(ctx context.Context, namespace string) ([]*v1al
 }
 
 func (d *datastore) GetService(ctx context.Context, id string) (*v1alpha1.Service, error) {
-	// Parse namespace/name from ID
-	parts := strings.SplitN(id, "/", 2)
+	// Parse namespace:name from ID
+	parts := strings.SplitN(id, ":", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid service ID format: %s (expected namespace/name)", id)
+		return nil, fmt.Errorf("invalid service ID format: %s (expected namespace:name)", id)
 	}
 	namespace, name := parts[0], parts[1]
 

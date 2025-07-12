@@ -11,16 +11,12 @@ option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 service ServiceRegistryService {
   // ListServices returns all services in the specified namespace, or all namespaces if not specified.
   rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
-    option (google.api.http) = {
-      get: "/api/v1alpha1/services"
-    };
+    option (google.api.http) = {get: "/api/v1alpha1/services"};
   }
-  
+
   // GetService returns detailed information about a specific service.
   rpc GetService(GetServiceRequest) returns (GetServiceResponse) {
-    option (google.api.http) = {
-      get: "/api/v1alpha1/services/{id}"
-    };
+    option (google.api.http) = {get: "/api/v1alpha1/services/{id}"};
   }
 }
 
@@ -40,6 +36,7 @@ message ListServicesResponse {
 // GetServiceRequest specifies which service to retrieve.
 message GetServiceRequest {
   // id is the unique identifier of the service to retrieve.
+  // Format: namespace:service-name (e.g., "default:nginx-service")
   string id = 1;
 }
 
@@ -50,16 +47,17 @@ message GetServiceResponse {
 }
 
 // Service represents a Kubernetes service with its backing instances.
+// Services in different clusters that share the same name and namespace are considered the same service.
 message Service {
-  // id is a unique identifier for the service (typically namespace/name).
+  // id is a unique identifier for the service in format namespace:service-name (e.g., "default:nginx-service").
   string id = 1;
-  
+
   // name is the service name.
   string name = 2;
-  
+
   // namespace is the Kubernetes namespace containing the service.
   string namespace = 3;
-  
+
   // instances are the backend instances (pods) that serve this service.
   repeated ServiceInstance instances = 4;
 }
@@ -68,11 +66,11 @@ message Service {
 message ServiceInstance {
   // ip is the IP address of the instance.
   string ip = 1;
-  
+
   // pod is the name of the Kubernetes pod backing this instance.
   // Empty for external services or endpoints without pod references.
   string pod = 2;
-  
+
   // namespace is the Kubernetes namespace containing the pod.
   string namespace = 3;
 }

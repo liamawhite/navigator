@@ -446,7 +446,7 @@ func TestGetService(t *testing.T) {
 			}
 
 			// Test
-			serviceID := tt.namespace + "/" + tt.serviceName
+			serviceID := tt.namespace + ":" + tt.serviceName
 			result, err := ds.GetService(context.Background(), serviceID)
 
 			// Assertions
