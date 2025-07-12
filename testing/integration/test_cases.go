@@ -330,7 +330,7 @@ func RunTestCase(t *testing.T, env TestEnvironment, testCase TestCase) {
 
 	t.Run(testCase.Name, func(t *testing.T) {
 		require.NoError(t, env.Setup(t))
-		defer env.Cleanup(t)
+		defer func() { _ = env.Cleanup(t) }()
 
 		ctx, cancel := context.WithTimeout(context.Background(), testCase.Timeout)
 		defer cancel()

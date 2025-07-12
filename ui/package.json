@@ -1,0 +1,52 @@
+{
+    "name": "navigator-ui",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "dev:full": "concurrently \"npm run backend:build && npm run backend:start\" \"wait-on http://localhost:8081 && npm run dev\"",
+        "dev:air": "concurrently --kill-others-on-fail --names \"backend,frontend\" --prefix-colors \"blue,green\" \"cd .. && echo 'Starting Go backend with air...' && air\" \"echo 'Waiting for backend...' && wait-on --timeout 30000 tcp:localhost:8081 && echo 'Backend ready! Starting frontend...' && npm run dev\"",
+        "dev:simple": "npm run dev",
+        "backend:build": "cd .. && go build -o navigator cmd/navigator/main.go",
+        "backend:start": "cd .. && ./navigator serve -p 8080",
+        "build": "tsc -b && vite build",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "@tailwindcss/postcss": "4.1.11",
+        "@tailwindcss/typography": "0.5.16",
+        "@tanstack/react-query": "5.83.0",
+        "@types/react-router-dom": "5.3.3",
+        "autoprefixer": "10.4.21",
+        "axios": "1.10.0",
+        "lucide-react": "0.525.0",
+        "postcss": "8.5.6",
+        "react": "19.1.0",
+        "react-dom": "19.1.0",
+        "react-router-dom": "7.6.3",
+        "tailwindcss": "4.1.11"
+    },
+    "devDependencies": {
+        "@eslint/js": "9.30.1",
+        "@types/react": "19.1.8",
+        "@types/react-dom": "19.1.6",
+        "@vitejs/plugin-react": "4.6.0",
+        "concurrently": "9.2.0",
+        "eslint": "9.30.1",
+        "eslint-config-prettier": "9.1.0",
+        "eslint-plugin-prettier": "5.2.1",
+        "eslint-plugin-react-hooks": "5.2.0",
+        "eslint-plugin-react-refresh": "0.4.20",
+        "globals": "16.3.0",
+        "prettier": "3.4.2",
+        "typescript": "5.8.3",
+        "typescript-eslint": "8.35.1",
+        "vite": "7.0.4",
+        "wait-on": "8.0.3"
+    }
+}

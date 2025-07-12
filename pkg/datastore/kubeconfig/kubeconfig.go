@@ -11,14 +11,14 @@ import (
 
 	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	types "github.com/liamawhite/navigator/pkg/datastore"
+	"github.com/liamawhite/navigator/pkg/logging"
 )
 
 // Ensure datastore implements the ServiceDatastore interface
 var _ types.ServiceDatastore = (*datastore)(nil)
 
 type datastore struct {
-	client    kubernetes.Interface
-	namespace string
+	client kubernetes.Interface
 }
 
 func New(kubeconfigPath string) (*datastore, error) {
@@ -38,21 +38,29 @@ func New(kubeconfigPath string) (*datastore, error) {
 }
 
 func (d *datastore) ListServices(ctx context.Context, namespace string) ([]*v1alpha1.Service, error) {
+	logger := logging.LoggerFromContextOrDefault(ctx, logging.For(logging.ComponentDatastore), logging.ComponentDatastore)
+
 	// Use all namespaces if namespace is empty
 	targetNamespace := namespace
 	if targetNamespace == "" {
 		targetNamespace = metav1.NamespaceAll
 	}
 
+	logger.Debug("listing kubernetes services", "namespace", targetNamespace)
+
 	services, err := d.client.CoreV1().Services(targetNamespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
+		logger.Error("failed to list kubernetes services", "error", err, "namespace", targetNamespace)
 		return nil, fmt.Errorf("failed to list services: %w", err)
 	}
+
+	logger.Info("listed kubernetes services", "count", len(services.Items), "namespace", targetNamespace)
 
 	var result []*v1alpha1.Service
 	for _, svc := range services.Items {
 		endpoints, err := d.getEndpointsForService(ctx, svc.Name, svc.Namespace)
 		if err != nil {
+			logger.Error("failed to get endpoints for service", "error", err, "service", svc.Name, "namespace", svc.Namespace)
 			return nil, fmt.Errorf("failed to get endpoints for service %s: %w", svc.Name, err)
 		}
 
@@ -68,22 +76,31 @@ func (d *datastore) ListServices(ctx context.Context, namespace string) ([]*v1al
 }
 
 func (d *datastore) GetService(ctx context.Context, id string) (*v1alpha1.Service, error) {
+	logger := logging.LoggerFromContextOrDefault(ctx, logging.For(logging.ComponentDatastore), logging.ComponentDatastore)
+
 	// Parse namespace:name from ID
 	parts := strings.SplitN(id, ":", 2)
 	if len(parts) != 2 {
+		logger.Error("invalid service ID format", "id", id)
 		return nil, fmt.Errorf("invalid service ID format: %s (expected namespace:name)", id)
 	}
 	namespace, name := parts[0], parts[1]
 
+	logger.Debug("getting kubernetes service", "service", name, "namespace", namespace)
+
 	svc, err := d.client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
+		logger.Error("failed to get kubernetes service", "error", err, "service", name, "namespace", namespace)
 		return nil, fmt.Errorf("failed to get service %s: %w", name, err)
 	}
 
 	endpoints, err := d.getEndpointsForService(ctx, svc.Name, svc.Namespace)
 	if err != nil {
+		logger.Error("failed to get endpoints for service", "error", err, "service", svc.Name, "namespace", svc.Namespace)
 		return nil, fmt.Errorf("failed to get endpoints for service %s: %w", svc.Name, err)
 	}
+
+	logger.Info("retrieved kubernetes service", "service", name, "namespace", namespace, "instances", len(endpoints))
 
 	return &v1alpha1.Service{
 		Id:        id,
@@ -116,8 +133,8 @@ func (d *datastore) getEndpointsForService(ctx context.Context, name, namespace 
 			if podName != "" {
 				hasProxySidecar, err = d.checkForProxySidecar(ctx, podName, podNamespace)
 				if err != nil {
-					// Log warning but don't fail the request
-					// In production, you might want to use a proper logger here
+					logger := logging.LoggerFromContextOrDefault(ctx, logging.For(logging.ComponentDatastore), logging.ComponentDatastore)
+					logger.Warn("failed to check for proxy sidecar", "error", err, "pod", podName, "namespace", podNamespace)
 					hasProxySidecar = false
 				}
 			}

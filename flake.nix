@@ -15,12 +15,17 @@
             buildInputs = [
               buf
               go
+              golangci-lint
+              gosec
               protobuf
               git
               kind
               kubectl
               docker
               istioctl
+              air
+              nodejs
+              nodePackages.npm
             ];
           };
         }

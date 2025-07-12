@@ -42,7 +42,54 @@ Navigator is a gRPC-based service registry that provides Kubernetes service disc
 
 ## Development Commands
 
-### Build and Run
+### Quick Start
+```bash
+# Enter development environment
+nix develop
+
+# Start full-stack development (recommended - opens browser automatically)
+make dev
+
+# Frontend only development
+make dev-ui
+
+# Backend only development  
+make dev-backend
+```
+
+### Build Commands
+```bash
+# Build backend binary
+make build
+
+# Build frontend for production
+make build-ui
+```
+
+### Code Quality Commands
+```bash
+# Format both Go and UI code
+make format
+
+# Lint UI code (with auto-fix)
+make lint
+
+# Run all quality checks (used in CI)
+make check
+```
+
+### Logging Configuration
+```bash
+# Start with debug logging in JSON format
+./navigator serve --log-level debug --log-format json
+
+# Available log levels: debug, info, warn, error
+# Available formats: text, json
+```
+
+### Manual Development Setup
+
+#### Backend Only
 ```bash
 # Build the navigator binary
 go build -o navigator cmd/navigator/main.go
@@ -52,7 +99,27 @@ go build -o navigator cmd/navigator/main.go
 
 # Run with custom kubeconfig
 ./navigator serve --kubeconfig /path/to/kubeconfig --port 9090
+
+# Run with hot reloading
+air
 ```
+
+#### UI Development (Manual)
+```bash
+# Frontend only (connects to existing backend)
+cd ui && npm run dev
+
+# Full stack with one command (builds and starts backend + frontend)
+cd ui && npm run dev:full
+
+# Full stack with Go hot reloading
+cd ui && npm run dev:air
+```
+
+#### Environment Configuration
+- `ui/.env` - Development (uses Vite proxy - recommended)
+- `ui/.env.local` - Local development with Vite proxy
+- `ui/.env.production` - Production environment
 
 ### Testing
 ```bash
@@ -162,10 +229,21 @@ pkg/api/               # Generated protobuf code (do not edit)
 pkg/datastore/         # Datastore interfaces and implementations
   kubeconfig/          # Kubernetes client implementation
   mock/                # Mock datastore for testing
+pkg/logging/           # Structured logging with slog
+  logger.go            # Centralized logger configuration
+  interceptors.go      # gRPC request logging interceptors
+  http.go              # HTTP middleware for request logging
+  request.go           # Request context and correlation IDs
 api/                   # Protocol buffer definitions
   backend/v1alpha1/    # Service registry API definitions
   buf.yaml             # Buf configuration
   buf.gen.yaml         # Code generation configuration
+ui/                    # React frontend application
+  src/                 # TypeScript React source code
+  package.json         # UI dependencies and scripts
+  vite.config.ts       # Vite dev server with proxy configuration
+  .prettierrc          # Code formatting configuration
+  eslint.config.js     # Linting configuration
 testing/integration/   # Integration tests
   environment.go       # Abstract test environment interface
   test_cases.go        # Table-driven test case definitions
@@ -175,7 +253,59 @@ testing/integration/   # Integration tests
     fixtures.go        # Kubernetes test fixtures
     environment.go     # Local environment implementation
     local_test.go      # Local-specific test runner
+.github/workflows/     # GitHub Actions CI/CD
+  hygiene.yml          # Code formatting and generation checks
+  lint.yml             # Code quality and linting checks
 ```
+
+## UI Frontend
+
+The Navigator UI is a React application built with TypeScript and Vite, providing a web interface for service discovery.
+
+### Features
+- **Service List View**: Browse all Kubernetes services with instance counts
+- **Service Detail View**: Detailed information about service instances and endpoints
+- **Proxy Sidecar Detection**: Visual indication of services with Istio/Envoy sidecars
+- **Real-time Updates**: Auto-refresh every 5 seconds
+- **Responsive Design**: Works on mobile and desktop
+
+### Technology Stack
+- **React 19** with TypeScript
+- **Vite** for fast development and builds
+- **Tailwind CSS** for styling
+- **TanStack Query** for API state management
+- **React Router** for navigation
+- **Lucide React** for icons
+
+### Development Workflow
+- **Hot reloading** for instant feedback
+- **Vite proxy** to avoid CORS issues
+- **ESLint + Prettier** for code quality
+- **4-space indentation** for consistency
+
+## Structured Logging
+
+Navigator uses Go's built-in `slog` package for comprehensive structured logging throughout the application.
+
+### Features
+- **Centralized Configuration**: Single logger setup with `logging.For(Component)`
+- **Request Correlation**: Automatic request ID generation and propagation
+- **Component Scoping**: Separate loggers for CLI, server, gRPC, HTTP, and datastore
+- **Performance Tracking**: Request timing and performance metrics
+- **Configurable Output**: Text or JSON format with adjustable log levels
+
+### Log Levels
+- `debug` - Detailed debugging information
+- `info` - General operational information (default)
+- `warn` - Warning conditions
+- `error` - Error conditions
+
+### Request Tracing
+All HTTP and gRPC requests automatically receive:
+- **Unique request IDs** for correlation
+- **Client information** (IP addresses, user agents)
+- **Request timing** and response codes
+- **Error context** with full details
 
 ## Service IDs
 
