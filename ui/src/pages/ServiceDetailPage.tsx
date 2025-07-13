@@ -2,18 +2,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useService } from '../hooks/useServices';
 import { Navbar } from '../components/Navbar';
 import {
-    ArrowLeft,
     Server,
     Database,
     Shield,
     Circle,
     Copy,
-    ExternalLink,
     Activity,
     MapPin,
     Tag,
-    Clock,
-    Loader2,
     Hexagon,
     Home,
 } from 'lucide-react';
@@ -27,7 +23,6 @@ import {
 } from '@/components/ui/tooltip';
 import {
     Breadcrumb,
-    BreadcrumbEllipsis,
     BreadcrumbItem,
     BreadcrumbLink,
     BreadcrumbList,

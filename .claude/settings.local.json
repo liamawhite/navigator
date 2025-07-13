@@ -30,7 +30,8 @@
       "Bash(kind:*)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(npm run lint)"
     ],
     "deny": []
   }
