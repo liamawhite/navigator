@@ -273,6 +273,7 @@ The Navigator UI is a React application built with TypeScript and Vite, providin
 - **React 19** with TypeScript
 - **Vite** for fast development and builds
 - **Tailwind CSS** for styling
+- **shadcn/ui** for component library
 - **TanStack Query** for API state management
 - **React Router** for navigation
 - **Lucide React** for icons
@@ -282,6 +283,13 @@ The Navigator UI is a React application built with TypeScript and Vite, providin
 - **Vite proxy** to avoid CORS issues
 - **ESLint + Prettier** for code quality
 - **4-space indentation** for consistency
+
+### shadcn/ui Components
+- **NEVER edit shadcn/ui components directly** in `ui/src/components/ui/`
+- Always use `npx shadcn@latest add <component> --overwrite` to install/update components
+- If customization is needed, wrap components or extend them in separate files
+- Keep all shadcn components in their original upstream form
+- Use `components.json` for configuration, not direct component modification
 
 ## Structured Logging
 
