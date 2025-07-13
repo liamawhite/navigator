@@ -16,11 +16,12 @@ import (
 	grpcserver "github.com/liamawhite/navigator/internal/grpc"
 	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	kubeconfigds "github.com/liamawhite/navigator/pkg/datastore/kubeconfig"
+	"github.com/liamawhite/navigator/pkg/localenv"
 )
 
 // SharedCluster manages a single Kind cluster shared across multiple tests
 type SharedCluster struct {
-	cluster    *KindCluster
+	cluster    *localenv.KindCluster
 	client     kubernetes.Interface
 	grpcServer *grpcserver.Server
 	grpcConn   *grpc.ClientConn
@@ -35,7 +36,7 @@ func NewSharedCluster(clusterName string) (*SharedCluster, error) {
 	defer cancel()
 
 	sc := &SharedCluster{
-		cluster: NewKindCluster(clusterName),
+		cluster: localenv.NewKindCluster(clusterName),
 	}
 
 	// Clean up any existing cluster

@@ -4,9 +4,9 @@ import {
     AlertCircle,
     Server,
     Database,
-    Shield,
     ChevronUp,
     ChevronDown,
+    Hexagon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useState, useMemo } from 'react';
 
 interface ServiceListProps {
@@ -175,90 +181,100 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                 </span>
             </div>
 
-            <Card className="border-0 shadow-md">
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="group">
-                                <SortableHeader field="name">
-                                    Service
-                                </SortableHeader>
-                                <SortableHeader field="namespace">
-                                    Namespace
-                                </SortableHeader>
-                                <TableHead>Instances</TableHead>
-                                <TableHead>Proxy Sidecars</TableHead>
-                                <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {sortedServices.map((service) => {
-                                const proxiedInstances =
-                                    service.instances.filter(
-                                        (i) => i.hasProxySidecar
-                                    ).length;
+            <div className="bg-background border rounded-lg shadow-sm overflow-hidden">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="group">
+                            <SortableHeader field="name">
+                                Service
+                            </SortableHeader>
+                            <SortableHeader field="namespace">
+                                Namespace
+                            </SortableHeader>
+                            <TableHead>Instances</TableHead>
+                            <TableHead>Status</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedServices.map((service) => {
+                            const proxiedInstances = service.instances.filter(
+                                (i) => i.hasProxySidecar
+                            ).length;
 
-                                return (
-                                    <TableRow
-                                        key={service.id}
-                                        className="cursor-pointer hover:bg-muted/50"
-                                        onClick={() =>
-                                            onServiceSelect?.(service.id)
-                                        }
-                                    >
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Server className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                                <span className="font-medium text-foreground">
-                                                    {service.name}
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant="secondary"
-                                                className="text-xs text-foreground bg-muted"
-                                            >
-                                                {service.namespace}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Database className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                                <span className="text-foreground">
-                                                    {service.instances.length}
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {proxiedInstances > 0 ? (
-                                                <div className="flex items-center gap-2">
-                                                    <Shield className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                                                    <span className="text-foreground">
-                                                        {proxiedInstances}
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-muted-foreground">
-                                                    —
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
+                            return (
+                                <TableRow
+                                    key={service.id}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() =>
+                                        onServiceSelect?.(service.id)
+                                    }
+                                >
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Server className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                            <span className="font-medium text-foreground">
+                                                {service.name}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant="secondary"
+                                            className="text-xs text-foreground bg-muted"
+                                        >
+                                            {service.namespace}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Database className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                            <span className="text-foreground">
+                                                {service.instances.length}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
                                             <Badge
                                                 variant="outline"
                                                 className="text-green-700 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-700 dark:bg-green-950"
                                             >
                                                 Running
                                             </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                                            {proxiedInstances > 0 && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Hexagon className="w-4 h-4 text-purple-600 dark:text-purple-400 fill-purple-100 dark:fill-purple-900" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>
+                                                                {
+                                                                    proxiedInstances
+                                                                }{' '}
+                                                                instance
+                                                                {proxiedInstances !==
+                                                                1
+                                                                    ? 's'
+                                                                    : ''}{' '}
+                                                                with sidecar
+                                                                {proxiedInstances !==
+                                                                1
+                                                                    ? 's'
+                                                                    : ''}
+                                                            </p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            </div>
         </div>
     );
 };

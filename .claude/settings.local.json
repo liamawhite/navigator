@@ -23,7 +23,14 @@
       "Bash(npx shadcn:*)",
       "mcp__playwright__browser_navigate",
       "WebFetch(domain:ui.shadcn.com)",
-      "WebFetch(domain:tailwindcss.com)"
+      "WebFetch(domain:tailwindcss.com)",
+      "Bash(./navigator:*)",
+      "Bash(kind get:*)",
+      "Bash(kubectl --context kind-navigator-demo get pods -n demo)",
+      "Bash(kind:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }
