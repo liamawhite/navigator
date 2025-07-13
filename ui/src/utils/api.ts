@@ -19,8 +19,10 @@ export const serviceApi = {
     },
 
     getService: async (id: string): Promise<Service> => {
-        const response = await api.get<Service>(`/api/v1alpha1/services/${id}`);
-        return response.data;
+        const response = await api.get<{ service: Service }>(
+            `/api/v1alpha1/services/${id}`
+        );
+        return response.data.service;
     },
 };
 
