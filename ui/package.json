@@ -7,6 +7,7 @@
         "dev": "vite",
         "dev:full": "concurrently \"npm run backend:build && npm run backend:start\" \"wait-on http://localhost:8081 && npm run dev\"",
         "dev:air": "concurrently --kill-others-on-fail --names \"backend,frontend\" --prefix-colors \"blue,green\" \"cd .. && echo 'Starting Go backend with air...' && air\" \"echo 'Waiting for backend...' && wait-on --timeout 30000 tcp:localhost:8081 && echo 'Backend ready! Starting frontend...' && npm run dev\"",
+        "dev:cluster": "cd .. && ./tools/dev-full-stack.sh",
         "dev:simple": "npm run dev",
         "backend:build": "cd .. && go build -o navigator cmd/navigator/main.go",
         "backend:start": "cd .. && ./navigator serve -p 8080",
@@ -19,6 +20,7 @@
     },
     "dependencies": {
         "@radix-ui/react-slot": "^1.2.3",
+        "@radix-ui/react-tooltip": "^1.2.7",
         "@tailwindcss/postcss": "4.1.11",
         "@tailwindcss/typography": "0.5.16",
         "@tanstack/react-query": "5.83.0",

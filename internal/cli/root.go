@@ -44,4 +44,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text", "Log format (text, json)")
 
 	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(demoCmd)
 }

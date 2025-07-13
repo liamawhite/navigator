@@ -1,4 +1,3 @@
-import { Server } from 'lucide-react';
 import { ModeToggle } from './mode-toggle';
 
 export const Navbar: React.FC = () => {
@@ -7,8 +6,12 @@ export const Navbar: React.FC = () => {
             <div className="container mx-auto px-4">
                 <div className="flex h-16 items-center justify-between">
                     <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-500 rounded-lg">
-                            <Server className="w-5 h-5 text-white" />
+                        <div className="w-9 h-9">
+                            <img
+                                src="/navigator.svg"
+                                alt="Navigator"
+                                className="w-full h-full"
+                            />
                         </div>
                         <div>
                             <h1 className="text-xl font-bold">Navigator</h1>

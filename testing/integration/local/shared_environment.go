@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/localenv"
 	"github.com/liamawhite/navigator/testing/integration"
 )
 
@@ -13,13 +14,13 @@ import (
 type SharedEnvironment struct {
 	sharedCluster *SharedCluster
 	namespace     string
-	fixtures      *TestFixtures
+	fixtures      *localenv.Fixtures
 }
 
 // Setup implements TestEnvironment.Setup
 func (e *SharedEnvironment) Setup(t *testing.T) error {
 	// Create test namespace
-	e.fixtures = NewTestFixtures(e.sharedCluster.client, e.namespace)
+	e.fixtures = localenv.NewFixtures(e.sharedCluster.client, e.namespace)
 
 	ctx := context.Background()
 	if err := e.fixtures.CreateNamespace(ctx); err != nil {
