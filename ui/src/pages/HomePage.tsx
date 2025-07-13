@@ -1,4 +1,5 @@
 import { ServiceList } from '../components/ServiceList';
+import { Navbar } from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
 
 export const HomePage: React.FC = () => {
@@ -9,17 +10,11 @@ export const HomePage: React.FC = () => {
     };
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Navigator Service Registry
-                </h1>
-                <p className="text-gray-600">
-                    Discover and manage Kubernetes services in your cluster
-                </p>
+        <div className="min-h-screen bg-background">
+            <Navbar />
+            <div className="container mx-auto px-4 py-8">
+                <ServiceList onServiceSelect={handleServiceSelect} />
             </div>
-
-            <ServiceList onServiceSelect={handleServiceSelect} />
         </div>
     );
 };

@@ -19,7 +19,11 @@
       "Bash(mkdir:*)",
       "Bash(npm run build:*)",
       "Bash(golangci-lint run:*)",
-      "Bash(gosec:*)"
+      "Bash(gosec:*)",
+      "Bash(npx shadcn:*)",
+      "mcp__playwright__browser_navigate",
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:tailwindcss.com)"
     ],
     "deny": []
   }
