@@ -1,21 +1,103 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useService } from '../hooks/useServices';
-import { ArrowLeft, Server, Database, Shield, Circle } from 'lucide-react';
+import { Navbar } from '../components/Navbar';
+import {
+    ArrowLeft,
+    Server,
+    Database,
+    Shield,
+    Circle,
+    Copy,
+    ExternalLink,
+    Activity,
+    MapPin,
+    Tag,
+    Clock,
+    Loader2,
+    Hexagon,
+    Home,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+    Breadcrumb,
+    BreadcrumbEllipsis,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { useState } from 'react';
 
 export const ServiceDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { data: service, isLoading, error } = useService(id!);
+    const [copiedItem, setCopiedItem] = useState<string | null>(null);
+
+    const copyToClipboard = async (text: string, itemId: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedItem(itemId);
+            setTimeout(() => setCopiedItem(null), 2000);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+        }
+    };
 
     if (isLoading) {
         return (
-            <div className="container mx-auto px-4 py-8">
-                <div className="animate-pulse">
-                    <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-                    <div className="space-y-4">
-                        <div className="h-32 bg-gray-200 rounded"></div>
-                        <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="min-h-screen bg-background">
+                <Navbar />
+                <div className="container mx-auto px-4 py-8">
+                    <Breadcrumb className="mb-6">
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbLink
+                                    onClick={() => navigate('/')}
+                                    className="cursor-pointer flex items-center gap-1"
+                                >
+                                    <Home className="w-4 h-4" />
+                                    Services
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage>Loading...</BreadcrumbPage>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                    <div className="animate-pulse space-y-6">
+                        <div className="h-8 bg-muted rounded w-1/4"></div>
+                        <Card>
+                            <CardContent className="p-6">
+                                <div className="space-y-4">
+                                    <div className="h-8 bg-muted rounded w-1/3"></div>
+                                    <div className="h-4 bg-muted rounded w-1/2"></div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="h-24 bg-muted rounded"></div>
+                                        <div className="h-24 bg-muted rounded"></div>
+                                        <div className="h-24 bg-muted rounded"></div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-6">
+                                <div className="space-y-3">
+                                    <div className="h-6 bg-muted rounded w-1/4"></div>
+                                    <div className="h-20 bg-muted rounded"></div>
+                                    <div className="h-20 bg-muted rounded"></div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
             </div>
@@ -24,16 +106,38 @@ export const ServiceDetailPage: React.FC = () => {
 
     if (error || !service) {
         return (
-            <div className="container mx-auto px-4 py-8">
-                <button
-                    onClick={() => navigate('/')}
-                    className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back to Services
-                </button>
-                <div className="text-center py-12">
-                    <p className="text-red-600">Service not found</p>
+            <div className="min-h-screen bg-background">
+                <Navbar />
+                <div className="container mx-auto px-4 py-8">
+                    <Breadcrumb className="mb-6">
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbLink
+                                    onClick={() => navigate('/')}
+                                    className="cursor-pointer flex items-center gap-1"
+                                >
+                                    <Home className="w-4 h-4" />
+                                    Services
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage>Not Found</BreadcrumbPage>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                    <Card>
+                        <CardContent className="text-center py-12">
+                            <Server className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-foreground mb-2">
+                                Service not found
+                            </h3>
+                            <p className="text-muted-foreground">
+                                The service "{id}" could not be found or no
+                                longer exists.
+                            </p>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         );
@@ -41,115 +145,324 @@ export const ServiceDetailPage: React.FC = () => {
 
     const proxiedInstances = service.instances.filter((i) => i.hasProxySidecar);
     const directInstances = service.instances.filter((i) => !i.hasProxySidecar);
+    const serviceMeshEnabled = proxiedInstances.length > 0;
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <button
-                onClick={() => navigate('/')}
-                className="flex items-center text-blue-600 hover:text-blue-800 mb-6"
-            >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Services
-            </button>
+        <div className="min-h-screen bg-background">
+            <Navbar />
+            <div className="container mx-auto px-4 py-8">
+                <Breadcrumb className="mb-6">
+                    <BreadcrumbList>
+                        <BreadcrumbItem>
+                            <BreadcrumbLink
+                                onClick={() => navigate('/')}
+                                className="cursor-pointer flex items-center gap-1"
+                            >
+                                <Home className="w-4 h-4" />
+                                Services
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbPage>
+                                {service?.name || id}
+                            </BreadcrumbPage>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
 
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
-                            {service.name}
-                        </h1>
-                        <p className="text-gray-600">
-                            Namespace: {service.namespace}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Server className="w-5 h-5 text-blue-500" />
-                        <span className="text-sm font-medium text-gray-700">
-                            Service
-                        </span>
-                    </div>
+                {/* Service Header */}
+                <Card className="mb-6">
+                    <CardHeader>
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <CardTitle className="text-3xl font-bold text-foreground flex items-center gap-3">
+                                    <Server className="w-8 h-8 text-blue-500" />
+                                    {service.name}
+                                </CardTitle>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-muted-foreground">
+                                        Namespace:
+                                    </span>
+                                    <Badge variant="secondary">
+                                        {service.namespace}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            copyToClipboard(
+                                                service.id,
+                                                'service-id'
+                                            )
+                                        }
+                                    >
+                                        {copiedItem === 'service-id' ? (
+                                            <>
+                                                <Circle className="w-4 h-4 mr-2 fill-green-500 text-green-500" />
+                                                Copied!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className="w-4 h-4 mr-2" />
+                                                Copy ID
+                                            </>
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Copy service ID: {service.id}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    </CardHeader>
+                </Card>
+
+                {/* Service Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Total Instances
+                            </CardTitle>
+                            <Database className="w-4 h-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                {service.instances.length}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Running pods backing this service
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Service Mesh
+                            </CardTitle>
+                            <Shield className="w-4 h-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold flex items-center gap-2">
+                                <Circle
+                                    className={`w-3 h-3 fill-current ${serviceMeshEnabled ? 'text-green-500' : 'text-gray-400'}`}
+                                />
+                                {serviceMeshEnabled ? 'Enabled' : 'Disabled'}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {proxiedInstances.length} of{' '}
+                                {service.instances.length} instances proxied
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Health Status
+                            </CardTitle>
+                            <Activity className="w-4 h-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold flex items-center gap-2">
+                                <Circle className="w-3 h-3 fill-green-500 text-green-500" />
+                                Healthy
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                All instances are running
+                            </p>
+                        </CardContent>
+                    </Card>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6">
-                    <div>
-                        <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                {/* Service Instances */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
                             <Database className="w-5 h-5 text-green-500" />
-                            Service Instances ({service.instances.length})
-                        </h2>
-
+                            Service Instances
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {/* Direct Instances */}
                         {directInstances.length > 0 && (
-                            <div className="mb-4">
-                                <h3 className="text-md font-medium text-gray-900 mb-2">
-                                    Direct Instances
+                            <div>
+                                <h3 className="text-lg font-semibold text-foreground mb-4">
+                                    Direct Instances ({directInstances.length})
                                 </h3>
-                                <div className="space-y-3">
+                                <div className="grid gap-4">
                                     {directInstances.map((instance, index) => (
-                                        <div
+                                        <Card
                                             key={index}
-                                            className="bg-gray-50 p-3 rounded"
+                                            className="border-l-4 border-l-blue-500"
                                         >
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Circle className="w-3 h-3 text-green-500 fill-current" />
-                                                <span className="font-medium text-sm">
-                                                    {instance.ip}
-                                                </span>
-                                            </div>
-                                            {instance.pod && (
-                                                <div className="text-sm text-gray-600 ml-5">
-                                                    Pod: {instance.pod}
+                                            <CardContent className="p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Circle className="w-3 h-3 text-green-500 fill-current" />
+                                                            <span className="font-mono text-sm font-medium">
+                                                                {instance.ip}
+                                                            </span>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="text-xs"
+                                                            >
+                                                                Direct
+                                                            </Badge>
+                                                        </div>
+                                                        {instance.pod && (
+                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                                <Tag className="w-3 h-3" />
+                                                                Pod:{' '}
+                                                                <span className="font-mono">
+                                                                    {
+                                                                        instance.pod
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                            <MapPin className="w-3 h-3" />
+                                                            Namespace:{' '}
+                                                            <span className="font-mono">
+                                                                {
+                                                                    instance.namespace
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            copyToClipboard(
+                                                                instance.ip,
+                                                                `ip-${index}`
+                                                            )
+                                                        }
+                                                    >
+                                                        {copiedItem ===
+                                                        `ip-${index}` ? (
+                                                            <>
+                                                                <Circle className="w-3 h-3 mr-1 fill-green-500 text-green-500" />
+                                                                Copied
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Copy className="w-3 h-3 mr-1" />
+                                                                Copy IP
+                                                            </>
+                                                        )}
+                                                    </Button>
                                                 </div>
-                                            )}
-                                            <div className="text-sm text-gray-600 ml-5">
-                                                Namespace: {instance.namespace}
-                                            </div>
-                                        </div>
+                                            </CardContent>
+                                        </Card>
                                     ))}
                                 </div>
                             </div>
                         )}
 
+                        {/* Proxied Instances */}
                         {proxiedInstances.length > 0 && (
                             <div>
-                                <h3 className="text-md font-medium text-gray-900 mb-2 flex items-center gap-2">
-                                    <Shield className="w-4 h-4 text-orange-500" />
-                                    Instances with Proxy Sidecar
+                                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                    <Hexagon className="w-5 h-5 text-purple-600 dark:text-purple-400 fill-purple-100 dark:fill-purple-900" />
+                                    Instances with Proxy Sidecar (
+                                    {proxiedInstances.length})
                                 </h3>
-                                <div className="space-y-3">
+                                <div className="grid gap-4">
                                     {proxiedInstances.map((instance, index) => (
-                                        <div
+                                        <Card
                                             key={index}
-                                            className="bg-orange-50 p-3 rounded border border-orange-200"
+                                            className="border-l-4 border-l-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
                                         >
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Circle className="w-3 h-3 text-green-500 fill-current" />
-                                                <span className="font-medium text-sm">
-                                                    {instance.ip}
-                                                </span>
-                                                <span className="text-xs px-2 py-1 bg-orange-100 text-orange-800 rounded">
-                                                    Proxied
-                                                </span>
-                                            </div>
-                                            {instance.pod && (
-                                                <div className="text-sm text-gray-600 ml-5">
-                                                    Pod: {instance.pod}
+                                            <CardContent className="p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Circle className="w-3 h-3 text-green-500 fill-current" />
+                                                            <span className="font-mono text-sm font-medium">
+                                                                {instance.ip}
+                                                            </span>
+                                                            <Badge className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                                                <Hexagon className="w-3 h-3 mr-1 fill-current" />
+                                                                Proxied
+                                                            </Badge>
+                                                        </div>
+                                                        {instance.pod && (
+                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                                <Tag className="w-3 h-3" />
+                                                                Pod:{' '}
+                                                                <span className="font-mono">
+                                                                    {
+                                                                        instance.pod
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                            <MapPin className="w-3 h-3" />
+                                                            Namespace:{' '}
+                                                            <span className="font-mono">
+                                                                {
+                                                                    instance.namespace
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            copyToClipboard(
+                                                                instance.ip,
+                                                                `proxy-ip-${index}`
+                                                            )
+                                                        }
+                                                    >
+                                                        {copiedItem ===
+                                                        `proxy-ip-${index}` ? (
+                                                            <>
+                                                                <Circle className="w-3 h-3 mr-1 fill-green-500 text-green-500" />
+                                                                Copied
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Copy className="w-3 h-3 mr-1" />
+                                                                Copy IP
+                                                            </>
+                                                        )}
+                                                    </Button>
                                                 </div>
-                                            )}
-                                            <div className="text-sm text-gray-600 ml-5">
-                                                Namespace: {instance.namespace}
-                                            </div>
-                                        </div>
+                                            </CardContent>
+                                        </Card>
                                     ))}
                                 </div>
                             </div>
                         )}
 
                         {service.instances.length === 0 && (
-                            <p className="text-gray-500 text-sm">
-                                No instances available
-                            </p>
+                            <div className="text-center py-8">
+                                <Database className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-foreground mb-2">
+                                    No instances available
+                                </h3>
+                                <p className="text-muted-foreground">
+                                    This service currently has no running
+                                    instances.
+                                </p>
+                            </div>
                         )}
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
