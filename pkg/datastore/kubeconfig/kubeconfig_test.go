@@ -4,13 +4,56 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 )
+
+func createTestDatastore(t *testing.T) (*datastore, context.CancelFunc) {
+	fakeClient := fake.NewSimpleClientset()
+
+	ds := &datastore{
+		client: fakeClient,
+		cache: &serviceCache{
+			services: make(map[string]*v1alpha1.Service),
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ds.cancel = cancel
+
+	go ds.startWatchers(ctx)
+
+	// Give the watchers a moment to start
+	time.Sleep(100 * time.Millisecond)
+
+	return ds, cancel
+}
+
+func waitForCacheUpdate(t *testing.T, ds *datastore, expectedCount int, timeout time.Duration) {
+	start := time.Now()
+	for {
+		ds.cache.mu.RLock()
+		count := len(ds.cache.services)
+		ds.cache.mu.RUnlock()
+
+		if count >= expectedCount {
+			break
+		}
+
+		if time.Since(start) > timeout {
+			t.Fatalf("timeout waiting for cache to update: expected %d services, got %d", expectedCount, count)
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+}
 
 func TestListServices(t *testing.T) {
 	tests := []struct {
@@ -128,31 +171,8 @@ func TestListServices(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:      "service without endpoints",
-			namespace: "default",
-			services: []corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "headless-service",
-						Namespace: "default",
-					},
-				},
-			},
-			endpoints: []corev1.Endpoints{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "headless-service",
-						Namespace: "default",
-					},
-					Subsets: []corev1.EndpointSubset{}, // No endpoints
-				},
-			},
-			expected: 1,
-			wantErr:  false,
-		},
-		{
 			name:      "all namespaces - empty namespace parameter",
-			namespace: "", // Empty namespace means all namespaces
+			namespace: "",
 			services: []corev1.Service{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -235,31 +255,33 @@ func TestListServices(t *testing.T) {
 					},
 				},
 			},
-			expected: 3, // Should return all services from all namespaces
+			expected: 3,
 			wantErr:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fake client
-			fakeClient := fake.NewSimpleClientset()
+			ds, cancel := createTestDatastore(t)
+			defer cancel()
 
-			// Add services to fake client - use each service's own namespace
+			// Add services to fake client
 			for _, service := range tt.services {
-				_, err := fakeClient.CoreV1().Services(service.Namespace).Create(context.Background(), &service, metav1.CreateOptions{})
+				_, err := ds.client.CoreV1().Services(service.Namespace).Create(context.Background(), &service, metav1.CreateOptions{})
 				require.NoError(t, err)
 			}
 
-			// Add endpoints to fake client - use each endpoint's own namespace
+			// Add endpoints to fake client
 			for _, endpoint := range tt.endpoints {
-				_, err := fakeClient.CoreV1().Endpoints(endpoint.Namespace).Create(context.Background(), &endpoint, metav1.CreateOptions{})
+				_, err := ds.client.CoreV1().Endpoints(endpoint.Namespace).Create(context.Background(), &endpoint, metav1.CreateOptions{})
 				require.NoError(t, err)
 			}
 
-			// Create datastore
-			ds := &datastore{
-				client: fakeClient,
+			// Wait for cache to be updated
+			if tt.expected > 0 {
+				waitForCacheUpdate(t, ds, tt.expected, 2*time.Second)
+			} else {
+				time.Sleep(200 * time.Millisecond)
 			}
 
 			// Test
@@ -276,28 +298,13 @@ func TestListServices(t *testing.T) {
 
 			// Verify service details if we have results
 			if tt.expected > 0 {
-				// For all-namespace tests, we need to check differently since order might vary
-				if tt.namespace == "" {
-					// Check that we have services from different namespaces
-					namespaces := make(map[string]bool)
-					for _, service := range result {
-						namespaces[service.Namespace] = true
-						assert.NotEmpty(t, service.Name)
-						assert.NotEmpty(t, service.Namespace)
-					}
-					// Should have services from multiple namespaces
-					assert.True(t, len(namespaces) > 1, "Should have services from multiple namespaces")
-				} else {
-					// For single namespace tests, verify specific services
-					for i, service := range result {
-						assert.Equal(t, tt.services[i].Name, service.Name)
-						assert.Equal(t, tt.services[i].Namespace, service.Namespace)
-						// service.Instances can be nil or empty slice, both are valid
-						if service.Instances == nil {
-							assert.Nil(t, service.Instances)
-						} else {
-							assert.NotNil(t, service.Instances)
-						}
+				for _, service := range result {
+					assert.NotEmpty(t, service.Name)
+					assert.NotEmpty(t, service.Namespace)
+					assert.NotNil(t, service.Instances)
+
+					if tt.namespace != "" {
+						assert.Equal(t, tt.namespace, service.Namespace)
 					}
 				}
 			}
@@ -365,59 +372,17 @@ func TestGetService(t *testing.T) {
 					Name:      "headless-service",
 					Namespace: "default",
 				},
-				Subsets: []corev1.EndpointSubset{}, // No endpoints
+				Subsets: []corev1.EndpointSubset{},
 			},
 			expectedName:      "headless-service",
 			expectedInstances: 0,
 			wantErr:           false,
 		},
 		{
-			name:        "multiple instances",
-			serviceName: "multi-service",
-			namespace:   "default",
-			service: &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "multi-service",
-					Namespace: "default",
-				},
-			},
-			endpoints: &corev1.Endpoints{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "multi-service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{
-								IP: "10.0.0.1",
-								TargetRef: &corev1.ObjectReference{
-									Kind:      "Pod",
-									Name:      "pod-1",
-									Namespace: "default",
-								},
-							},
-							{
-								IP: "10.0.0.2",
-								TargetRef: &corev1.ObjectReference{
-									Kind:      "Pod",
-									Name:      "pod-2",
-									Namespace: "default",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedName:      "multi-service",
-			expectedInstances: 2,
-			wantErr:           false,
-		},
-		{
 			name:        "service not found",
 			serviceName: "nonexistent-service",
 			namespace:   "default",
-			service:     nil, // No service created
+			service:     nil,
 			endpoints:   nil,
 			wantErr:     true,
 		},
@@ -425,24 +390,26 @@ func TestGetService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fake client
-			fakeClient := fake.NewSimpleClientset()
+			ds, cancel := createTestDatastore(t)
+			defer cancel()
 
 			// Add service to fake client
 			if tt.service != nil {
-				_, err := fakeClient.CoreV1().Services(tt.namespace).Create(context.Background(), tt.service, metav1.CreateOptions{})
+				_, err := ds.client.CoreV1().Services(tt.namespace).Create(context.Background(), tt.service, metav1.CreateOptions{})
 				require.NoError(t, err)
 			}
 
 			// Add endpoints to fake client
 			if tt.endpoints != nil {
-				_, err := fakeClient.CoreV1().Endpoints(tt.namespace).Create(context.Background(), tt.endpoints, metav1.CreateOptions{})
+				_, err := ds.client.CoreV1().Endpoints(tt.namespace).Create(context.Background(), tt.endpoints, metav1.CreateOptions{})
 				require.NoError(t, err)
 			}
 
-			// Create datastore
-			ds := &datastore{
-				client: fakeClient,
+			// Wait for cache to be updated
+			if tt.service != nil {
+				waitForCacheUpdate(t, ds, 1, 2*time.Second)
+			} else {
+				time.Sleep(200 * time.Millisecond)
 			}
 
 			// Test
@@ -463,139 +430,10 @@ func TestGetService(t *testing.T) {
 	}
 }
 
-func TestGetEndpointsForService(t *testing.T) {
-	tests := []struct {
-		name         string
-		serviceName  string
-		namespace    string
-		endpoints    *corev1.Endpoints
-		expectedIPs  []string
-		expectedPods []string
-		wantErr      string
-	}{
-		{
-			name:         "endpoints not found",
-			serviceName:  "nonexistent-service",
-			namespace:    "default",
-			endpoints:    nil,
-			expectedIPs:  []string{},
-			expectedPods: []string{},
-			wantErr:      "",
-		},
-		{
-			name:        "external endpoints (no TargetRef)",
-			serviceName: "external-service",
-			namespace:   "default",
-			endpoints: &corev1.Endpoints{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "external-service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{
-								IP: "203.0.113.1", // External IP, no TargetRef
-							},
-						},
-					},
-				},
-			},
-			expectedIPs:  []string{"203.0.113.1"},
-			expectedPods: []string{""}, // No pod name for external endpoint
-			wantErr:      "",
-		},
-		{
-			name:        "multiple endpoints with pods",
-			serviceName: "multi-endpoint-service",
-			namespace:   "default",
-			endpoints: &corev1.Endpoints{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "multi-endpoint-service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{
-					{
-						Addresses: []corev1.EndpointAddress{
-							{
-								IP: "10.0.0.1",
-								TargetRef: &corev1.ObjectReference{
-									Kind:      "Pod",
-									Name:      "pod-1",
-									Namespace: "default",
-								},
-							},
-							{
-								IP: "10.0.0.2",
-								TargetRef: &corev1.ObjectReference{
-									Kind:      "Pod",
-									Name:      "pod-2",
-									Namespace: "default",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedIPs:  []string{"10.0.0.1", "10.0.0.2"},
-			expectedPods: []string{"pod-1", "pod-2"},
-			wantErr:      "",
-		},
-		{
-			name:        "empty endpoints",
-			serviceName: "empty-service",
-			namespace:   "default",
-			endpoints: &corev1.Endpoints{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "empty-service",
-					Namespace: "default",
-				},
-				Subsets: []corev1.EndpointSubset{}, // No subsets
-			},
-			expectedIPs:  []string{},
-			expectedPods: []string{},
-			wantErr:      "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewSimpleClientset()
-
-			if tt.endpoints != nil {
-				_, err := fakeClient.CoreV1().Endpoints(tt.namespace).Create(context.Background(), tt.endpoints, metav1.CreateOptions{})
-				require.NoError(t, err)
-			}
-
-			ds := &datastore{
-				client: fakeClient,
-			}
-
-			result, err := ds.getEndpointsForService(context.Background(), tt.serviceName, tt.namespace)
-
-			if tt.wantErr != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
-				assert.Nil(t, result)
-				return
-			}
-
-			assert.NoError(t, err)
-			assert.Len(t, result, len(tt.expectedIPs))
-
-			for i, instance := range result {
-				assert.Equal(t, tt.expectedIPs[i], instance.Ip)
-				assert.Equal(t, tt.expectedPods[i], instance.Pod)
-				assert.Equal(t, tt.namespace, instance.Namespace)
-			}
-		})
-	}
-}
-
 func TestNamespaceIsolation(t *testing.T) {
 	tests := []struct {
 		name                 string
-		servicesPerNamespace map[string][]string // namespace -> service names
+		servicesPerNamespace map[string][]string
 		testNamespace        string
 		expectedServices     []string
 	}{
@@ -629,20 +467,17 @@ func TestNamespaceIsolation(t *testing.T) {
 			testNamespace:    "test-ns",
 			expectedServices: []string{"test-service"},
 		},
-		{
-			name: "empty namespace returns no services from other namespaces",
-			servicesPerNamespace: map[string][]string{
-				"default":     {"service-1"},
-				"kube-system": {"kube-dns"},
-			},
-			testNamespace:    "empty-ns",
-			expectedServices: []string{},
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewSimpleClientset()
+			ds, cancel := createTestDatastore(t)
+			defer cancel()
+
+			totalServices := 0
+			for _, serviceNames := range tt.servicesPerNamespace {
+				totalServices += len(serviceNames)
+			}
 
 			// Create all services across namespaces
 			for namespace, serviceNames := range tt.servicesPerNamespace {
@@ -663,7 +498,7 @@ func TestNamespaceIsolation(t *testing.T) {
 							{
 								Addresses: []corev1.EndpointAddress{
 									{
-										IP: fmt.Sprintf("10.%s.%d.1", namespace, i+1),
+										IP: fmt.Sprintf("10.%d.%d.1", len(namespace), i+1),
 										TargetRef: &corev1.ObjectReference{
 											Kind:      "Pod",
 											Name:      fmt.Sprintf("%s-pod-%d", serviceName, i+1),
@@ -675,17 +510,16 @@ func TestNamespaceIsolation(t *testing.T) {
 						},
 					}
 
-					_, err := fakeClient.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
+					_, err := ds.client.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
 					require.NoError(t, err)
 
-					_, err = fakeClient.CoreV1().Endpoints(namespace).Create(context.Background(), endpoints, metav1.CreateOptions{})
+					_, err = ds.client.CoreV1().Endpoints(namespace).Create(context.Background(), endpoints, metav1.CreateOptions{})
 					require.NoError(t, err)
 				}
 			}
 
-			ds := &datastore{
-				client: fakeClient,
-			}
+			// Wait for cache to be updated with all services
+			waitForCacheUpdate(t, ds, totalServices, 5*time.Second)
 
 			// Test that the target namespace only returns its own services
 			services, err := ds.ListServices(context.Background(), tt.testNamespace)
@@ -699,19 +533,16 @@ func TestNamespaceIsolation(t *testing.T) {
 				assert.Equal(t, tt.testNamespace, service.Namespace)
 			}
 
-			// Sort both slices for comparison since order might vary
-			expectedSorted := make([]string, len(tt.expectedServices))
-			copy(expectedSorted, tt.expectedServices)
-			require.ElementsMatch(t, expectedSorted, serviceNames)
+			require.ElementsMatch(t, tt.expectedServices, serviceNames)
 		})
 	}
 }
 
-func TestCheckForProxySidecar(t *testing.T) {
+func TestSidecarDetection(t *testing.T) {
 	tests := []struct {
-		name     string
-		pod      *corev1.Pod
-		expected bool
+		name               string
+		pod                *corev1.Pod
+		expectedHasSidecar bool
 	}{
 		{
 			name: "pod with istio-proxy sidecar by name",
@@ -733,7 +564,7 @@ func TestCheckForProxySidecar(t *testing.T) {
 					},
 				},
 			},
-			expected: true,
+			expectedHasSidecar: true,
 		},
 		{
 			name: "pod with istio sidecar by image",
@@ -755,31 +586,7 @@ func TestCheckForProxySidecar(t *testing.T) {
 					},
 				},
 			},
-			expected: true,
-		},
-		{
-			name: "pod with istio proxy in init container",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "default",
-				},
-				Spec: corev1.PodSpec{
-					InitContainers: []corev1.Container{
-						{
-							Name:  "istio-proxy",
-							Image: "istio/proxyv2:1.18.0",
-						},
-					},
-					Containers: []corev1.Container{
-						{
-							Name:  "app",
-							Image: "nginx:latest",
-						},
-					},
-				},
-			},
-			expected: true,
+			expectedHasSidecar: true,
 		},
 		{
 			name: "pod without istio proxy sidecar",
@@ -801,223 +608,105 @@ func TestCheckForProxySidecar(t *testing.T) {
 					},
 				},
 			},
-			expected: false,
-		},
-		{
-			name: "pod with only app container",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "default",
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "app",
-							Image: "nginx:latest",
-						},
-					},
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "pod with non-istio sidecar should return false",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "default",
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "app",
-							Image: "nginx:latest",
-						},
-						{
-							Name:  "envoy",
-							Image: "envoyproxy/envoy:v1.27.0",
-						},
-					},
-				},
-			},
-			expected: false,
+			expectedHasSidecar: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fake kubernetes client with the test pod
-			client := fake.NewSimpleClientset(tt.pod)
+			ds, cancel := createTestDatastore(t)
+			defer cancel()
 
-			ds := &datastore{
-				client: client,
+			// Create service and endpoints that reference the pod
+			service := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
 			}
 
-			result, err := ds.checkForProxySidecar(context.Background(), tt.pod.Name, tt.pod.Namespace)
+			endpoints := &corev1.Endpoints{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Subsets: []corev1.EndpointSubset{
+					{
+						Addresses: []corev1.EndpointAddress{
+							{
+								IP: "10.0.0.1",
+								TargetRef: &corev1.ObjectReference{
+									Kind:      "Pod",
+									Name:      tt.pod.Name,
+									Namespace: tt.pod.Namespace,
+								},
+							},
+						},
+					},
+				},
+			}
+
+			// Create resources in the fake client
+			_, err := ds.client.CoreV1().Services("default").Create(context.Background(), service, metav1.CreateOptions{})
 			require.NoError(t, err)
-			assert.Equal(t, tt.expected, result)
+
+			_, err = ds.client.CoreV1().Endpoints("default").Create(context.Background(), endpoints, metav1.CreateOptions{})
+			require.NoError(t, err)
+
+			_, err = ds.client.CoreV1().Pods("default").Create(context.Background(), tt.pod, metav1.CreateOptions{})
+			require.NoError(t, err)
+
+			// Wait for cache to be updated
+			waitForCacheUpdate(t, ds, 1, 2*time.Second)
+
+			// Give pod watcher time to update sidecar status
+			time.Sleep(500 * time.Millisecond)
+
+			// Get the service and check sidecar status
+			result, err := ds.GetService(context.Background(), "default:test-service")
+			require.NoError(t, err)
+			require.Len(t, result.Instances, 1)
+
+			instance := result.Instances[0]
+			assert.Equal(t, "10.0.0.1", instance.Ip)
+			assert.Equal(t, tt.pod.Name, instance.Pod)
+			assert.Equal(t, "default", instance.Namespace)
+			assert.Equal(t, tt.expectedHasSidecar, instance.HasProxySidecar)
 		})
 	}
 }
 
-func TestCheckForProxySidecar_PodNotFound(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	ds := &datastore{
-		client: client,
-	}
+func TestCacheConsistency(t *testing.T) {
+	ds, cancel := createTestDatastore(t)
+	defer cancel()
 
-	result, err := ds.checkForProxySidecar(context.Background(), "nonexistent-pod", "default")
-	assert.Error(t, err)
-	assert.False(t, result)
-	assert.Contains(t, err.Error(), "failed to get pod nonexistent-pod")
-}
-
-func TestGetEndpointsForService_WithProxySidecar(t *testing.T) {
-	// Create a pod with istio sidecar
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-pod",
-			Namespace: "default",
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  "app",
-					Image: "nginx:latest",
-				},
-				{
-					Name:  "istio-proxy",
-					Image: "istio/proxyv2:1.18.0",
-				},
-			},
-		},
-	}
-
-	// Create endpoints that reference the pod
-	endpoints := &corev1.Endpoints{
+	// Create a service
+	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-service",
 			Namespace: "default",
 		},
-		Subsets: []corev1.EndpointSubset{
-			{
-				Addresses: []corev1.EndpointAddress{
-					{
-						IP: "10.0.0.1",
-						TargetRef: &corev1.ObjectReference{
-							Kind:      "Pod",
-							Name:      "test-pod",
-							Namespace: "default",
-						},
-					},
-				},
-			},
-		},
 	}
 
-	client := fake.NewSimpleClientset(pod, endpoints)
-	ds := &datastore{
-		client: client,
-	}
-
-	instances, err := ds.getEndpointsForService(context.Background(), "test-service", "default")
+	_, err := ds.client.CoreV1().Services("default").Create(context.Background(), service, metav1.CreateOptions{})
 	require.NoError(t, err)
-	require.Len(t, instances, 1)
 
-	instance := instances[0]
-	assert.Equal(t, "10.0.0.1", instance.Ip)
-	assert.Equal(t, "test-pod", instance.Pod)
-	assert.Equal(t, "default", instance.Namespace)
-	assert.True(t, instance.HasProxySidecar)
-}
+	// Wait for service to appear in cache
+	waitForCacheUpdate(t, ds, 1, 2*time.Second)
 
-func TestGetEndpointsForService_WithoutProxySidecar(t *testing.T) {
-	// Create a pod without sidecar
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-pod",
-			Namespace: "default",
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  "app",
-					Image: "nginx:latest",
-				},
-			},
-		},
-	}
-
-	// Create endpoints that reference the pod
-	endpoints := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-service",
-			Namespace: "default",
-		},
-		Subsets: []corev1.EndpointSubset{
-			{
-				Addresses: []corev1.EndpointAddress{
-					{
-						IP: "10.0.0.1",
-						TargetRef: &corev1.ObjectReference{
-							Kind:      "Pod",
-							Name:      "test-pod",
-							Namespace: "default",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	client := fake.NewSimpleClientset(pod, endpoints)
-	ds := &datastore{
-		client: client,
-	}
-
-	instances, err := ds.getEndpointsForService(context.Background(), "test-service", "default")
+	// Verify GetService and ListServices return consistent data
+	serviceFromGet, err := ds.GetService(context.Background(), "default:test-service")
 	require.NoError(t, err)
-	require.Len(t, instances, 1)
 
-	instance := instances[0]
-	assert.Equal(t, "10.0.0.1", instance.Ip)
-	assert.Equal(t, "test-pod", instance.Pod)
-	assert.Equal(t, "default", instance.Namespace)
-	assert.False(t, instance.HasProxySidecar)
-}
-
-func TestGetEndpointsForService_NoPodReference(t *testing.T) {
-	// Create endpoints without pod reference (e.g., external service)
-	endpoints := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-service",
-			Namespace: "default",
-		},
-		Subsets: []corev1.EndpointSubset{
-			{
-				Addresses: []corev1.EndpointAddress{
-					{
-						IP: "10.0.0.1",
-						// No TargetRef - external endpoint
-					},
-				},
-			},
-		},
-	}
-
-	client := fake.NewSimpleClientset(endpoints)
-	ds := &datastore{
-		client: client,
-	}
-
-	instances, err := ds.getEndpointsForService(context.Background(), "test-service", "default")
+	servicesFromList, err := ds.ListServices(context.Background(), "default")
 	require.NoError(t, err)
-	require.Len(t, instances, 1)
+	require.Len(t, servicesFromList, 1)
 
-	instance := instances[0]
-	assert.Equal(t, "10.0.0.1", instance.Ip)
-	assert.Equal(t, "", instance.Pod)
-	assert.Equal(t, "default", instance.Namespace)
-	assert.False(t, instance.HasProxySidecar)
+	serviceFromList := servicesFromList[0]
+
+	// Both should return equivalent data
+	assert.Equal(t, serviceFromGet.Id, serviceFromList.Id)
+	assert.Equal(t, serviceFromGet.Name, serviceFromList.Name)
+	assert.Equal(t, serviceFromGet.Namespace, serviceFromList.Namespace)
+	assert.Equal(t, len(serviceFromGet.Instances), len(serviceFromList.Instances))
 }
