@@ -42,3 +42,4 @@ export type v1alpha1RouteActionInfo = {
     hedgePolicy?: v1alpha1HedgePolicyInfo;
     maxStreamDuration?: v1alpha1MaxStreamDurationInfo;
 };
+

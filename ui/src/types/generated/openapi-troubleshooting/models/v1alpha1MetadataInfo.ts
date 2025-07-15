@@ -8,3 +8,4 @@ export type v1alpha1MetadataInfo = {
     defaultValue?: string;
     source?: string;
 };
+

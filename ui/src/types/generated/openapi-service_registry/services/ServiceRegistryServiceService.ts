@@ -19,13 +19,13 @@ export class ServiceRegistryServiceService {
      * @throws ApiError
      */
     public static serviceRegistryServiceListServices(
-        namespace?: string
+        namespace?: string,
     ): CancelablePromise<v1alpha1ListServicesResponse | rpcStatus> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1alpha1/services',
             query: {
-                namespace: namespace,
+                'namespace': namespace,
             },
         });
     }
@@ -38,13 +38,13 @@ export class ServiceRegistryServiceService {
      * @throws ApiError
      */
     public static serviceRegistryServiceGetService(
-        id: string
+        id: string,
     ): CancelablePromise<v1alpha1GetServiceResponse | rpcStatus> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1alpha1/services/{id}',
             path: {
-                id: id,
+                'id': id,
             },
         });
     }
@@ -60,14 +60,14 @@ export class ServiceRegistryServiceService {
      */
     public static serviceRegistryServiceGetServiceInstance(
         serviceId: string,
-        instanceId: string
+        instanceId: string,
     ): CancelablePromise<v1alpha1GetServiceInstanceResponse | rpcStatus> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1alpha1/services/{serviceId}/instances/{instanceId}',
             path: {
-                serviceId: serviceId,
-                instanceId: instanceId,
+                'serviceId': serviceId,
+                'instanceId': instanceId,
             },
         });
     }

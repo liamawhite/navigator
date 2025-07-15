@@ -8,3 +8,4 @@ export type v1alpha1HeaderValueMatchInfo = {
     expectMatch?: boolean;
     headers?: Array<v1alpha1HeaderMatcherInfo>;
 };
+

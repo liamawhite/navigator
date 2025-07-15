@@ -9,3 +9,4 @@ export type v1alpha1NodeSummary = {
     metadata?: Record<string, string>;
     locality?: v1alpha1LocalityInfo;
 };
+

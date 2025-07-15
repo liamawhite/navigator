@@ -6,3 +6,4 @@ export type v1alpha1RefreshRateInfo = {
     baseInterval?: string;
     maxInterval?: string;
 };
+

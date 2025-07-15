@@ -13,3 +13,4 @@ export type v1alpha1CorsInfo = {
     enabledSpecifier?: string;
     shadowEnabled?: boolean;
 };
+

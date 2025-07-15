@@ -7,3 +7,4 @@ export type v1alpha1MaxStreamDurationInfo = {
     grpcTimeoutHeaderMax?: string;
     grpcTimeoutHeaderOffset?: string;
 };
+

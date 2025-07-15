@@ -6,3 +6,4 @@ export type v1alpha1StatusRangeInfo = {
     start?: string;
     end?: string;
 };
+

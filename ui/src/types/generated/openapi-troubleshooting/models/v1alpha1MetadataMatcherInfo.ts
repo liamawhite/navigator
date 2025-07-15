@@ -8,3 +8,4 @@ export type v1alpha1MetadataMatcherInfo = {
     path?: Array<v1alpha1MetadataMatchPathInfo>;
     value?: string;
 };
+

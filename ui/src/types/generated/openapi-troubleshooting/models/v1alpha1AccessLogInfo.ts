@@ -7,3 +7,4 @@ export type v1alpha1AccessLogInfo = {
     typedConfigType?: string;
     filterType?: string;
 };
+

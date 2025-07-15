@@ -9,3 +9,4 @@ export type v1alpha1FilterSummary = {
     httpConnectionManager?: v1alpha1HTTPConnectionManagerSummary;
     tcpProxy?: v1alpha1TCPProxySummary;
 };
+

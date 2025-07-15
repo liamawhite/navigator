@@ -8,3 +8,4 @@ export type v1alpha1UpstreamConnectionOptionsInfo = {
     tcpKeepalive?: v1alpha1TcpKeepaliveInfo;
     socketOptions?: Array<v1alpha1SocketOptionInfo>;
 };
+

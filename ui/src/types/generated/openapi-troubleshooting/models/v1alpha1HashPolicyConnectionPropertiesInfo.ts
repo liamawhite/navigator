@@ -5,3 +5,4 @@
 export type v1alpha1HashPolicyConnectionPropertiesInfo = {
     sourceIp?: boolean;
 };
+

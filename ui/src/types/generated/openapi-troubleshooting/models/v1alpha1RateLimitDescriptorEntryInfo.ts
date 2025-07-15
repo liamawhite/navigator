@@ -6,3 +6,4 @@ export type v1alpha1RateLimitDescriptorEntryInfo = {
     key?: string;
     value?: string;
 };
+

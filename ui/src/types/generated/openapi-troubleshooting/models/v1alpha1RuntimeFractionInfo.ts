@@ -7,3 +7,4 @@ export type v1alpha1RuntimeFractionInfo = {
     defaultValue?: v1alpha1FractionInfo;
     runtimeKey?: string;
 };
+

@@ -8,3 +8,4 @@ export type v1alpha1LocalityLbConfigInfo = {
     zoneAwareLbConfig?: v1alpha1ZoneAwareLbConfigInfo;
     localityWeightedLbConfig?: v1alpha1LocalityWeightedLbConfigInfo;
 };
+

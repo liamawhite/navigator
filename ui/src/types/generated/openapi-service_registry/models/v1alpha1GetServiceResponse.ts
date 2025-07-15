@@ -12,3 +12,4 @@ export type v1alpha1GetServiceResponse = {
      */
     service?: v1alpha1Service;
 };
+

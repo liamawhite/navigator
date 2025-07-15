@@ -12,3 +12,4 @@ export type v1alpha1TracingInfo = {
     maxPathTagLength?: number;
     customTags?: Array<v1alpha1CustomTagInfo>;
 };
+

@@ -33,3 +33,4 @@ export type v1alpha1HealthCheckInfo = {
     tlsOptions?: v1alpha1TlsOptionsInfo;
     transportSocket?: v1alpha1TransportSocketInfo;
 };
+

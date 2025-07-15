@@ -7,3 +7,4 @@ export type v1alpha1HTTPFilterSummary = {
     typedConfigType?: string;
     disabled?: boolean;
 };
+

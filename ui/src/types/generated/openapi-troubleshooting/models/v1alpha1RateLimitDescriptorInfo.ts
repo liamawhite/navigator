@@ -6,3 +6,4 @@ import type { v1alpha1RateLimitDescriptorEntryInfo } from './v1alpha1RateLimitDe
 export type v1alpha1RateLimitDescriptorInfo = {
     entries?: Array<v1alpha1RateLimitDescriptorEntryInfo>;
 };
+

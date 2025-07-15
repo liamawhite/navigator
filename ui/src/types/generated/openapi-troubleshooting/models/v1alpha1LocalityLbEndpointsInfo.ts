@@ -11,3 +11,4 @@ export type v1alpha1LocalityLbEndpointsInfo = {
     priority?: number;
     proximity?: number;
 };
+

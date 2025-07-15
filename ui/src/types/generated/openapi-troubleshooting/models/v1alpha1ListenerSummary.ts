@@ -15,3 +15,4 @@ export type v1alpha1ListenerSummary = {
     listenerFilters?: Array<v1alpha1ListenerFilterSummary>;
     rawConfig?: string;
 };
+

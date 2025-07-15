@@ -10,3 +10,4 @@ export type v1alpha1CommonHttpProtocolOptionsInfo = {
     headersWithUnderscoresAction?: string;
     maxRequestsPerConnection?: number;
 };
+

@@ -9,3 +9,4 @@ export type v1alpha1FilterChainMatchInfo = {
     directSourcePrefixRanges?: Array<string>;
     destinationPort?: number;
 };
+

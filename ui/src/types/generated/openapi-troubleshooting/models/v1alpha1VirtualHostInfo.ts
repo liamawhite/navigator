@@ -26,3 +26,4 @@ export type v1alpha1VirtualHostInfo = {
     retryPolicy?: v1alpha1RetryPolicyInfo;
     hedgePolicy?: v1alpha1HedgePolicyInfo;
 };
+

@@ -17,3 +17,4 @@ export type v1alpha1HttpHealthCheckInfo = {
     serviceNameMatcher?: v1alpha1StringMatcherInfo;
     method?: string;
 };
+

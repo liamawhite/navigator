@@ -16,3 +16,4 @@ export type v1alpha1RetryPolicyInfo = {
     retriableHeaders?: Array<v1alpha1HeaderMatcherInfo>;
     retriableRequestHeaders?: Array<v1alpha1HeaderMatcherInfo>;
 };
+

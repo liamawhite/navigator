@@ -25,3 +25,4 @@ export type v1alpha1Service = {
      */
     instances?: Array<v1alpha1ServiceInstance>;
 };
+

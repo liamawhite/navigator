@@ -6,3 +6,4 @@ export type v1alpha1ClusterFilterInfo = {
     name?: string;
     typedConfigType?: string;
 };
+

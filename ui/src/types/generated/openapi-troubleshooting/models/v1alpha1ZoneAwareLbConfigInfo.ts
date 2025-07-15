@@ -7,3 +7,4 @@ export type v1alpha1ZoneAwareLbConfigInfo = {
     routingEnabled?: v1alpha1FractionInfo;
     minClusterSize?: string;
 };
+

@@ -7,3 +7,4 @@ export type v1alpha1EdsClusterConfigInfo = {
     edsConfig?: v1alpha1ConfigSourceInfo;
     serviceName?: string;
 };
+

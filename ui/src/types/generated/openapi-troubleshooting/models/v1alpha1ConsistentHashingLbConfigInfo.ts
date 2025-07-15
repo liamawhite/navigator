@@ -6,3 +6,4 @@ export type v1alpha1ConsistentHashingLbConfigInfo = {
     useHostnameForHashing?: boolean;
     hashBalanceFactor?: number;
 };
+

@@ -6,3 +6,4 @@ export type v1alpha1MetadataKeyInfo = {
     key?: string;
     path?: Array<string>;
 };
+

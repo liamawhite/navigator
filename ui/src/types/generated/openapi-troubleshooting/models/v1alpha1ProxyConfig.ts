@@ -48,3 +48,4 @@ export type v1alpha1ProxyConfig = {
      */
     rawConfigDump?: string;
 };
+

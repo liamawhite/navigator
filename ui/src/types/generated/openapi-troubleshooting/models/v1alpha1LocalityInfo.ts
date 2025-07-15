@@ -6,3 +6,4 @@ export type v1alpha1LocalityInfo = {
     region?: string;
     zone?: string;
 };
+

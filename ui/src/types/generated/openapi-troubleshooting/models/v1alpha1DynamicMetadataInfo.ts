@@ -8,3 +8,4 @@ export type v1alpha1DynamicMetadataInfo = {
     defaultValue?: string;
     source?: string;
 };
+

@@ -19,3 +19,4 @@ export type v1alpha1TCPProxySummary = {
     tunnelingConfig?: v1alpha1TunnelingConfigInfo;
     maxDownstreamConnectionDuration?: string;
 };
+

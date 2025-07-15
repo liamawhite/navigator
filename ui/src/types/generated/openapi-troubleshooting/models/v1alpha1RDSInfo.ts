@@ -7,3 +7,4 @@ export type v1alpha1RDSInfo = {
     configSource?: v1alpha1ConfigSourceInfo;
     routeConfigName?: string;
 };
+

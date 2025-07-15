@@ -6,3 +6,4 @@ export type v1alpha1GenericKeyInfo = {
     descriptorValue?: string;
     descriptorKey?: string;
 };
+

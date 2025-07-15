@@ -10,3 +10,4 @@ export type v1alpha1RateLimitInfo = {
     actions?: Array<v1alpha1RateLimitActionInfo>;
     limit?: v1alpha1RateLimitDescriptorInfo;
 };
+

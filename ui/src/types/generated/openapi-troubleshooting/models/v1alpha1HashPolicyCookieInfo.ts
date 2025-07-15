@@ -7,3 +7,4 @@ export type v1alpha1HashPolicyCookieInfo = {
     ttl?: string;
     path?: string;
 };
+

@@ -10,3 +10,4 @@ export type v1alpha1LbEndpointInfo = {
     metadata?: Record<string, string>;
     loadBalancingWeight?: number;
 };
+

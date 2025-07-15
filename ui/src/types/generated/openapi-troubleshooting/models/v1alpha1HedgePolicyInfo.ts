@@ -8,3 +8,4 @@ export type v1alpha1HedgePolicyInfo = {
     additionalRequestChance?: v1alpha1FractionInfo;
     hedgeOnPerTryTimeout?: boolean;
 };
+

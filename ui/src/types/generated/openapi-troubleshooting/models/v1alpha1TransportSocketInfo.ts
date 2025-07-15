@@ -6,3 +6,4 @@ export type v1alpha1TransportSocketInfo = {
     name?: string;
     typedConfigType?: string;
 };
+

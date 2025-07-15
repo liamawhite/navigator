@@ -18,3 +18,4 @@ export type v1alpha1RouteConfigSummary = {
     maxDirectResponseBodySizeBytes?: number;
     clusterSpecifierPlugins?: Array<v1alpha1ClusterSpecifierPluginInfo>;
 };
+

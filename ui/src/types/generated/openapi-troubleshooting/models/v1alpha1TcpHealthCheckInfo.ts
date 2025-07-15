@@ -6,3 +6,4 @@ export type v1alpha1TcpHealthCheckInfo = {
     send?: Array<string>;
     receive?: Array<string>;
 };
+

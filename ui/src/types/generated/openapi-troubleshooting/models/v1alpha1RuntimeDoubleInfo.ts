@@ -6,3 +6,4 @@ export type v1alpha1RuntimeDoubleInfo = {
     defaultValue?: number;
     runtimeKey?: string;
 };
+

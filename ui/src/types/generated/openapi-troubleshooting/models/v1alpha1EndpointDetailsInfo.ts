@@ -9,3 +9,4 @@ export type v1alpha1EndpointDetailsInfo = {
     hostname?: string;
     healthCheckConfig?: v1alpha1HealthCheckConfigInfo;
 };
+

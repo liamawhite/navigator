@@ -6,3 +6,4 @@ export type v1alpha1ListenerFilterSummary = {
     name?: string;
     typedConfigType?: string;
 };
+

@@ -10,3 +10,4 @@ export type v1alpha1TunnelingConfigInfo = {
     propagateResponseHeaders?: Array<string>;
     propagateResponseTrailers?: Array<string>;
 };
+

@@ -6,3 +6,4 @@ export type v1alpha1RegexRewriteInfo = {
     pattern?: string;
     substitution?: string;
 };
+

@@ -7,3 +7,4 @@ export type v1alpha1VirtualClusterInfo = {
     name?: string;
     method?: string;
 };
+

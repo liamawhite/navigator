@@ -11,3 +11,4 @@ export type v1alpha1HostInfo = {
     hostname?: string;
     healthCheckConfig?: v1alpha1HealthCheckConfigInfo;
 };
+

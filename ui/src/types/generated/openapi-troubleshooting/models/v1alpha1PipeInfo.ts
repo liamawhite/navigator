@@ -6,3 +6,4 @@ export type v1alpha1PipeInfo = {
     path?: string;
     mode?: number;
 };
+

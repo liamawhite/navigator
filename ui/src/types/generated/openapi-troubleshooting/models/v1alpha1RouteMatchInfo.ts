@@ -19,3 +19,4 @@ export type v1alpha1RouteMatchInfo = {
     tlsContext?: v1alpha1TlsContextMatchInfo;
     dynamicMetadata?: Array<v1alpha1MetadataMatcherInfo>;
 };
+

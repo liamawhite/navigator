@@ -15,3 +15,4 @@ export type v1alpha1HeaderMatcherInfo = {
     invertMatch?: boolean;
     treatMissingAsEmpty?: boolean;
 };
+

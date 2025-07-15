@@ -26,3 +26,4 @@ export type v1alpha1OutlierDetectionInfo = {
     enforcing5xxFailure?: number;
     maxEjectionTime?: string;
 };
+

@@ -7,3 +7,4 @@ export type v1alpha1HashPolicyHeaderInfo = {
     headerName?: string;
     regexRewrite?: v1alpha1RegexRewriteInfo;
 };
+

@@ -5,4 +5,6 @@
 /**
  * Add fields as needed
  */
-export type v1alpha1LocalityWeightedLbConfigInfo = {};
+export type v1alpha1LocalityWeightedLbConfigInfo = {
+};
+

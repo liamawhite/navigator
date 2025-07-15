@@ -7,3 +7,4 @@ export type v1alpha1EndpointSummary = {
     clusterName?: string;
     endpoints?: Array<v1alpha1EndpointInfo>;
 };
+

@@ -6,3 +6,4 @@ export type v1alpha1CustomHealthCheckInfo = {
     name?: string;
     typedConfigType?: string;
 };
+

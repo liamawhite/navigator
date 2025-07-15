@@ -5,4 +5,6 @@
 /**
  * Add gRPC-specific fields as needed
  */
-export type v1alpha1GrpcRouteMatchInfo = {};
+export type v1alpha1GrpcRouteMatchInfo = {
+};
+

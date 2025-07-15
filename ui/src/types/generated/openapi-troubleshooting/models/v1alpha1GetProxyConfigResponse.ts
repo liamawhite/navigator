@@ -12,3 +12,4 @@ export type v1alpha1GetProxyConfigResponse = {
      */
     proxyConfig?: v1alpha1ProxyConfig;
 };
+

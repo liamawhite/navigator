@@ -7,3 +7,4 @@ export type v1alpha1LeastRequestLbConfigInfo = {
     choiceCount?: number;
     activeRequestBias?: v1alpha1RuntimeDoubleInfo;
 };
+

@@ -20,14 +20,14 @@ export class TroubleshootingServiceService {
      */
     public static troubleshootingServiceGetProxyConfig(
         serviceId: string,
-        instanceId: string
+        instanceId: string,
     ): CancelablePromise<v1alpha1GetProxyConfigResponse | rpcStatus> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1alpha1/troubleshooting/services/{serviceId}/instances/{instanceId}/proxy-config',
             path: {
-                serviceId: serviceId,
-                instanceId: instanceId,
+                'serviceId': serviceId,
+                'instanceId': instanceId,
             },
         });
     }

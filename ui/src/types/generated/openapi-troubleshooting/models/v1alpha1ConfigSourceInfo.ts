@@ -7,3 +7,4 @@ export type v1alpha1ConfigSourceInfo = {
     transportApiVersion?: string;
     apiType?: string;
 };
+

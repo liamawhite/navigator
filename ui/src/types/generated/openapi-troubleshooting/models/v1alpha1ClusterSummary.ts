@@ -72,3 +72,4 @@ export type v1alpha1ClusterSummary = {
     dnsQueryTimeout?: string;
     edsClusterConfig?: v1alpha1EdsClusterConfigInfo;
 };
+

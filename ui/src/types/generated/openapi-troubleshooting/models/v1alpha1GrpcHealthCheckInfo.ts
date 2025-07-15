@@ -8,3 +8,4 @@ export type v1alpha1GrpcHealthCheckInfo = {
     authority?: string;
     initialMetadata?: Array<v1alpha1HeaderValueOption>;
 };
+

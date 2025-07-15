@@ -9,3 +9,4 @@ export type v1alpha1UpstreamBindConfigInfo = {
     freebindInterface?: boolean;
     socketOptions?: Array<v1alpha1SocketOptionInfo>;
 };
+

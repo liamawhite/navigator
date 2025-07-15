@@ -16,3 +16,4 @@ export type v1alpha1HashPolicyInfo = {
     filterState?: v1alpha1HashPolicyFilterStateInfo;
     terminal?: boolean;
 };
+

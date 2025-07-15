@@ -6,3 +6,4 @@ export type v1alpha1FractionInfo = {
     numerator?: number;
     denominator?: string;
 };
+

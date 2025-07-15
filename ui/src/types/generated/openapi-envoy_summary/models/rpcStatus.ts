@@ -8,3 +8,4 @@ export type rpcStatus = {
     message?: string;
     details?: Array<protobufAny>;
 };
+

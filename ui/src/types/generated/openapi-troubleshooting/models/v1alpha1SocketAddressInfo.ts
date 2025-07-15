@@ -11,3 +11,4 @@ export type v1alpha1SocketAddressInfo = {
     resolverName?: string;
     ipv4Compat?: boolean;
 };
+

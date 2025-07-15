@@ -9,3 +9,4 @@ export type v1alpha1PolicyInfo = {
     endpointStaleAfter?: string;
     disableOverprovisioning?: boolean;
 };
+

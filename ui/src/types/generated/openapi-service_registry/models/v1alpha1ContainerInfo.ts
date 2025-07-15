@@ -27,3 +27,4 @@ export type v1alpha1ContainerInfo = {
      */
     status?: string;
 };
+

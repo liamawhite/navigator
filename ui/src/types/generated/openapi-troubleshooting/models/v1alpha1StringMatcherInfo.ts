@@ -11,3 +11,4 @@ export type v1alpha1StringMatcherInfo = {
     containsMatch?: string;
     ignoreCase?: boolean;
 };
+

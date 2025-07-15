@@ -7,3 +7,4 @@ export type v1alpha1TcpKeepaliveInfo = {
     keepaliveTime?: number;
     keepaliveInterval?: number;
 };
+

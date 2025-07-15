@@ -11,3 +11,4 @@ export type v1alpha1FilterChainSummary = {
     match?: v1alpha1FilterChainMatchInfo;
     tlsContext?: v1alpha1TLSContextInfo;
 };
+

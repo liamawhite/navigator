@@ -13,3 +13,4 @@ export type v1alpha1BootstrapSummary = {
     adminAddress?: string;
     clusterManager?: v1alpha1ClusterManagerInfo;
 };
+

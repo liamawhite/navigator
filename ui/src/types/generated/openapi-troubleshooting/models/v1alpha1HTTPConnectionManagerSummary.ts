@@ -26,3 +26,4 @@ export type v1alpha1HTTPConnectionManagerSummary = {
     delayedCloseTimeout?: string;
     serverName?: string;
 };
+

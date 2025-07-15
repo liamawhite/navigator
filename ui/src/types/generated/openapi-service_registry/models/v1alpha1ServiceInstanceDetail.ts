@@ -57,3 +57,4 @@ export type v1alpha1ServiceInstanceDetail = {
      */
     nodeName?: string;
 };
+

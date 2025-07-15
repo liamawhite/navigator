@@ -7,3 +7,4 @@ export type v1alpha1DropOverloadInfo = {
     category?: string;
     dropPercentage?: v1alpha1FractionInfo;
 };
+

@@ -7,3 +7,4 @@ export type v1alpha1RingHashLbConfigInfo = {
     hashFunction?: string;
     maximumRingSize?: string;
 };
+

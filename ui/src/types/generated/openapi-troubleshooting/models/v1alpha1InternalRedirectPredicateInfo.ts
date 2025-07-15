@@ -6,3 +6,4 @@ export type v1alpha1InternalRedirectPredicateInfo = {
     name?: string;
     typedConfigType?: string;
 };
+

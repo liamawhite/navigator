@@ -7,3 +7,4 @@ export type v1alpha1QueryParameterMatcherInfo = {
     stringMatch?: string;
     presentMatch?: boolean;
 };
+

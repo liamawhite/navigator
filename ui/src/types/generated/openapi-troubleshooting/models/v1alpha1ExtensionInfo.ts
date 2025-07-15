@@ -6,3 +6,4 @@ export type v1alpha1ExtensionInfo = {
     name?: string;
     typedConfigType?: string;
 };
+

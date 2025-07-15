@@ -20,3 +20,4 @@ export type v1alpha1RateLimitActionInfo = {
     metadata?: v1alpha1MetadataInfo;
     extension?: v1alpha1ExtensionInfo;
 };
+

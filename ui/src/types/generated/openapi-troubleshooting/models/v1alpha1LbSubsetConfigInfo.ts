@@ -14,3 +14,4 @@ export type v1alpha1LbSubsetConfigInfo = {
     metadataFallbackPolicy?: string;
     allowRedundantKeys?: boolean;
 };
+

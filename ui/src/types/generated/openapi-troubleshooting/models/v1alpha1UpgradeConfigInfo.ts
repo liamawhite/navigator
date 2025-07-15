@@ -6,3 +6,4 @@ export type v1alpha1UpgradeConfigInfo = {
     upgradeType?: string;
     enabled?: boolean;
 };
+

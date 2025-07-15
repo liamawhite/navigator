@@ -9,3 +9,4 @@ export type v1alpha1SocketOptionInfo = {
     bufValue?: string;
     state?: string;
 };
+

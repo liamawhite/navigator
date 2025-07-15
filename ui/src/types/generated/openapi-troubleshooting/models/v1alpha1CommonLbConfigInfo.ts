@@ -15,3 +15,4 @@ export type v1alpha1CommonLbConfigInfo = {
     closeConnectionsOnHostSetChange?: boolean;
     consistentHashingLbConfig?: v1alpha1ConsistentHashingLbConfigInfo;
 };
+

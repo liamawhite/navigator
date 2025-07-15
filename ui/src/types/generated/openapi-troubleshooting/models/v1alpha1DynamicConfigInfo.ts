@@ -12,3 +12,4 @@ export type v1alpha1DynamicConfigInfo = {
     sdsConfig?: v1alpha1ConfigSourceInfo;
     initialFetchTimeout?: string;
 };
+

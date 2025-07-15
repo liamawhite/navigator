@@ -12,3 +12,4 @@ export type v1alpha1ListServicesResponse = {
      */
     services?: Array<v1alpha1Service>;
 };
+

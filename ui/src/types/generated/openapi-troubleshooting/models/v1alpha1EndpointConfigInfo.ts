@@ -9,3 +9,4 @@ export type v1alpha1EndpointConfigInfo = {
     endpoints?: Array<v1alpha1LocalityLbEndpointsInfo>;
     policy?: v1alpha1PolicyInfo;
 };
+

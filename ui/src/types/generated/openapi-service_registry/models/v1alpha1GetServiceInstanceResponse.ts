@@ -12,3 +12,4 @@ export type v1alpha1GetServiceInstanceResponse = {
      */
     instance?: v1alpha1ServiceInstanceDetail;
 };
+

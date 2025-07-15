@@ -8,3 +8,4 @@ export type v1alpha1RequestMirrorPolicy = {
     runtimeFraction?: v1alpha1RuntimeFractionInfo;
     traceSampled?: boolean;
 };
+

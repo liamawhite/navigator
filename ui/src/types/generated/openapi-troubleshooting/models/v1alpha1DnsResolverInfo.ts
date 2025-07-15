@@ -7,3 +7,4 @@ export type v1alpha1DnsResolverInfo = {
     socketAddress?: v1alpha1SocketAddressInfo;
     resolverOptions?: Array<string>;
 };
+

@@ -11,3 +11,4 @@ export type v1alpha1CustomTagInfo = {
     requestHeaderToAdd?: string;
     responseHeaderToAdd?: string;
 };
+

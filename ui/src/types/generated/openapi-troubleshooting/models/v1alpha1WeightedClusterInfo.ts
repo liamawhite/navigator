@@ -13,3 +13,4 @@ export type v1alpha1WeightedClusterInfo = {
     responseHeadersToRemove?: Array<string>;
     hostRewriteSpecifier?: string;
 };
+

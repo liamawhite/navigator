@@ -8,3 +8,4 @@ export type v1alpha1LbSubsetSelectorInfo = {
     fallbackPolicy?: string;
     fallbackKeysSubset?: Array<string>;
 };
+

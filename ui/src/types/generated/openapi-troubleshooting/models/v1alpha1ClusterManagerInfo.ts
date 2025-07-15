@@ -10,3 +10,4 @@ export type v1alpha1ClusterManagerInfo = {
     connectTimeout?: string;
     perConnectionBufferLimitBytes?: number;
 };
+

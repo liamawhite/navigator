@@ -9,3 +9,4 @@ export type v1alpha1InternalRedirectPolicyInfo = {
     predicates?: Array<v1alpha1InternalRedirectPredicateInfo>;
     allowCrossSchemeRedirect?: boolean;
 };
+
