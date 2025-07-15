@@ -9,20 +9,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-
-interface RouteConfigSummary {
-    name: string;
-    virtualHosts?: { length: number };
-    validateClusters: boolean;
-    internalOnlyHeaders?: { length: number };
-    requestHeadersToAdd?: { length: number };
-    requestHeadersToRemove?: { length: number };
-    responseHeadersToAdd?: { length: number };
-    responseHeadersToRemove?: { length: number };
-}
+import type { v1alpha1RouteConfigSummary } from '@/types/generated/openapi-troubleshooting';
 
 interface RoutesTableProps {
-    routes: RouteConfigSummary[];
+    routes: v1alpha1RouteConfigSummary[];
 }
 
 type SortConfig = {
@@ -59,8 +49,12 @@ export const RoutesTable: React.FC<RoutesTableProps> = ({ routes }) => {
     const sortedRoutes = [...routes].sort((a, b) => {
         if (!sortConfig) return 0;
 
-        let aVal: any = a[sortConfig.key as keyof RouteConfigSummary];
-        let bVal: any = b[sortConfig.key as keyof RouteConfigSummary];
+        let aVal: string | number | boolean | undefined = a[
+            sortConfig.key as keyof v1alpha1RouteConfigSummary
+        ] as string | number | boolean | undefined;
+        let bVal: string | number | boolean | undefined = b[
+            sortConfig.key as keyof v1alpha1RouteConfigSummary
+        ] as string | number | boolean | undefined;
 
         // Handle special cases
         if (sortConfig.key === 'virtualHosts') {

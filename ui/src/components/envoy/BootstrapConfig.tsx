@@ -7,26 +7,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-
-interface BootstrapSummary {
-    node?: {
-        id: string;
-        cluster: string;
-        locality?: {
-            region: string;
-            zone: string;
-        };
-        metadata?: Record<string, string>;
-    };
-    adminAddress: string;
-    adminPort: number;
-    staticResourcesVersion: string;
-    dynamicResourcesConfig?: any;
-    clusterManager?: any;
-}
+import type { v1alpha1BootstrapSummary } from '@/types/generated/openapi-troubleshooting';
 
 interface BootstrapConfigProps {
-    bootstrap: BootstrapSummary | null;
+    bootstrap: v1alpha1BootstrapSummary | null;
 }
 
 export const BootstrapConfig: React.FC<BootstrapConfigProps> = ({

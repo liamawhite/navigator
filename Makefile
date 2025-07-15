@@ -23,6 +23,7 @@ test-integration:
 
 generate:
 	cd api && buf generate
+	cd ui && npm ci && npm run generate
 
 dirty:
 	git diff --exit-code

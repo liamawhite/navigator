@@ -10,19 +10,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { RawConfigDialog } from '@/components/envoy/RawConfigDialog';
-
-interface ListenerSummary {
-    name: string;
-    address: string;
-    port: number;
-    type: string;
-    filterChains?: { length: number };
-    listenerFilters?: { length: number };
-    rawConfig: string; // JSON representation of the full listener config
-}
+import type { v1alpha1ListenerSummary } from '@/types/generated/openapi-troubleshooting';
 
 interface ListenersTableProps {
-    listeners: ListenerSummary[];
+    listeners: v1alpha1ListenerSummary[];
 }
 
 type SortConfig = {
@@ -31,11 +22,12 @@ type SortConfig = {
 } | null;
 
 // Helper functions for listener type formatting and styling
-const formatListenerType = (type: string): string => {
+const formatListenerType = (type?: string | number): string => {
     if (!type) return 'unknown';
 
-    // Convert enum values to display format
-    switch (type.toUpperCase()) {
+    // Convert enum values to display format - handle both string and numeric types
+    const typeStr = String(type).toUpperCase();
+    switch (typeStr) {
         case '0':
         case 'INBOUND':
             return 'inbound';
@@ -64,16 +56,17 @@ const formatListenerType = (type: string): string => {
         case 'ADMIN_DEBUG':
             return 'admin_debug';
         default:
-            return type.toLowerCase().replace(/\s+/g, '_');
+            return String(type).toLowerCase().replace(/\s+/g, '_');
     }
 };
 
 const getTypeVariant = (
-    type: string
+    type?: string | number
 ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     if (!type) return 'outline';
 
-    switch (type.toUpperCase()) {
+    const typeStr = String(type).toUpperCase();
+    switch (typeStr) {
         case '0':
         case 'INBOUND':
             return 'default'; // Blue - regular inbound
@@ -103,16 +96,16 @@ const getTypeVariant = (
 };
 
 // Helper function to group listeners by type
-const groupListenersByType = (listeners: ListenerSummary[]) => {
+const groupListenersByType = (listeners: v1alpha1ListenerSummary[]) => {
     const groups = {
-        virtual: [] as ListenerSummary[],
-        inbound: [] as ListenerSummary[],
-        outbound: [] as ListenerSummary[],
-        admin: [] as ListenerSummary[],
+        virtual: [] as v1alpha1ListenerSummary[],
+        inbound: [] as v1alpha1ListenerSummary[],
+        outbound: [] as v1alpha1ListenerSummary[],
+        admin: [] as v1alpha1ListenerSummary[],
     };
 
     listeners.forEach((listener) => {
-        const type = listener.type?.toLowerCase();
+        const type = String(listener.type || '').toLowerCase();
         if (
             type === 'virtual_inbound' ||
             type === 'virtual_outbound' ||
@@ -136,7 +129,7 @@ const groupListenersByType = (listeners: ListenerSummary[]) => {
 // Helper component for rendering a group of listeners
 const ListenerGroup: React.FC<{
     title: string;
-    listeners: ListenerSummary[];
+    listeners: v1alpha1ListenerSummary[];
     sortConfig: SortConfig;
     handleSort: (key: string) => void;
     getSortIcon: (key: string) => React.ReactNode;
@@ -146,8 +139,12 @@ const ListenerGroup: React.FC<{
     const sortedListeners = [...listeners].sort((a, b) => {
         if (!sortConfig) return 0;
 
-        let aVal: any = a[sortConfig.key as keyof ListenerSummary];
-        let bVal: any = b[sortConfig.key as keyof ListenerSummary];
+        let aVal: string | number | undefined = a[
+            sortConfig.key as keyof v1alpha1ListenerSummary
+        ] as string | number | undefined;
+        let bVal: string | number | undefined = b[
+            sortConfig.key as keyof v1alpha1ListenerSummary
+        ] as string | number | undefined;
 
         // Handle special cases
         if (sortConfig.key === 'filterChains') {
@@ -272,8 +269,8 @@ const ListenerGroup: React.FC<{
                             </TableCell>
                             <TableCell>
                                 <RawConfigDialog
-                                    name={listener.name}
-                                    rawConfig={listener.rawConfig}
+                                    name={listener.name || 'Unknown'}
+                                    rawConfig={listener.rawConfig || '{}'}
                                     configType="Listener"
                                 />
                             </TableCell>

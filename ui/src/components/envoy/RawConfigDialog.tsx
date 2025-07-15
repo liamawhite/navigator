@@ -47,7 +47,7 @@ export const RawConfigDialog: React.FC<RawConfigDialogProps> = ({
                 const jsonObj = JSON.parse(rawConfig);
                 return JSON.stringify(jsonObj, null, 4);
             }
-        } catch (error) {
+        } catch {
             return 'Error parsing configuration';
         }
     }, [rawConfig, format]);

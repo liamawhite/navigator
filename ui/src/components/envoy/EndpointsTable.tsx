@@ -9,23 +9,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-
-interface EndpointInfo {
-    clusterName: string;
-    address: string;
-    port: number;
-    health: string;
-    priority: number;
-    weight: number;
-    loadBalancingWeight?: number;
-    hostIdentifier: string;
-}
+import type { v1alpha1EndpointSummary } from '@/types/generated/openapi-troubleshooting';
+import type { v1alpha1EndpointInfo } from '@/types/generated/openapi-troubleshooting';
 
 interface EndpointsTableProps {
-    endpoints: {
-        clusterName: string;
-        endpoints: EndpointInfo[];
-    }[];
+    endpoints: v1alpha1EndpointSummary[];
 }
 
 type SortConfig = {
@@ -73,8 +61,16 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
     const sortedEndpoints = [...flatEndpoints].sort((a, b) => {
         if (!sortConfig) return 0;
 
-        let aVal: any = a[sortConfig.key as keyof EndpointInfo];
-        let bVal: any = b[sortConfig.key as keyof EndpointInfo];
+        let aVal: string | number | undefined = a[
+            sortConfig.key as keyof (v1alpha1EndpointInfo & {
+                clusterName?: string;
+            })
+        ] as string | number | undefined;
+        let bVal: string | number | undefined = b[
+            sortConfig.key as keyof (v1alpha1EndpointInfo & {
+                clusterName?: string;
+            })
+        ] as string | number | undefined;
 
         // Handle weight special case
         if (sortConfig.key === 'weight') {

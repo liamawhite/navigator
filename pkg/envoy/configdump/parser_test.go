@@ -15,7 +15,7 @@ import (
 // Helper function to load config dump from testdata as JSON string
 func loadConfigDumpString(t *testing.T, filename string) string {
 	configPath := filepath.Join("testdata", filename)
-	configDumpBytes, err := os.ReadFile(configPath)
+	configDumpBytes, err := os.ReadFile(configPath) //nolint:gosec
 	require.NoError(t, err, "failed to read test config dump: %s", configPath)
 
 	return string(configDumpBytes)
@@ -24,7 +24,7 @@ func loadConfigDumpString(t *testing.T, filename string) string {
 // Helper function to load real config dump (which is stored as proper JSON)
 func loadRealConfigDumpString(t *testing.T, filename string) string {
 	configPath := filepath.Join("testdata", filename)
-	configDumpBytes, err := os.ReadFile(configPath)
+	configDumpBytes, err := os.ReadFile(configPath) //nolint:gosec
 	require.NoError(t, err, "failed to read test config dump: %s", configPath)
 
 	// The real config dump is now stored as proper JSON, so we return it as-is

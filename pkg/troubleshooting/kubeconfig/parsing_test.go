@@ -18,7 +18,7 @@ import (
 // Helper function to load and parse config dump from configdump testdata
 func loadConfigDump(t *testing.T, filename string) map[string]interface{} {
 	configPath := filepath.Join("../../envoy/configdump/testdata", filename)
-	configDumpBytes, err := os.ReadFile(configPath)
+	configDumpBytes, err := os.ReadFile(configPath) //nolint:gosec
 	require.NoError(t, err, "failed to read test config dump: %s", configPath)
 
 	var configJSON map[string]interface{}
@@ -31,7 +31,7 @@ func loadConfigDump(t *testing.T, filename string) map[string]interface{} {
 // Helper function to load real config dump (which is stored as direct JSON)
 func loadRealConfigDump(t *testing.T, filename string) map[string]interface{} {
 	configPath := filepath.Join("../../envoy/configdump/testdata", filename)
-	configDumpBytes, err := os.ReadFile(configPath)
+	configDumpBytes, err := os.ReadFile(configPath) //nolint:gosec
 	require.NoError(t, err, "failed to read test config dump: %s", configPath)
 
 	// The real config dump is stored as direct JSON

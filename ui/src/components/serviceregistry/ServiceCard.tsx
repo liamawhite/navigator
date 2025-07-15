@@ -1,10 +1,10 @@
-import type { Service } from '../../types/service';
+import type { v1alpha1Service } from '../../types/generated/openapi';
 import { Server, Database, Hexagon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 interface ServiceCardProps {
-    service: Service;
+    service: v1alpha1Service;
     onClick?: () => void;
 }
 
@@ -12,9 +12,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
     service,
     onClick,
 }) => {
-    const proxiedInstances = service.instances.filter(
-        (i) => i.isEnvoyPresent
-    ).length;
+    const proxiedInstances =
+        service.instances?.filter((i) => i.isEnvoyPresent).length || 0;
 
     return (
         <Card
@@ -37,8 +36,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
                 <div className="flex items-center gap-2">
                     <Database className="w-4 h-4 text-green-500" />
                     <span className="text-sm text-slate-600">
-                        {service.instances.length} instance
-                        {service.instances.length !== 1 ? 's' : ''}
+                        {service.instances?.length || 0} instance
+                        {(service.instances?.length || 0) !== 1 ? 's' : ''}
                     </span>
                 </div>
 

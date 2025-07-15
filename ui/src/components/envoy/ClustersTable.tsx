@@ -9,20 +9,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-
-interface ClusterSummary {
-    name: string;
-    type: string;
-    loadBalancingPolicy: string;
-    connectTimeout: string;
-    loadAssignment?: {
-        endpoints?: { length: number };
-    };
-    healthChecks?: { length: number };
-}
+import type { v1alpha1ClusterSummary } from '@/types/generated/openapi-troubleshooting';
 
 interface ClustersTableProps {
-    clusters: ClusterSummary[];
+    clusters: v1alpha1ClusterSummary[];
 }
 
 type SortConfig = {
@@ -59,8 +49,12 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
     const sortedClusters = [...clusters].sort((a, b) => {
         if (!sortConfig) return 0;
 
-        let aVal: any = a[sortConfig.key as keyof ClusterSummary];
-        let bVal: any = b[sortConfig.key as keyof ClusterSummary];
+        let aVal: string | number | undefined = a[
+            sortConfig.key as keyof v1alpha1ClusterSummary
+        ] as string | number | undefined;
+        let bVal: string | number | undefined = b[
+            sortConfig.key as keyof v1alpha1ClusterSummary
+        ] as string | number | undefined;
 
         // Handle special cases
         if (sortConfig.key === 'endpoints') {
@@ -168,7 +162,9 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
                         </TableCell>
                         <TableCell>
                             <span className="text-sm">
-                                {cluster.loadBalancingPolicy || 'N/A'}
+                                {cluster.loadBalancingPolicy ||
+                                    cluster.lbPolicy ||
+                                    'N/A'}
                             </span>
                         </TableCell>
                         <TableCell>
