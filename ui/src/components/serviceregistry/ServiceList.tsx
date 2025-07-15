@@ -1,4 +1,4 @@
-import { useServices } from '../hooks/useServices';
+import { useServices } from '../../hooks/useServices';
 import {
     Loader2,
     AlertCircle,
@@ -7,6 +7,7 @@ import {
     ChevronUp,
     ChevronDown,
     Hexagon,
+    Globe,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -191,6 +192,7 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                             <SortableHeader field="namespace">
                                 Namespace
                             </SortableHeader>
+                            <TableHead>Clusters</TableHead>
                             <TableHead>Instances</TableHead>
                             <TableHead>Status</TableHead>
                         </TableRow>
@@ -198,8 +200,12 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                     <TableBody>
                         {sortedServices.map((service) => {
                             const proxiedInstances = service.instances.filter(
-                                (i) => i.hasProxySidecar
+                                (i) => i.isEnvoyPresent
                             ).length;
+
+                            const uniqueClusters = new Set(
+                                service.instances.map((i) => i.clusterName)
+                            ).size;
 
                             return (
                                 <TableRow
@@ -227,6 +233,14 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
+                                            <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                            <span className="text-foreground">
+                                                {uniqueClusters}
+                                            </span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
                                             <Database className="w-4 h-4 text-green-600 dark:text-green-400" />
                                             <span className="text-foreground">
                                                 {service.instances.length}
@@ -249,19 +263,12 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                                                         </TooltipTrigger>
                                                         <TooltipContent>
                                                             <p>
-                                                                {
-                                                                    proxiedInstances
-                                                                }{' '}
-                                                                instance
-                                                                {proxiedInstances !==
-                                                                1
-                                                                    ? 's'
-                                                                    : ''}{' '}
-                                                                with sidecar
-                                                                {proxiedInstances !==
-                                                                1
-                                                                    ? 's'
-                                                                    : ''}
+                                                                {proxiedInstances ===
+                                                                service
+                                                                    .instances
+                                                                    .length
+                                                                    ? 'Envoy present in all instances'
+                                                                    : `Envoy present in ${proxiedInstances} of ${service.instances.length} instances`}
                                                             </p>
                                                         </TooltipContent>
                                                     </Tooltip>

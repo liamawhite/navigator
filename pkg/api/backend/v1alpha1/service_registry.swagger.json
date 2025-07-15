@@ -79,6 +79,45 @@
           "ServiceRegistryService"
         ]
       }
+    },
+    "/api/v1alpha1/services/{serviceId}/instances/{instanceId}": {
+      "get": {
+        "summary": "GetServiceInstance returns detailed information about a specific service instance.",
+        "operationId": "ServiceRegistryService_GetServiceInstance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetServiceInstanceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "serviceId",
+            "description": "service_id is the unique identifier of the service.\nFormat: namespace:service-name (e.g., \"default:nginx-service\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "instanceId",
+            "description": "instance_id is the unique identifier of the specific service instance.\nFormat: cluster_name:namespace:pod_name (e.g., \"prod-west:default:nginx-abc123\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -109,6 +148,43 @@
           }
         }
       }
+    },
+    "v1alpha1ContainerInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the container."
+        },
+        "image": {
+          "type": "string",
+          "description": "image is the container image being used."
+        },
+        "ready": {
+          "type": "boolean",
+          "description": "ready indicates whether the container is ready to serve requests."
+        },
+        "restartCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "restart_count is the number of times the container has been restarted."
+        },
+        "status": {
+          "type": "string",
+          "description": "status indicates the current status of the container (e.g., \"Running\", \"Waiting\", \"Terminated\")."
+        }
+      },
+      "description": "ContainerInfo represents information about a container in a pod."
+    },
+    "v1alpha1GetServiceInstanceResponse": {
+      "type": "object",
+      "properties": {
+        "instance": {
+          "$ref": "#/definitions/v1alpha1ServiceInstanceDetail",
+          "description": "instance contains the detailed service instance information."
+        }
+      },
+      "description": "GetServiceInstanceResponse contains the requested service instance details."
     },
     "v1alpha1GetServiceResponse": {
       "type": "object",
@@ -163,6 +239,10 @@
     "v1alpha1ServiceInstance": {
       "type": "object",
       "properties": {
+        "instanceId": {
+          "type": "string",
+          "title": "instance_id is a unique identifier for this instance across all clusters.\nFormat: cluster_name:namespace:pod_name (e.g., \"prod-west:default:nginx-abc123\")"
+        },
         "ip": {
           "type": "string",
           "description": "ip is the IP address of the instance."
@@ -175,12 +255,84 @@
           "type": "string",
           "description": "namespace is the Kubernetes namespace containing the pod."
         },
-        "hasProxySidecar": {
+        "clusterName": {
+          "type": "string",
+          "description": "cluster_name is the name of the Kubernetes cluster this instance belongs to."
+        },
+        "isEnvoyPresent": {
           "type": "boolean",
-          "description": "has_proxy_sidecar indicates whether this instance has a proxy sidecar (e.g., Istio, Envoy)."
+          "description": "is_envoy_present indicates whether this instance has an Envoy proxy sidecar."
         }
       },
       "description": "ServiceInstance represents a single backend instance serving a service."
+    },
+    "v1alpha1ServiceInstanceDetail": {
+      "type": "object",
+      "properties": {
+        "instanceId": {
+          "type": "string",
+          "title": "instance_id is a unique identifier for this instance across all clusters.\nFormat: cluster_name:namespace:pod_name (e.g., \"prod-west:default:nginx-abc123\")"
+        },
+        "ip": {
+          "type": "string",
+          "description": "ip is the IP address of the instance."
+        },
+        "pod": {
+          "type": "string",
+          "description": "pod is the name of the Kubernetes pod backing this instance."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the Kubernetes namespace containing the pod."
+        },
+        "clusterName": {
+          "type": "string",
+          "description": "cluster_name is the name of the Kubernetes cluster this instance belongs to."
+        },
+        "isEnvoyPresent": {
+          "type": "boolean",
+          "description": "is_envoy_present indicates whether this instance has an Envoy proxy sidecar."
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "service_name is the name of the service this instance belongs to."
+        },
+        "podStatus": {
+          "type": "string",
+          "description": "pod_status indicates the current status of the pod (e.g., \"Running\", \"Pending\", \"Failed\")."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "created_at is the timestamp when the pod was created."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "labels are the Kubernetes labels applied to the pod."
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "annotations are the Kubernetes annotations applied to the pod."
+        },
+        "containers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ContainerInfo"
+          },
+          "description": "containers lists all containers in the pod."
+        },
+        "nodeName": {
+          "type": "string",
+          "description": "node_name is the name of the Kubernetes node where the pod is running."
+        }
+      },
+      "description": "ServiceInstanceDetail represents detailed information about a specific service instance."
     }
   }
 }

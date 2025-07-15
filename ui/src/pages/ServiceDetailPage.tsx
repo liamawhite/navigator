@@ -4,18 +4,25 @@ import { Navbar } from '../components/Navbar';
 import {
     Server,
     Database,
-    Shield,
     Circle,
     Copy,
     Activity,
     MapPin,
-    Tag,
     Hexagon,
     Home,
+    Globe,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import {
     Tooltip,
     TooltipContent,
@@ -138,9 +145,13 @@ export const ServiceDetailPage: React.FC = () => {
         );
     }
 
-    const proxiedInstances = service.instances.filter((i) => i.hasProxySidecar);
-    const directInstances = service.instances.filter((i) => !i.hasProxySidecar);
+    const proxiedInstances = service.instances.filter((i) => i.isEnvoyPresent);
     const serviceMeshEnabled = proxiedInstances.length > 0;
+
+    const uniqueClusters = [
+        ...new Set(service.instances.map((i) => i.clusterName)),
+    ];
+    const clusterCount = uniqueClusters.length;
 
     return (
         <div className="min-h-screen bg-background">
@@ -183,6 +194,32 @@ export const ServiceDetailPage: React.FC = () => {
                                     <Badge variant="secondary">
                                         {service.namespace}
                                     </Badge>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <Globe className="w-4 h-4 text-muted-foreground" />
+                                    <span className="text-muted-foreground">
+                                        {clusterCount === 1
+                                            ? 'Cluster:'
+                                            : 'Clusters:'}
+                                    </span>
+                                    <div className="flex gap-1 flex-wrap">
+                                        {uniqueClusters.map((cluster) => (
+                                            <Badge
+                                                key={cluster}
+                                                variant="outline"
+                                            >
+                                                {cluster}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                    {clusterCount > 1 && (
+                                        <Badge
+                                            variant="secondary"
+                                            className="ml-1"
+                                        >
+                                            {clusterCount} total
+                                        </Badge>
+                                    )}
                                 </div>
                             </div>
                             <Tooltip>
@@ -240,9 +277,9 @@ export const ServiceDetailPage: React.FC = () => {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
-                                Service Mesh
+                                Envoy
                             </CardTitle>
-                            <Shield className="w-4 h-4 text-muted-foreground" />
+                            <Hexagon className="w-4 h-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold flex items-center gap-2">
@@ -252,8 +289,10 @@ export const ServiceDetailPage: React.FC = () => {
                                 {serviceMeshEnabled ? 'Enabled' : 'Disabled'}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                {proxiedInstances.length} of{' '}
-                                {service.instances.length} instances proxied
+                                {proxiedInstances.length ===
+                                service.instances.length
+                                    ? 'Envoy present in all instances'
+                                    : `Envoy present in ${proxiedInstances.length} of ${service.instances.length} instances`}
                             </p>
                         </CardContent>
                     </Card>
@@ -285,166 +324,72 @@ export const ServiceDetailPage: React.FC = () => {
                             Service Instances
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* Direct Instances */}
-                        {directInstances.length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-foreground mb-4">
-                                    Direct Instances ({directInstances.length})
-                                </h3>
-                                <div className="grid gap-4">
-                                    {directInstances.map((instance, index) => (
-                                        <Card
-                                            key={index}
-                                            className="border-l-4 border-l-blue-500"
-                                        >
-                                            <CardContent className="p-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Circle className="w-3 h-3 text-green-500 fill-current" />
-                                                            <span className="font-mono text-sm font-medium">
-                                                                {instance.ip}
-                                                            </span>
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="text-xs"
-                                                            >
-                                                                Direct
-                                                            </Badge>
-                                                        </div>
-                                                        {instance.pod && (
-                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                                <Tag className="w-3 h-3" />
-                                                                Pod:{' '}
-                                                                <span className="font-mono">
-                                                                    {
-                                                                        instance.pod
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                            <MapPin className="w-3 h-3" />
-                                                            Namespace:{' '}
-                                                            <span className="font-mono">
-                                                                {
-                                                                    instance.namespace
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            copyToClipboard(
-                                                                instance.ip,
-                                                                `ip-${index}`
-                                                            )
-                                                        }
-                                                    >
-                                                        {copiedItem ===
-                                                        `ip-${index}` ? (
-                                                            <>
-                                                                <Circle className="w-3 h-3 mr-1 fill-green-500 text-green-500" />
-                                                                Copied
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Copy className="w-3 h-3 mr-1" />
-                                                                Copy IP
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Proxied Instances */}
-                        {proxiedInstances.length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                                    <Hexagon className="w-5 h-5 text-purple-600 dark:text-purple-400 fill-purple-100 dark:fill-purple-900" />
-                                    Instances with Proxy Sidecar (
-                                    {proxiedInstances.length})
-                                </h3>
-                                <div className="grid gap-4">
-                                    {proxiedInstances.map((instance, index) => (
-                                        <Card
-                                            key={index}
-                                            className="border-l-4 border-l-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
-                                        >
-                                            <CardContent className="p-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Circle className="w-3 h-3 text-green-500 fill-current" />
-                                                            <span className="font-mono text-sm font-medium">
-                                                                {instance.ip}
-                                                            </span>
-                                                            <Badge className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                                                                <Hexagon className="w-3 h-3 mr-1 fill-current" />
-                                                                Proxied
-                                                            </Badge>
-                                                        </div>
-                                                        {instance.pod && (
-                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                                <Tag className="w-3 h-3" />
-                                                                Pod:{' '}
-                                                                <span className="font-mono">
-                                                                    {
-                                                                        instance.pod
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                            <MapPin className="w-3 h-3" />
-                                                            Namespace:{' '}
-                                                            <span className="font-mono">
-                                                                {
-                                                                    instance.namespace
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            copyToClipboard(
-                                                                instance.ip,
-                                                                `proxy-ip-${index}`
-                                                            )
-                                                        }
-                                                    >
-                                                        {copiedItem ===
-                                                        `proxy-ip-${index}` ? (
-                                                            <>
-                                                                <Circle className="w-3 h-3 mr-1 fill-green-500 text-green-500" />
-                                                                Copied
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Copy className="w-3 h-3 mr-1" />
-                                                                Copy IP
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {service.instances.length === 0 && (
+                    <CardContent>
+                        {service.instances.length > 0 ? (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>IP Address</TableHead>
+                                        <TableHead>Pod</TableHead>
+                                        <TableHead>Namespace</TableHead>
+                                        <TableHead>Cluster</TableHead>
+                                        <TableHead>Envoy</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {service.instances.map(
+                                        (instance, index) => (
+                                            <TableRow
+                                                key={index}
+                                                className="cursor-pointer hover:bg-muted/50"
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/services/${service.id}/instances/${instance.instanceId}`
+                                                    )
+                                                }
+                                            >
+                                                <TableCell>
+                                                    <Circle className="w-3 h-3 text-green-500 fill-current" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="font-mono text-sm">
+                                                        {instance.ip}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="font-mono text-sm">
+                                                        {instance.pod || 'N/A'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">
+                                                        {instance.namespace}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline">
+                                                        {instance.clusterName}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {instance.isEnvoyPresent ? (
+                                                        <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                                            <Hexagon className="w-3 h-3 mr-1 fill-current" />
+                                                            Present
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="outline">
+                                                            Not Present
+                                                        </Badge>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    )}
+                                </TableBody>
+                            </Table>
+                        ) : (
                             <div className="text-center py-8">
                                 <Database className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                                 <h3 className="text-lg font-semibold text-foreground mb-2">

@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ServiceRegistryService_ListServices_FullMethodName = "/navigator.backend.v1alpha1.ServiceRegistryService/ListServices"
-	ServiceRegistryService_GetService_FullMethodName   = "/navigator.backend.v1alpha1.ServiceRegistryService/GetService"
+	ServiceRegistryService_ListServices_FullMethodName       = "/navigator.backend.v1alpha1.ServiceRegistryService/ListServices"
+	ServiceRegistryService_GetService_FullMethodName         = "/navigator.backend.v1alpha1.ServiceRegistryService/GetService"
+	ServiceRegistryService_GetServiceInstance_FullMethodName = "/navigator.backend.v1alpha1.ServiceRegistryService/GetServiceInstance"
 )
 
 // ServiceRegistryServiceClient is the client API for ServiceRegistryService service.
@@ -31,6 +32,8 @@ type ServiceRegistryServiceClient interface {
 	ListServices(ctx context.Context, in *ListServicesRequest, opts ...grpc.CallOption) (*ListServicesResponse, error)
 	// GetService returns detailed information about a specific service.
 	GetService(ctx context.Context, in *GetServiceRequest, opts ...grpc.CallOption) (*GetServiceResponse, error)
+	// GetServiceInstance returns detailed information about a specific service instance.
+	GetServiceInstance(ctx context.Context, in *GetServiceInstanceRequest, opts ...grpc.CallOption) (*GetServiceInstanceResponse, error)
 }
 
 type serviceRegistryServiceClient struct {
@@ -59,6 +62,15 @@ func (c *serviceRegistryServiceClient) GetService(ctx context.Context, in *GetSe
 	return out, nil
 }
 
+func (c *serviceRegistryServiceClient) GetServiceInstance(ctx context.Context, in *GetServiceInstanceRequest, opts ...grpc.CallOption) (*GetServiceInstanceResponse, error) {
+	out := new(GetServiceInstanceResponse)
+	err := c.cc.Invoke(ctx, ServiceRegistryService_GetServiceInstance_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceRegistryServiceServer is the server API for ServiceRegistryService service.
 // All implementations must embed UnimplementedServiceRegistryServiceServer
 // for forward compatibility
@@ -67,6 +79,8 @@ type ServiceRegistryServiceServer interface {
 	ListServices(context.Context, *ListServicesRequest) (*ListServicesResponse, error)
 	// GetService returns detailed information about a specific service.
 	GetService(context.Context, *GetServiceRequest) (*GetServiceResponse, error)
+	// GetServiceInstance returns detailed information about a specific service instance.
+	GetServiceInstance(context.Context, *GetServiceInstanceRequest) (*GetServiceInstanceResponse, error)
 	mustEmbedUnimplementedServiceRegistryServiceServer()
 }
 
@@ -79,6 +93,9 @@ func (UnimplementedServiceRegistryServiceServer) ListServices(context.Context, *
 }
 func (UnimplementedServiceRegistryServiceServer) GetService(context.Context, *GetServiceRequest) (*GetServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetService not implemented")
+}
+func (UnimplementedServiceRegistryServiceServer) GetServiceInstance(context.Context, *GetServiceInstanceRequest) (*GetServiceInstanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetServiceInstance not implemented")
 }
 func (UnimplementedServiceRegistryServiceServer) mustEmbedUnimplementedServiceRegistryServiceServer() {
 }
@@ -130,6 +147,24 @@ func _ServiceRegistryService_GetService_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ServiceRegistryService_GetServiceInstance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetServiceInstanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceRegistryServiceServer).GetServiceInstance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ServiceRegistryService_GetServiceInstance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceRegistryServiceServer).GetServiceInstance(ctx, req.(*GetServiceInstanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ServiceRegistryService_ServiceDesc is the grpc.ServiceDesc for ServiceRegistryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -144,6 +179,10 @@ var ServiceRegistryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetService",
 			Handler:    _ServiceRegistryService_GetService_Handler,
+		},
+		{
+			MethodName: "GetServiceInstance",
+			Handler:    _ServiceRegistryService_GetServiceInstance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

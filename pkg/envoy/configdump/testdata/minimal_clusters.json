@@ -1,0 +1,49 @@
+{
+  "configs": [
+    {
+      "@type": "type.googleapis.com/envoy.admin.v3.ClustersConfigDump",
+      "static_clusters": [
+        {
+          "cluster": {
+            "name": "test-static-cluster",
+            "type": "STATIC",
+            "connect_timeout": "5s",
+            "lb_policy": "ROUND_ROBIN",
+            "load_assignment": {
+              "cluster_name": "test-static-cluster",
+              "endpoints": [
+                {
+                  "lb_endpoints": [
+                    {
+                      "endpoint": {
+                        "address": {
+                          "socket_address": {
+                            "address": "127.0.0.1",
+                            "port_value": 8080
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "dynamic_active_clusters": [
+        {
+          "cluster": {
+            "name": "test-dynamic-cluster",
+            "type": "EDS",
+            "eds_cluster_config": {
+              "service_name": "test-service"
+            },
+            "connect_timeout": "10s",
+            "lb_policy": "LEAST_REQUEST"
+          }
+        }
+      ]
+    }
+  ]
+}

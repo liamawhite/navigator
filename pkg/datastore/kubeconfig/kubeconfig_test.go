@@ -671,7 +671,7 @@ func TestSidecarDetection(t *testing.T) {
 			assert.Equal(t, "10.0.0.1", instance.Ip)
 			assert.Equal(t, tt.pod.Name, instance.Pod)
 			assert.Equal(t, "default", instance.Namespace)
-			assert.Equal(t, tt.expectedHasSidecar, instance.HasProxySidecar)
+			assert.Equal(t, tt.expectedHasSidecar, instance.IsEnvoyPresent)
 		})
 	}
 }
@@ -709,4 +709,200 @@ func TestCacheConsistency(t *testing.T) {
 	assert.Equal(t, serviceFromGet.Name, serviceFromList.Name)
 	assert.Equal(t, serviceFromGet.Namespace, serviceFromList.Namespace)
 	assert.Equal(t, len(serviceFromGet.Instances), len(serviceFromList.Instances))
+}
+
+func TestGetServiceInstance(t *testing.T) {
+	tests := []struct {
+		name         string
+		serviceID    string
+		instanceID   string
+		pod          *corev1.Pod
+		expectError  bool
+		expectedPod  string
+		expectedIP   string
+		expectedNode string
+	}{
+		{
+			name:       "valid instance with envoy",
+			serviceID:  "demo:frontend",
+			instanceID: "kind-demo:demo:frontend-abc123",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "frontend-abc123",
+					Namespace: "demo",
+					Labels: map[string]string{
+						"app": "frontend",
+					},
+					Annotations: map[string]string{
+						"deployment.kubernetes.io/revision": "1",
+					},
+					CreationTimestamp: metav1.Time{Time: time.Now()},
+				},
+				Spec: corev1.PodSpec{
+					NodeName: "node-1",
+					Containers: []corev1.Container{
+						{
+							Name:  "frontend",
+							Image: "nginx:latest",
+						},
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.20.0",
+						},
+					},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					PodIP: "10.244.1.4",
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:         "frontend",
+							Ready:        true,
+							RestartCount: 0,
+							State: corev1.ContainerState{
+								Running: &corev1.ContainerStateRunning{},
+							},
+						},
+						{
+							Name:         "istio-proxy",
+							Ready:        true,
+							RestartCount: 0,
+							State: corev1.ContainerState{
+								Running: &corev1.ContainerStateRunning{},
+							},
+						},
+					},
+				},
+			},
+			expectError:  false,
+			expectedPod:  "frontend-abc123",
+			expectedIP:   "10.244.1.4",
+			expectedNode: "node-1",
+		},
+		{
+			name:       "valid instance without envoy",
+			serviceID:  "demo:backend",
+			instanceID: "kind-demo:demo:backend-def456",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "backend-def456",
+					Namespace: "demo",
+					Labels: map[string]string{
+						"app": "backend",
+					},
+					CreationTimestamp: metav1.Time{Time: time.Now()},
+				},
+				Spec: corev1.PodSpec{
+					NodeName: "node-2",
+					Containers: []corev1.Container{
+						{
+							Name:  "backend",
+							Image: "backend:v1.0",
+						},
+					},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					PodIP: "10.244.1.5",
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name:         "backend",
+							Ready:        true,
+							RestartCount: 2,
+							State: corev1.ContainerState{
+								Running: &corev1.ContainerStateRunning{},
+							},
+						},
+					},
+				},
+			},
+			expectError:  false,
+			expectedPod:  "backend-def456",
+			expectedIP:   "10.244.1.5",
+			expectedNode: "node-2",
+		},
+		{
+			name:        "invalid service ID format",
+			serviceID:   "invalid-service-id",
+			instanceID:  "cluster:namespace:pod",
+			expectError: true,
+		},
+		{
+			name:        "invalid instance ID format",
+			serviceID:   "demo:frontend",
+			instanceID:  "invalid-instance-id",
+			expectError: true,
+		},
+		{
+			name:        "pod not found",
+			serviceID:   "demo:frontend",
+			instanceID:  "kind-demo:demo:nonexistent-pod",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake Kubernetes client
+			clientset := fake.NewSimpleClientset()
+
+			// Add the pod to the fake client if provided
+			if tt.pod != nil {
+				_, err := clientset.CoreV1().Pods(tt.pod.Namespace).Create(
+					context.Background(), tt.pod, metav1.CreateOptions{})
+				require.NoError(t, err)
+			}
+
+			// Create datastore with fake client
+			ds := &datastore{
+				client:      clientset,
+				clusterName: "kind-demo",
+				cache: &serviceCache{
+					services: make(map[string]*v1alpha1.Service),
+				},
+			}
+
+			// Call GetServiceInstance
+			ctx := context.Background()
+			result, err := ds.GetServiceInstance(ctx, tt.serviceID, tt.instanceID)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			// Verify the result
+			assert.Equal(t, tt.instanceID, result.InstanceId)
+			assert.Equal(t, tt.expectedPod, result.Pod)
+			assert.Equal(t, tt.expectedIP, result.Ip)
+			assert.Equal(t, tt.expectedNode, result.NodeName)
+			assert.Equal(t, "kind-demo", result.ClusterName)
+
+			// Verify envoy detection
+			if tt.pod != nil {
+				hasEnvoy := false
+				for _, container := range tt.pod.Spec.Containers {
+					if container.Name == "istio-proxy" {
+						hasEnvoy = true
+						break
+					}
+				}
+				assert.Equal(t, hasEnvoy, result.IsEnvoyPresent)
+			}
+
+			// Verify containers are populated
+			if tt.pod != nil {
+				assert.Len(t, result.Containers, len(tt.pod.Spec.Containers))
+				for i, container := range result.Containers {
+					expectedContainer := tt.pod.Spec.Containers[i]
+					assert.Equal(t, expectedContainer.Name, container.Name)
+					assert.Equal(t, expectedContainer.Image, container.Image)
+				}
+			}
+		})
+	}
 }

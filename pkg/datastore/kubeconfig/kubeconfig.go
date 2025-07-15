@@ -22,9 +22,10 @@ import (
 var _ types.ServiceDatastore = (*datastore)(nil)
 
 type datastore struct {
-	client kubernetes.Interface
-	cache  *serviceCache
-	cancel context.CancelFunc
+	client      kubernetes.Interface
+	cache       *serviceCache
+	cancel      context.CancelFunc
+	clusterName string
 }
 
 type serviceCache struct {
@@ -43,8 +44,15 @@ func New(kubeconfigPath string) (*datastore, error) {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
+	// Extract cluster name from kubeconfig
+	clusterName, err := extractClusterName(kubeconfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract cluster name: %w", err)
+	}
+
 	ds := &datastore{
-		client: client,
+		client:      client,
+		clusterName: clusterName,
 		cache: &serviceCache{
 			services: make(map[string]*v1alpha1.Service),
 		},
@@ -56,6 +64,43 @@ func New(kubeconfigPath string) (*datastore, error) {
 	go ds.startWatchers(ctx)
 
 	return ds, nil
+}
+
+// extractClusterName extracts the cluster name from kubeconfig
+func extractClusterName(kubeconfigPath string) (string, error) {
+	// Load the kubeconfig
+	config, err := clientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		// Try loading from default locations if explicit path fails
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		if kubeconfigPath != "" {
+			loadingRules.ExplicitPath = kubeconfigPath
+		}
+		config, err = loadingRules.Load()
+		if err != nil {
+			return "", fmt.Errorf("failed to load kubeconfig: %w", err)
+		}
+	}
+
+	// Get the current context
+	currentContext := config.CurrentContext
+	if currentContext == "" {
+		return "", fmt.Errorf("no current context set in kubeconfig")
+	}
+
+	// Get the context details
+	context, exists := config.Contexts[currentContext]
+	if !exists {
+		return "", fmt.Errorf("current context %s not found in kubeconfig", currentContext)
+	}
+
+	// Return the cluster name from the context
+	clusterName := context.Cluster
+	if clusterName == "" {
+		return "", fmt.Errorf("no cluster specified in current context %s", currentContext)
+	}
+
+	return clusterName, nil
 }
 
 func (d *datastore) ListServices(ctx context.Context, namespace string) ([]*v1alpha1.Service, error) {
@@ -84,10 +129,12 @@ func (d *datastore) ListServices(ctx context.Context, namespace string) ([]*v1al
 		// Copy instances
 		for i, instance := range service.Instances {
 			serviceCopy.Instances[i] = &v1alpha1.ServiceInstance{
-				Ip:              instance.Ip,
-				Pod:             instance.Pod,
-				Namespace:       instance.Namespace,
-				HasProxySidecar: instance.HasProxySidecar,
+				InstanceId:     instance.InstanceId,
+				Ip:             instance.Ip,
+				Pod:            instance.Pod,
+				Namespace:      instance.Namespace,
+				ClusterName:    instance.ClusterName,
+				IsEnvoyPresent: instance.IsEnvoyPresent,
 			}
 		}
 
@@ -130,15 +177,113 @@ func (d *datastore) GetService(ctx context.Context, id string) (*v1alpha1.Servic
 	// Copy instances
 	for i, instance := range service.Instances {
 		serviceCopy.Instances[i] = &v1alpha1.ServiceInstance{
-			Ip:              instance.Ip,
-			Pod:             instance.Pod,
-			Namespace:       instance.Namespace,
-			HasProxySidecar: instance.HasProxySidecar,
+			InstanceId:     instance.InstanceId,
+			Ip:             instance.Ip,
+			Pod:            instance.Pod,
+			Namespace:      instance.Namespace,
+			ClusterName:    instance.ClusterName,
+			IsEnvoyPresent: instance.IsEnvoyPresent,
 		}
 	}
 
 	logger.Info("retrieved service from cache", "id", id, "instances", len(serviceCopy.Instances))
 	return serviceCopy, nil
+}
+
+func (d *datastore) GetServiceInstance(ctx context.Context, serviceID, instanceID string) (*v1alpha1.ServiceInstanceDetail, error) {
+	logger := logging.LoggerFromContextOrDefault(ctx, logging.For(logging.ComponentDatastore), logging.ComponentDatastore)
+
+	// Parse service ID to get namespace and service name
+	serviceParts := strings.SplitN(serviceID, ":", 2)
+	if len(serviceParts) != 2 {
+		logger.Error("invalid service ID format", "id", serviceID)
+		return nil, fmt.Errorf("invalid service ID format: %s (expected namespace:name)", serviceID)
+	}
+	_, serviceName := serviceParts[0], serviceParts[1]
+
+	// Parse instance ID to get cluster, namespace, and pod name
+	instanceParts := strings.SplitN(instanceID, ":", 3)
+	if len(instanceParts) != 3 {
+		logger.Error("invalid instance ID format", "id", instanceID)
+		return nil, fmt.Errorf("invalid instance ID format: %s (expected cluster:namespace:pod)", instanceID)
+	}
+	clusterName, namespace, podName := instanceParts[0], instanceParts[1], instanceParts[2]
+
+	logger.Debug("getting service instance detail", "service_id", serviceID, "instance_id", instanceID, "pod", podName)
+
+	// Get the pod from Kubernetes
+	pod, err := d.client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		logger.Error("failed to get pod", "namespace", namespace, "pod", podName, "error", err)
+		return nil, fmt.Errorf("failed to get pod %s/%s: %w", namespace, podName, err)
+	}
+
+	// Check if pod has proxy sidecar
+	hasProxySidecar := d.checkPodForProxySidecar(pod)
+
+	// Convert containers info
+	var containers []*v1alpha1.ContainerInfo
+	for _, container := range pod.Spec.Containers {
+		// Find container status
+		var ready bool
+		var restartCount int32
+		var status string
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			if containerStatus.Name == container.Name {
+				ready = containerStatus.Ready
+				restartCount = containerStatus.RestartCount
+				if containerStatus.State.Running != nil {
+					status = "Running"
+				} else if containerStatus.State.Waiting != nil {
+					status = "Waiting"
+				} else if containerStatus.State.Terminated != nil {
+					status = "Terminated"
+				} else {
+					status = "Unknown"
+				}
+				break
+			}
+		}
+
+		containers = append(containers, &v1alpha1.ContainerInfo{
+			Name:         container.Name,
+			Image:        container.Image,
+			Ready:        ready,
+			RestartCount: restartCount,
+			Status:       status,
+		})
+	}
+
+	// Convert labels and annotations
+	labels := make(map[string]string)
+	for k, v := range pod.Labels {
+		labels[k] = v
+	}
+
+	annotations := make(map[string]string)
+	for k, v := range pod.Annotations {
+		annotations[k] = v
+	}
+
+	// Create the detailed instance response
+	instanceDetail := &v1alpha1.ServiceInstanceDetail{
+		InstanceId:     instanceID,
+		Ip:             pod.Status.PodIP,
+		Pod:            podName,
+		Namespace:      namespace,
+		ClusterName:    clusterName,
+		IsEnvoyPresent: hasProxySidecar,
+		ServiceName:    serviceName,
+		PodStatus:      string(pod.Status.Phase),
+		CreatedAt:      pod.CreationTimestamp.Format(time.RFC3339),
+		Labels:         labels,
+		Annotations:    annotations,
+		Containers:     containers,
+		NodeName:       pod.Spec.NodeName,
+	}
+
+	logger.Info("retrieved service instance detail", "service_id", serviceID, "instance_id", instanceID, "pod_status", instanceDetail.PodStatus)
+	return instanceDetail, nil
 }
 
 func (d *datastore) Close() {
@@ -303,11 +448,14 @@ func (d *datastore) handleEndpointsEvent(ctx context.Context, eventType watch.Ev
 					}
 				}
 
+				instanceID := fmt.Sprintf("%s:%s:%s", d.clusterName, podNamespace, podName)
 				instances = append(instances, &v1alpha1.ServiceInstance{
-					Ip:              address.IP,
-					Pod:             podName,
-					Namespace:       podNamespace,
-					HasProxySidecar: false, // Will be updated by pod watch
+					InstanceId:     instanceID,
+					Ip:             address.IP,
+					Pod:            podName,
+					Namespace:      podNamespace,
+					ClusterName:    d.clusterName,
+					IsEnvoyPresent: false, // Will be updated by pod watch
 				})
 			}
 		}
@@ -403,9 +551,9 @@ func (d *datastore) handlePodEvent(ctx context.Context, eventType watch.EventTyp
 			if instance.Pod == pod.Name && instance.Namespace == pod.Namespace {
 				switch eventType {
 				case watch.Added, watch.Modified:
-					instance.HasProxySidecar = hasProxySidecar
+					instance.IsEnvoyPresent = hasProxySidecar
 				case watch.Deleted:
-					instance.HasProxySidecar = false
+					instance.IsEnvoyPresent = false
 				}
 				updated = true
 			}
@@ -418,16 +566,34 @@ func (d *datastore) handlePodEvent(ctx context.Context, eventType watch.EventTyp
 }
 
 func (d *datastore) checkPodForProxySidecar(pod *corev1.Pod) bool {
-	// Check all containers in the pod for Istio proxy
+	// Check all containers in the pod for proxy sidecars
 	for _, container := range pod.Spec.Containers {
+		// Istio proxy patterns
 		if container.Name == "istio-proxy" || strings.HasPrefix(container.Image, "istio/proxyv2") {
+			return true
+		}
+		// Generic Envoy patterns
+		if strings.Contains(container.Name, "envoy") || strings.Contains(container.Image, "envoy") {
+			return true
+		}
+		// Other common proxy patterns (be more specific to avoid false positives)
+		if container.Name == "proxy" || container.Name == "sidecar-proxy" {
 			return true
 		}
 	}
 
 	// Check init containers as well
 	for _, container := range pod.Spec.InitContainers {
+		// Istio proxy patterns
 		if container.Name == "istio-proxy" || strings.HasPrefix(container.Image, "istio/proxyv2") {
+			return true
+		}
+		// Generic Envoy patterns
+		if strings.Contains(container.Name, "envoy") || strings.Contains(container.Image, "envoy") {
+			return true
+		}
+		// Other common proxy patterns (be more specific to avoid false positives)
+		if container.Name == "proxy" || container.Name == "sidecar-proxy" {
 			return true
 		}
 	}
@@ -457,7 +623,7 @@ func (d *datastore) refreshSidecarStatus(ctx context.Context, serviceID string) 
 		hasProxySidecar := d.checkPodForProxySidecar(pod)
 
 		d.cache.mu.Lock()
-		instance.HasProxySidecar = hasProxySidecar
+		instance.IsEnvoyPresent = hasProxySidecar
 		d.cache.mu.Unlock()
 	}
 }

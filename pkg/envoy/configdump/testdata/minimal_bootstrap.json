@@ -1,0 +1,25 @@
+{
+  "configs": [
+    {
+      "@type": "type.googleapis.com/envoy.admin.v3.BootstrapConfigDump",
+      "bootstrap": {
+        "node": {
+          "id": "test-node-123",
+          "cluster": "test-cluster", 
+          "metadata": {
+            "NAMESPACE": "test-namespace",
+            "WORKLOAD_NAME": "test-workload"
+          }
+        },
+        "admin": {
+          "address": {
+            "socket_address": {
+              "address": "127.0.0.1",
+              "port_value": 15000
+            }
+          }
+        }
+      }
+    }
+  ]
+}

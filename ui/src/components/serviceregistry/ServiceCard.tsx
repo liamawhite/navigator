@@ -1,5 +1,5 @@
-import type { Service } from '../types/service';
-import { Server, Database, Shield } from 'lucide-react';
+import type { Service } from '../../types/service';
+import { Server, Database, Hexagon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -13,7 +13,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
     onClick,
 }) => {
     const proxiedInstances = service.instances.filter(
-        (i) => i.hasProxySidecar
+        (i) => i.isEnvoyPresent
     ).length;
 
     return (
@@ -44,9 +44,9 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
 
                 {proxiedInstances > 0 && (
                     <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-orange-500" />
+                        <Hexagon className="w-4 h-4 text-orange-500" />
                         <span className="text-sm text-slate-600">
-                            {proxiedInstances} with proxy sidecar
+                            {proxiedInstances} with Envoy
                         </span>
                     </div>
                 )}
