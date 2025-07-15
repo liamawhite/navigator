@@ -41,3 +41,43 @@ func (m *Datastore) GetService(ctx context.Context, id string) (*v1alpha1.Servic
 
 	return nil, assert.AnError
 }
+
+func (m *Datastore) GetServiceInstance(ctx context.Context, serviceID, instanceID string) (*v1alpha1.ServiceInstanceDetail, error) {
+	// Find the service instance in our mock data
+	for _, services := range m.Services {
+		for _, service := range services {
+			if service.Id == serviceID {
+				for _, instance := range service.Instances {
+					if instance.InstanceId == instanceID {
+						// Create a detailed response with mock data
+						return &v1alpha1.ServiceInstanceDetail{
+							InstanceId:     instance.InstanceId,
+							Ip:             instance.Ip,
+							Pod:            instance.Pod,
+							Namespace:      instance.Namespace,
+							ClusterName:    instance.ClusterName,
+							IsEnvoyPresent: instance.IsEnvoyPresent,
+							ServiceName:    service.Name,
+							PodStatus:      "Running",
+							CreatedAt:      "2023-01-01T00:00:00Z",
+							Labels:         map[string]string{"app": service.Name, "version": "v1"},
+							Annotations:    map[string]string{"deployment.kubernetes.io/revision": "1"},
+							Containers: []*v1alpha1.ContainerInfo{
+								{
+									Name:         service.Name,
+									Image:        "nginx:latest",
+									Ready:        true,
+									RestartCount: 0,
+									Status:       "Running",
+								},
+							},
+							NodeName: "node-1",
+						}, nil
+					}
+				}
+			}
+		}
+	}
+
+	return nil, assert.AnError
+}

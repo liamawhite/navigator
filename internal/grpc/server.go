@@ -15,6 +15,7 @@ import (
 	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/datastore"
 	"github.com/liamawhite/navigator/pkg/logging"
+	"github.com/liamawhite/navigator/pkg/troubleshooting"
 )
 
 // Server wraps the gRPC server and HTTP gateway, providing methods to start and stop them.
@@ -26,7 +27,7 @@ type Server struct {
 }
 
 // NewServer creates a new server with both gRPC and HTTP endpoints.
-func NewServer(ds datastore.ServiceDatastore, port int) (*Server, error) {
+func NewServer(serviceDS datastore.ServiceDatastore, troubleshootingDS troubleshooting.ProxyDatastore, port int) (*Server, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on port %d: %w", port, err)
@@ -39,8 +40,12 @@ func NewServer(ds datastore.ServiceDatastore, port int) (*Server, error) {
 	)
 
 	// Register the ServiceRegistryService
-	serviceRegistryServer := NewServiceRegistryServer(ds)
+	serviceRegistryServer := NewServiceRegistryServer(serviceDS)
 	v1alpha1.RegisterServiceRegistryServiceServer(grpcServer, serviceRegistryServer)
+
+	// Register the TroubleshootingService
+	troubleshootingServer := NewTroubleshootingServer(troubleshootingDS)
+	v1alpha1.RegisterTroubleshootingServiceServer(grpcServer, troubleshootingServer)
 
 	// Enable reflection for easier debugging and testing
 	reflection.Register(grpcServer)
@@ -52,7 +57,13 @@ func NewServer(ds datastore.ServiceDatastore, port int) (*Server, error) {
 	err = v1alpha1.RegisterServiceRegistryServiceHandlerFromEndpoint(
 		context.Background(), mux, fmt.Sprintf("localhost:%d", port), opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to register gateway: %w", err)
+		return nil, fmt.Errorf("failed to register service registry gateway: %w", err)
+	}
+
+	err = v1alpha1.RegisterTroubleshootingServiceHandlerFromEndpoint(
+		context.Background(), mux, fmt.Sprintf("localhost:%d", port), opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register troubleshooting gateway: %w", err)
 	}
 
 	// Wrap the mux with logging middleware

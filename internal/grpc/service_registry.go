@@ -45,3 +45,15 @@ func (s *ServiceRegistryServer) GetService(ctx context.Context, req *v1alpha1.Ge
 		Service: service,
 	}, nil
 }
+
+// GetServiceInstance returns detailed information about a specific service instance.
+func (s *ServiceRegistryServer) GetServiceInstance(ctx context.Context, req *v1alpha1.GetServiceInstanceRequest) (*v1alpha1.GetServiceInstanceResponse, error) {
+	instance, err := s.datastore.GetServiceInstance(ctx, req.ServiceId, req.InstanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &v1alpha1.GetServiceInstanceResponse{
+		Instance: instance,
+	}, nil
+}

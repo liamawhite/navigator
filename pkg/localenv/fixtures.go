@@ -7,6 +7,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -187,34 +188,38 @@ func (f *Fixtures) CreateExternalService(ctx context.Context, name string, exter
 		return fmt.Errorf("failed to create external service %s: %w", name, err)
 	}
 
-	// Create endpoints manually
-	endpoints := &corev1.Endpoints{
+	// Create endpoint slice manually
+	endpoints := make([]discoveryv1.Endpoint, len(externalIPs))
+	for i, ip := range externalIPs {
+		endpoints[i] = discoveryv1.Endpoint{
+			Addresses: []string{ip},
+			Conditions: discoveryv1.EndpointConditions{
+				Ready: func() *bool { b := true; return &b }(),
+			},
+		}
+	}
+
+	endpointSlice := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      name + "-abc123",
 			Namespace: f.namespace,
+			Labels: map[string]string{
+				discoveryv1.LabelServiceName: name,
+			},
 		},
-		Subsets: []corev1.EndpointSubset{
+		AddressType: discoveryv1.AddressTypeIPv4,
+		Endpoints:   endpoints,
+		Ports: []discoveryv1.EndpointPort{
 			{
-				Addresses: make([]corev1.EndpointAddress, len(externalIPs)),
-				Ports: []corev1.EndpointPort{
-					{
-						Port:     8080,
-						Protocol: corev1.ProtocolTCP,
-					},
-				},
+				Port:     func() *int32 { p := int32(8080); return &p }(),
+				Protocol: func() *corev1.Protocol { p := corev1.ProtocolTCP; return &p }(),
 			},
 		},
 	}
 
-	for i, ip := range externalIPs {
-		endpoints.Subsets[0].Addresses[i] = corev1.EndpointAddress{
-			IP: ip,
-		}
-	}
-
-	_, err = f.client.CoreV1().Endpoints(f.namespace).Create(ctx, endpoints, metav1.CreateOptions{})
+	_, err = f.client.DiscoveryV1().EndpointSlices(f.namespace).Create(ctx, endpointSlice, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create endpoints for service %s: %w", name, err)
+		return fmt.Errorf("failed to create endpoint slice for service %s: %w", name, err)
 	}
 
 	return nil
@@ -324,17 +329,21 @@ func (f *Fixtures) WaitForDeployment(ctx context.Context, name string) error {
 	})
 }
 
-// WaitForService waits for a service to have endpoints
+// WaitForService waits for a service to have endpoint slices
 func (f *Fixtures) WaitForService(ctx context.Context, name string) error {
 	return waitForCondition(ctx, func() (bool, error) {
-		endpoints, err := f.client.CoreV1().Endpoints(f.namespace).Get(ctx, name, metav1.GetOptions{})
+		endpointSlices, err := f.client.DiscoveryV1().EndpointSlices(f.namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", discoveryv1.LabelServiceName, name),
+		})
 		if err != nil {
 			return false, err
 		}
 
-		for _, subset := range endpoints.Subsets {
-			if len(subset.Addresses) > 0 {
-				return true, nil
+		for _, endpointSlice := range endpointSlices.Items {
+			for _, endpoint := range endpointSlice.Endpoints {
+				if endpoint.Conditions.Ready != nil && *endpoint.Conditions.Ready {
+					return true, nil
+				}
 			}
 		}
 

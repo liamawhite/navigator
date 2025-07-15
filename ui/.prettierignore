@@ -3,3 +3,5 @@ dist
 build
 .env
 *.md
+src/types/generated
+src/types/openapi

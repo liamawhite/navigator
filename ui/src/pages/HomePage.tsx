@@ -1,4 +1,4 @@
-import { ServiceList } from '../components/ServiceList';
+import { ServiceList } from '../components/serviceregistry';
 import { Navbar } from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,7 +6,7 @@ export const HomePage: React.FC = () => {
     const navigate = useNavigate();
 
     const handleServiceSelect = (serviceId: string) => {
-        navigate(`/service/${serviceId}`);
+        navigate(`/services/${serviceId}`);
     };
 
     return (

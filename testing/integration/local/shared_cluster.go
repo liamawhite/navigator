@@ -17,6 +17,7 @@ import (
 	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	kubeconfigds "github.com/liamawhite/navigator/pkg/datastore/kubeconfig"
 	"github.com/liamawhite/navigator/pkg/localenv"
+	troubleshootingKubeconfig "github.com/liamawhite/navigator/pkg/troubleshooting/kubeconfig"
 )
 
 // SharedCluster manages a single Kind cluster shared across multiple tests
@@ -80,14 +81,20 @@ func NewSharedCluster(clusterName string) (*SharedCluster, error) {
 		return nil, fmt.Errorf("failed to enable Istio injection: %w", err)
 	}
 
-	// Create Navigator datastore
-	datastore, err := kubeconfigds.New(sc.kubeconfig)
+	// Create Navigator service datastore
+	serviceDatastore, err := kubeconfigds.New(sc.kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create Navigator troubleshooting datastore
+	troubleshootingDatastore, err := troubleshootingKubeconfig.New(sc.kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Start Navigator server
-	sc.grpcServer, err = grpcserver.NewServer(datastore, 0) // Use any available port
+	sc.grpcServer, err = grpcserver.NewServer(serviceDatastore, troubleshootingDatastore, 0) // Use any available port
 	if err != nil {
 		return nil, err
 	}

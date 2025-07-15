@@ -13,6 +13,7 @@ import (
 	"github.com/liamawhite/navigator/internal/grpc"
 	"github.com/liamawhite/navigator/pkg/datastore/kubeconfig"
 	"github.com/liamawhite/navigator/pkg/logging"
+	troubleshootingKubeconfig "github.com/liamawhite/navigator/pkg/troubleshooting/kubeconfig"
 )
 
 var serveCmd = &cobra.Command{
@@ -29,15 +30,22 @@ and Envoy configuration analysis.`,
 			"port", port,
 			"kubeconfig", kubeconfigPath)
 
-		// Create datastore
-		ds, err := kubeconfig.New(kubeconfigPath)
+		// Create service datastore
+		serviceDS, err := kubeconfig.New(kubeconfigPath)
 		if err != nil {
-			logger.Error("failed to create datastore", "error", err)
-			return fmt.Errorf("failed to create datastore: %w", err)
+			logger.Error("failed to create service datastore", "error", err)
+			return fmt.Errorf("failed to create service datastore: %w", err)
+		}
+
+		// Create troubleshooting datastore
+		troubleshootingDS, err := troubleshootingKubeconfig.New(kubeconfigPath)
+		if err != nil {
+			logger.Error("failed to create troubleshooting datastore", "error", err)
+			return fmt.Errorf("failed to create troubleshooting datastore: %w", err)
 		}
 
 		// Create gRPC server
-		server, err := grpc.NewServer(ds, port)
+		server, err := grpc.NewServer(serviceDS, troubleshootingDS, port)
 		if err != nil {
 			logger.Error("failed to create gRPC server", "error", err)
 			return fmt.Errorf("failed to create gRPC server: %w", err)

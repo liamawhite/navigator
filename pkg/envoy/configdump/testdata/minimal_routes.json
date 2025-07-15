@@ -1,0 +1,56 @@
+{
+  "configs": [
+    {
+      "@type": "type.googleapis.com/envoy.admin.v3.RoutesConfigDump", 
+      "static_route_configs": [
+        {
+          "route_config": {
+            "@type": "type.googleapis.com/envoy.config.route.v3.RouteConfiguration",
+            "name": "test-static-route",
+            "virtual_hosts": [
+              {
+                "name": "test-vhost",
+                "domains": ["*"],
+                "routes": [
+                  {
+                    "match": {
+                      "prefix": "/"
+                    },
+                    "route": {
+                      "cluster": "test-cluster"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "dynamic_route_configs": [
+        {
+          "route_config": {
+            "@type": "type.googleapis.com/envoy.config.route.v3.RouteConfiguration",
+            "name": "test-dynamic-route",
+            "virtual_hosts": [
+              {
+                "name": "dynamic-vhost",
+                "domains": ["api.example.com"],
+                "routes": [
+                  {
+                    "match": {
+                      "prefix": "/api"
+                    },
+                    "route": {
+                      "cluster": "api-cluster",
+                      "timeout": "30s"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

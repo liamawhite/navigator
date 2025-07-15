@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './components/theme-provider';
 import { HomePage } from './pages/HomePage';
 import { ServiceDetailPage } from './pages/ServiceDetailPage';
+import { ServiceInstanceDetailPage } from './pages/ServiceInstanceDetailPage';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -21,8 +22,12 @@ function App() {
                     <Routes>
                         <Route path="/" element={<HomePage />} />
                         <Route
-                            path="/service/:id"
+                            path="/services/:id"
                             element={<ServiceDetailPage />}
+                        />
+                        <Route
+                            path="/services/:serviceId/instances/:instanceId"
+                            element={<ServiceInstanceDetailPage />}
                         />
                     </Routes>
                 </Router>

@@ -16,3 +16,19 @@ export const useService = (id: string) => {
         enabled: !!id,
     });
 };
+
+export const useServiceInstance = (serviceId: string, instanceId: string) => {
+    return useQuery({
+        queryKey: ['serviceInstance', serviceId, instanceId],
+        queryFn: () => serviceApi.getServiceInstance(serviceId, instanceId),
+        enabled: !!serviceId && !!instanceId,
+    });
+};
+
+export const useProxyConfig = (serviceId: string, instanceId: string) => {
+    return useQuery({
+        queryKey: ['proxyConfig', serviceId, instanceId],
+        queryFn: () => serviceApi.getProxyConfig(serviceId, instanceId),
+        enabled: !!serviceId && !!instanceId,
+    });
+};

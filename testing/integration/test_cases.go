@@ -460,7 +460,7 @@ func executeAssertion(t *testing.T, ctx context.Context, client v1alpha1.Service
 		})
 		require.NoError(t, err, assertion.Message)
 		require.Greater(t, len(resp.Service.Instances), 0, "Service should have at least one instance")
-		performAssertion(t, assertion, resp.Service.Instances[0].HasProxySidecar)
+		performAssertion(t, assertion, resp.Service.Instances[0].IsEnvoyPresent)
 
 	case TargetTypeServiceName:
 		resp, err := client.ListServices(ctx, &v1alpha1.ListServicesRequest{

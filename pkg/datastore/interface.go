@@ -9,4 +9,5 @@ import (
 type ServiceDatastore interface {
 	ListServices(ctx context.Context, namespace string) ([]*v1alpha1.Service, error)
 	GetService(ctx context.Context, id string) (*v1alpha1.Service, error)
+	GetServiceInstance(ctx context.Context, serviceID, instanceID string) (*v1alpha1.ServiceInstanceDetail, error)
 }
