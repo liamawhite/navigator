@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/liamawhite/navigator/internal/cli"
+	_ "github.com/liamawhite/navigator/ui" // Import to trigger embed
 )
 
 func main() {

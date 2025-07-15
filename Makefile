@@ -66,5 +66,24 @@ clean:
 	fi
 	@echo "🎉 Development environment cleaned up!"
 
+# Build targets
+build: build-ui
+	go build -o navigator cmd/navigator/main.go
 
+build-ui:
+	cd ui && npm ci && npm run build
+
+# Development targets for UI
+dev-ui-only:
+	cd ui && npm run dev
+
+dev-backend:
+	air
+
+# Demo targets
+demo:
+	go run cmd/navigator/main.go demo
+
+demo-clean:
+	go run cmd/navigator/main.go demo --cleanup-on-exit=true
 
