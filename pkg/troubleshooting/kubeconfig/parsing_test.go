@@ -28,19 +28,15 @@ func loadConfigDump(t *testing.T, filename string) map[string]interface{} {
 	return configJSON
 }
 
-// Helper function to load real config dump (which is stored as a JSON string)
+// Helper function to load real config dump (which is stored as direct JSON)
 func loadRealConfigDump(t *testing.T, filename string) map[string]interface{} {
 	configPath := filepath.Join("../../envoy/configdump/testdata", filename)
 	configDumpBytes, err := os.ReadFile(configPath)
 	require.NoError(t, err, "failed to read test config dump: %s", configPath)
 
-	// The real config dump is stored as a JSON string, so we need to unmarshal twice
-	var configDumpStr string
-	err = json.Unmarshal(configDumpBytes, &configDumpStr)
-	require.NoError(t, err, "failed to parse config dump string")
-
+	// The real config dump is stored as direct JSON
 	var configJSON map[string]interface{}
-	err = json.Unmarshal([]byte(configDumpStr), &configJSON)
+	err = json.Unmarshal(configDumpBytes, &configJSON)
 	require.NoError(t, err, "failed to parse config dump JSON")
 
 	return configJSON

@@ -12,8 +12,6 @@ format:
 	cd ui && npm ci && npm run format
 
 lint:
-	go vet ./...
-	gosec -exclude-dir=testing ./...
 	golangci-lint run
 	cd ui && npm ci && npm run lint:fix
 

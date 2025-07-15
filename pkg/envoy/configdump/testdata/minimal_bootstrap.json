@@ -3,6 +3,7 @@
     {
       "@type": "type.googleapis.com/envoy.admin.v3.BootstrapConfigDump",
       "bootstrap": {
+        "@type": "type.googleapis.com/envoy.config.bootstrap.v3.Bootstrap",
         "node": {
           "id": "test-node-123",
           "cluster": "test-cluster", 

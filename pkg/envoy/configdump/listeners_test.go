@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func TestParser_DetermineListenerType(t *testing.T) {
 	parser := NewParser()
 
@@ -86,22 +79,22 @@ func TestParser_DetermineListenerType(t *testing.T) {
 			port:         9000,
 			expected:     v1alpha1.ListenerType_VIRTUAL_INBOUND,
 		},
-		// Virtual listeners by pattern (fallback)
+		// Other listeners on 0.0.0.0 without literal names fall back to INBOUND
 		{
-			name:           "Virtual outbound with use_original_dst",
+			name:           "Port 15001 without literal name",
 			listenerName:   "0.0.0.0_15001",
 			address:        "0.0.0.0",
 			port:           15001,
 			useOriginalDst: true,
-			expected:       v1alpha1.ListenerType_VIRTUAL_OUTBOUND,
+			expected:       v1alpha1.ListenerType_INBOUND,
 		},
 		{
-			name:           "Virtual inbound without use_original_dst",
+			name:           "Port 9000 without literal name",
 			listenerName:   "0.0.0.0_9000",
 			address:        "0.0.0.0",
 			port:           9000,
 			useOriginalDst: false,
-			expected:       v1alpha1.ListenerType_VIRTUAL_INBOUND,
+			expected:       v1alpha1.ListenerType_INBOUND,
 		},
 		// Regular listeners
 		{

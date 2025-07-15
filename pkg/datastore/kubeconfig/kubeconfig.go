@@ -8,6 +8,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -384,41 +385,49 @@ func (d *datastore) watchEndpoints(ctx context.Context) {
 		default:
 		}
 
-		watcher, err := d.client.CoreV1().Endpoints(metav1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
+		watcher, err := d.client.DiscoveryV1().EndpointSlices(metav1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
 		if err != nil {
-			logger.Error("failed to start endpoints watch", "error", err)
+			logger.Error("failed to start endpoint slices watch", "error", err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 
-		logger.Info("started endpoints watch")
+		logger.Info("started endpoint slices watch")
 
 		for event := range watcher.ResultChan() {
 			if event.Type == watch.Error {
-				logger.Error("endpoints watch error", "error", event.Object)
+				logger.Error("endpoint slices watch error", "error", event.Object)
 				break
 			}
 
-			endpoints, ok := event.Object.(*corev1.Endpoints)
+			endpointSlice, ok := event.Object.(*discoveryv1.EndpointSlice)
 			if !ok {
-				logger.Warn("unexpected object type in endpoints watch", "type", fmt.Sprintf("%T", event.Object))
+				logger.Warn("unexpected object type in endpoint slices watch", "type", fmt.Sprintf("%T", event.Object))
 				continue
 			}
 
-			d.handleEndpointsEvent(ctx, event.Type, endpoints)
+			d.handleEndpointSliceEvent(ctx, event.Type, endpointSlice)
 		}
 
 		watcher.Stop()
-		logger.Warn("endpoints watch stopped, restarting in 5 seconds")
+		logger.Warn("endpoint slices watch stopped, restarting in 5 seconds")
 		time.Sleep(5 * time.Second)
 	}
 }
 
-func (d *datastore) handleEndpointsEvent(ctx context.Context, eventType watch.EventType, endpoints *corev1.Endpoints) {
+func (d *datastore) handleEndpointSliceEvent(ctx context.Context, eventType watch.EventType, endpointSlice *discoveryv1.EndpointSlice) {
 	logger := logging.For(logging.ComponentDatastore)
-	serviceID := fmt.Sprintf("%s:%s", endpoints.Namespace, endpoints.Name)
 
-	logger.Debug("handling endpoints event", "event", eventType, "service", serviceID)
+	// Get service name from EndpointSlice labels
+	serviceName := endpointSlice.Labels[discoveryv1.LabelServiceName]
+	if serviceName == "" {
+		logger.Warn("endpoint slice missing service name label", "name", endpointSlice.Name)
+		return
+	}
+
+	serviceID := fmt.Sprintf("%s:%s", endpointSlice.Namespace, serviceName)
+
+	logger.Debug("handling endpoint slice event", "event", eventType, "service", serviceID)
 
 	d.cache.mu.Lock()
 	defer d.cache.mu.Unlock()
@@ -427,31 +436,72 @@ func (d *datastore) handleEndpointsEvent(ctx context.Context, eventType watch.Ev
 	if d.cache.services[serviceID] == nil {
 		d.cache.services[serviceID] = &v1alpha1.Service{
 			Id:        serviceID,
-			Name:      endpoints.Name,
-			Namespace: endpoints.Namespace,
+			Name:      serviceName,
+			Namespace: endpointSlice.Namespace,
 			Instances: []*v1alpha1.ServiceInstance{},
 		}
 	}
 
 	switch eventType {
 	case watch.Added, watch.Modified:
-		// Rebuild instances from endpoints
-		var instances []*v1alpha1.ServiceInstance
-		for _, subset := range endpoints.Subsets {
-			for _, address := range subset.Addresses {
+		// For EndpointSlice, we need to aggregate instances from all slices for this service
+		// Get all endpoint slices for this service
+		d.rebuildServiceInstancesFromEndpointSlicesLocked(ctx, serviceID)
+
+	case watch.Deleted:
+		// Rebuild instances from remaining endpoint slices
+		d.rebuildServiceInstancesFromEndpointSlicesLocked(ctx, serviceID)
+	}
+}
+
+func (d *datastore) rebuildServiceInstancesFromEndpointSlices(ctx context.Context, serviceID string) {
+	d.cache.mu.Lock()
+	defer d.cache.mu.Unlock()
+	d.rebuildServiceInstancesFromEndpointSlicesLocked(ctx, serviceID)
+}
+
+func (d *datastore) rebuildServiceInstancesFromEndpointSlicesLocked(ctx context.Context, serviceID string) {
+	logger := logging.For(logging.ComponentDatastore)
+	parts := strings.SplitN(serviceID, ":", 2)
+	if len(parts) != 2 {
+		return
+	}
+	namespace, serviceName := parts[0], parts[1]
+
+	// Get all endpoint slices for this service
+	endpointSlices, err := d.client.DiscoveryV1().EndpointSlices(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", discoveryv1.LabelServiceName, serviceName),
+	})
+	if err != nil {
+		logger.Error("failed to list endpoint slices", "error", err, "service", serviceID)
+		return
+	}
+
+	logger.Debug("found endpoint slices for service", "service", serviceID, "count", len(endpointSlices.Items))
+
+	// Aggregate instances from all endpoint slices
+	var instances []*v1alpha1.ServiceInstance
+	for _, endpointSlice := range endpointSlices.Items {
+		logger.Debug("processing endpoint slice", "name", endpointSlice.Name, "endpoints", len(endpointSlice.Endpoints))
+		for _, endpoint := range endpointSlice.Endpoints {
+			if endpoint.Conditions.Ready == nil || !*endpoint.Conditions.Ready {
+				continue // Skip non-ready endpoints
+			}
+
+			for _, address := range endpoint.Addresses {
 				podName := ""
-				podNamespace := endpoints.Namespace
-				if address.TargetRef != nil && address.TargetRef.Kind == "Pod" {
-					podName = address.TargetRef.Name
-					if address.TargetRef.Namespace != "" {
-						podNamespace = address.TargetRef.Namespace
+				podNamespace := namespace
+				if endpoint.TargetRef != nil && endpoint.TargetRef.Kind == "Pod" {
+					podName = endpoint.TargetRef.Name
+					if endpoint.TargetRef.Namespace != "" {
+						podNamespace = endpoint.TargetRef.Namespace
 					}
 				}
 
 				instanceID := fmt.Sprintf("%s:%s:%s", d.clusterName, podNamespace, podName)
 				instances = append(instances, &v1alpha1.ServiceInstance{
 					InstanceId:     instanceID,
-					Ip:             address.IP,
+					Ip:             address,
 					Pod:            podName,
 					Namespace:      podNamespace,
 					ClusterName:    d.clusterName,
@@ -459,34 +509,21 @@ func (d *datastore) handleEndpointsEvent(ctx context.Context, eventType watch.Ev
 				})
 			}
 		}
-
-		d.cache.services[serviceID].Instances = instances
-
-		// Trigger sidecar detection for all pods in this service
-		go d.refreshSidecarStatus(ctx, serviceID)
-
-	case watch.Deleted:
-		// Clear instances but keep service if it exists
-		if d.cache.services[serviceID] != nil {
-			d.cache.services[serviceID].Instances = []*v1alpha1.ServiceInstance{}
-		}
 	}
+
+	logger.Debug("created service instances from endpoint slices", "service", serviceID, "instances", len(instances))
+
+	// Update cache with new instances (lock already held)
+	if d.cache.services[serviceID] != nil {
+		d.cache.services[serviceID].Instances = instances
+	}
+
+	// Trigger sidecar detection for all pods in this service
+	go d.refreshSidecarStatus(ctx, serviceID)
 }
 
 func (d *datastore) refreshServiceEndpoints(ctx context.Context, serviceID string) {
-	parts := strings.SplitN(serviceID, ":", 2)
-	if len(parts) != 2 {
-		return
-	}
-	namespace, name := parts[0], parts[1]
-
-	endpoints, err := d.client.CoreV1().Endpoints(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		// Endpoints might not exist yet, that's okay
-		return
-	}
-
-	d.handleEndpointsEvent(ctx, watch.Modified, endpoints)
+	d.rebuildServiceInstancesFromEndpointSlices(ctx, serviceID)
 }
 
 func (d *datastore) watchPods(ctx context.Context) {

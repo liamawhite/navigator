@@ -105,14 +105,15 @@ func (p *Parser) summarizeListener(listener *listenerv3.Listener, parsed *Parsed
 			}
 
 			// Extract typed config for known filter types
-			if filter.Name == HTTPConnectionManager {
+			switch filter.Name {
+			case HTTPConnectionManager:
 				hcmSummary := p.extractHTTPConnectionManagerSummary(filter)
 				if hcmSummary != nil {
 					filterSummary.TypedConfig = &v1alpha1.FilterSummary_HttpConnectionManager{
 						HttpConnectionManager: hcmSummary,
 					}
 				}
-			} else if filter.Name == TCPProxy {
+			case TCPProxy:
 				tcpSummary := p.extractTCPProxySummary(filter)
 				if tcpSummary != nil {
 					filterSummary.TypedConfig = &v1alpha1.FilterSummary_TcpProxy{

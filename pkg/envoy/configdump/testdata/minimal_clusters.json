@@ -5,6 +5,7 @@
       "static_clusters": [
         {
           "cluster": {
+            "@type": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
             "name": "test-static-cluster",
             "type": "STATIC",
             "connect_timeout": "5s",
@@ -34,6 +35,7 @@
       "dynamic_active_clusters": [
         {
           "cluster": {
+            "@type": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
             "name": "test-dynamic-cluster",
             "type": "EDS",
             "eds_cluster_config": {

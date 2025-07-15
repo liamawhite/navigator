@@ -5,6 +5,7 @@
       "static_listeners": [
         {
           "listener": {
+            "@type": "type.googleapis.com/envoy.config.listener.v3.Listener",
             "name": "test-listener",
             "address": {
               "socket_address": {
@@ -28,6 +29,7 @@
         {
           "active_state": {
             "listener": {
+              "@type": "type.googleapis.com/envoy.config.listener.v3.Listener",
               "name": "dynamic-listener",
               "address": {
                 "socket_address": {

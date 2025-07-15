@@ -5,6 +5,7 @@
       "static_route_configs": [
         {
           "route_config": {
+            "@type": "type.googleapis.com/envoy.config.route.v3.RouteConfiguration",
             "name": "test-static-route",
             "virtual_hosts": [
               {
@@ -28,6 +29,7 @@
       "dynamic_route_configs": [
         {
           "route_config": {
+            "@type": "type.googleapis.com/envoy.config.route.v3.RouteConfiguration",
             "name": "test-dynamic-route",
             "virtual_hosts": [
               {

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -57,12 +58,12 @@ func waitForCacheUpdate(t *testing.T, ds *datastore, expectedCount int, timeout 
 
 func TestListServices(t *testing.T) {
 	tests := []struct {
-		name      string
-		namespace string
-		services  []corev1.Service
-		endpoints []corev1.Endpoints
-		expected  int
-		wantErr   bool
+		name           string
+		namespace      string
+		services       []corev1.Service
+		endpointSlices []discoveryv1.EndpointSlice
+		expected       int
+		wantErr        bool
 	}{
 		{
 			name:      "happy path - single service with endpoints",
@@ -75,23 +76,26 @@ func TestListServices(t *testing.T) {
 					},
 				},
 			},
-			endpoints: []corev1.Endpoints{
+			endpointSlices: []discoveryv1.EndpointSlice{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-service",
+						Name:      "test-service-abc123",
 						Namespace: "default",
+						Labels: map[string]string{
+							discoveryv1.LabelServiceName: "test-service",
+						},
 					},
-					Subsets: []corev1.EndpointSubset{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
 						{
-							Addresses: []corev1.EndpointAddress{
-								{
-									IP: "10.0.0.1",
-									TargetRef: &corev1.ObjectReference{
-										Kind:      "Pod",
-										Name:      "test-pod",
-										Namespace: "default",
-									},
-								},
+							Addresses: []string{"10.0.0.1"},
+							Conditions: discoveryv1.EndpointConditions{
+								Ready: func() *bool { b := true; return &b }(),
+							},
+							TargetRef: &corev1.ObjectReference{
+								Kind:      "Pod",
+								Name:      "test-pod",
+								Namespace: "default",
 							},
 						},
 					},
@@ -101,12 +105,12 @@ func TestListServices(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:      "empty namespace",
-			namespace: "default",
-			services:  []corev1.Service{},
-			endpoints: []corev1.Endpoints{},
-			expected:  0,
-			wantErr:   false,
+			name:           "empty namespace",
+			namespace:      "default",
+			services:       []corev1.Service{},
+			endpointSlices: []discoveryv1.EndpointSlice{},
+			expected:       0,
+			wantErr:        false,
 		},
 		{
 			name:      "multiple services",
@@ -125,43 +129,49 @@ func TestListServices(t *testing.T) {
 					},
 				},
 			},
-			endpoints: []corev1.Endpoints{
+			endpointSlices: []discoveryv1.EndpointSlice{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "service-1",
+						Name:      "service-1-abc123",
 						Namespace: "default",
+						Labels: map[string]string{
+							discoveryv1.LabelServiceName: "service-1",
+						},
 					},
-					Subsets: []corev1.EndpointSubset{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
 						{
-							Addresses: []corev1.EndpointAddress{
-								{
-									IP: "10.0.0.1",
-									TargetRef: &corev1.ObjectReference{
-										Kind:      "Pod",
-										Name:      "pod-1",
-										Namespace: "default",
-									},
-								},
+							Addresses: []string{"10.0.0.1"},
+							Conditions: discoveryv1.EndpointConditions{
+								Ready: func() *bool { b := true; return &b }(),
+							},
+							TargetRef: &corev1.ObjectReference{
+								Kind:      "Pod",
+								Name:      "pod-1",
+								Namespace: "default",
 							},
 						},
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "service-2",
+						Name:      "service-2-def456",
 						Namespace: "default",
+						Labels: map[string]string{
+							discoveryv1.LabelServiceName: "service-2",
+						},
 					},
-					Subsets: []corev1.EndpointSubset{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
 						{
-							Addresses: []corev1.EndpointAddress{
-								{
-									IP: "10.0.0.2",
-									TargetRef: &corev1.ObjectReference{
-										Kind:      "Pod",
-										Name:      "pod-2",
-										Namespace: "default",
-									},
-								},
+							Addresses: []string{"10.0.0.2"},
+							Conditions: discoveryv1.EndpointConditions{
+								Ready: func() *bool { b := true; return &b }(),
+							},
+							TargetRef: &corev1.ObjectReference{
+								Kind:      "Pod",
+								Name:      "pod-2",
+								Namespace: "default",
 							},
 						},
 					},
@@ -193,63 +203,72 @@ func TestListServices(t *testing.T) {
 					},
 				},
 			},
-			endpoints: []corev1.Endpoints{
+			endpointSlices: []discoveryv1.EndpointSlice{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "service-1",
+						Name:      "service-1-abc123",
 						Namespace: "default",
+						Labels: map[string]string{
+							discoveryv1.LabelServiceName: "service-1",
+						},
 					},
-					Subsets: []corev1.EndpointSubset{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
 						{
-							Addresses: []corev1.EndpointAddress{
-								{
-									IP: "10.0.0.1",
-									TargetRef: &corev1.ObjectReference{
-										Kind:      "Pod",
-										Name:      "pod-1",
-										Namespace: "default",
-									},
-								},
+							Addresses: []string{"10.0.0.1"},
+							Conditions: discoveryv1.EndpointConditions{
+								Ready: func() *bool { b := true; return &b }(),
+							},
+							TargetRef: &corev1.ObjectReference{
+								Kind:      "Pod",
+								Name:      "pod-1",
+								Namespace: "default",
 							},
 						},
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "service-2",
+						Name:      "service-2-def456",
 						Namespace: "kube-system",
+						Labels: map[string]string{
+							discoveryv1.LabelServiceName: "service-2",
+						},
 					},
-					Subsets: []corev1.EndpointSubset{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
 						{
-							Addresses: []corev1.EndpointAddress{
-								{
-									IP: "10.0.0.2",
-									TargetRef: &corev1.ObjectReference{
-										Kind:      "Pod",
-										Name:      "pod-2",
-										Namespace: "kube-system",
-									},
-								},
+							Addresses: []string{"10.0.0.2"},
+							Conditions: discoveryv1.EndpointConditions{
+								Ready: func() *bool { b := true; return &b }(),
+							},
+							TargetRef: &corev1.ObjectReference{
+								Kind:      "Pod",
+								Name:      "pod-2",
+								Namespace: "kube-system",
 							},
 						},
 					},
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "service-3",
+						Name:      "service-3-ghi789",
 						Namespace: "test-ns",
+						Labels: map[string]string{
+							discoveryv1.LabelServiceName: "service-3",
+						},
 					},
-					Subsets: []corev1.EndpointSubset{
+					AddressType: discoveryv1.AddressTypeIPv4,
+					Endpoints: []discoveryv1.Endpoint{
 						{
-							Addresses: []corev1.EndpointAddress{
-								{
-									IP: "10.0.0.3",
-									TargetRef: &corev1.ObjectReference{
-										Kind:      "Pod",
-										Name:      "pod-3",
-										Namespace: "test-ns",
-									},
-								},
+							Addresses: []string{"10.0.0.3"},
+							Conditions: discoveryv1.EndpointConditions{
+								Ready: func() *bool { b := true; return &b }(),
+							},
+							TargetRef: &corev1.ObjectReference{
+								Kind:      "Pod",
+								Name:      "pod-3",
+								Namespace: "test-ns",
 							},
 						},
 					},
@@ -271,9 +290,9 @@ func TestListServices(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			// Add endpoints to fake client
-			for _, endpoint := range tt.endpoints {
-				_, err := ds.client.CoreV1().Endpoints(endpoint.Namespace).Create(context.Background(), &endpoint, metav1.CreateOptions{})
+			// Add endpoint slices to fake client
+			for _, endpointSlice := range tt.endpointSlices {
+				_, err := ds.client.DiscoveryV1().EndpointSlices(endpointSlice.Namespace).Create(context.Background(), &endpointSlice, metav1.CreateOptions{})
 				require.NoError(t, err)
 			}
 
@@ -318,13 +337,13 @@ func TestGetService(t *testing.T) {
 		serviceName       string
 		namespace         string
 		service           *corev1.Service
-		endpoints         *corev1.Endpoints
+		endpointSlice     *discoveryv1.EndpointSlice
 		expectedName      string
 		expectedInstances int
 		wantErr           bool
 	}{
 		{
-			name:        "happy path - service with endpoints",
+			name:        "happy path - service with endpoint slice",
 			serviceName: "test-service",
 			namespace:   "default",
 			service: &corev1.Service{
@@ -333,22 +352,25 @@ func TestGetService(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			endpoints: &corev1.Endpoints{
+			endpointSlice: &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-service",
+					Name:      "test-service-abc123",
 					Namespace: "default",
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "test-service",
+					},
 				},
-				Subsets: []corev1.EndpointSubset{
+				AddressType: discoveryv1.AddressTypeIPv4,
+				Endpoints: []discoveryv1.Endpoint{
 					{
-						Addresses: []corev1.EndpointAddress{
-							{
-								IP: "10.0.0.1",
-								TargetRef: &corev1.ObjectReference{
-									Kind:      "Pod",
-									Name:      "test-pod",
-									Namespace: "default",
-								},
-							},
+						Addresses: []string{"10.0.0.1"},
+						Conditions: discoveryv1.EndpointConditions{
+							Ready: func() *bool { b := true; return &b }(),
+						},
+						TargetRef: &corev1.ObjectReference{
+							Kind:      "Pod",
+							Name:      "test-pod",
+							Namespace: "default",
 						},
 					},
 				},
@@ -358,7 +380,7 @@ func TestGetService(t *testing.T) {
 			wantErr:           false,
 		},
 		{
-			name:        "service without endpoints",
+			name:        "service without endpoint slice",
 			serviceName: "headless-service",
 			namespace:   "default",
 			service: &corev1.Service{
@@ -367,24 +389,28 @@ func TestGetService(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			endpoints: &corev1.Endpoints{
+			endpointSlice: &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "headless-service",
+					Name:      "headless-service-abc123",
 					Namespace: "default",
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "headless-service",
+					},
 				},
-				Subsets: []corev1.EndpointSubset{},
+				AddressType: discoveryv1.AddressTypeIPv4,
+				Endpoints:   []discoveryv1.Endpoint{},
 			},
 			expectedName:      "headless-service",
 			expectedInstances: 0,
 			wantErr:           false,
 		},
 		{
-			name:        "service not found",
-			serviceName: "nonexistent-service",
-			namespace:   "default",
-			service:     nil,
-			endpoints:   nil,
-			wantErr:     true,
+			name:          "service not found",
+			serviceName:   "nonexistent-service",
+			namespace:     "default",
+			service:       nil,
+			endpointSlice: nil,
+			wantErr:       true,
 		},
 	}
 
@@ -399,9 +425,9 @@ func TestGetService(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			// Add endpoints to fake client
-			if tt.endpoints != nil {
-				_, err := ds.client.CoreV1().Endpoints(tt.namespace).Create(context.Background(), tt.endpoints, metav1.CreateOptions{})
+			// Add endpoint slice to fake client
+			if tt.endpointSlice != nil {
+				_, err := ds.client.DiscoveryV1().EndpointSlices(tt.namespace).Create(context.Background(), tt.endpointSlice, metav1.CreateOptions{})
 				require.NoError(t, err)
 			}
 
@@ -489,22 +515,25 @@ func TestNamespaceIsolation(t *testing.T) {
 						},
 					}
 
-					endpoints := &corev1.Endpoints{
+					endpointSlice := &discoveryv1.EndpointSlice{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      serviceName,
+							Name:      serviceName + "-abc123",
 							Namespace: namespace,
+							Labels: map[string]string{
+								discoveryv1.LabelServiceName: serviceName,
+							},
 						},
-						Subsets: []corev1.EndpointSubset{
+						AddressType: discoveryv1.AddressTypeIPv4,
+						Endpoints: []discoveryv1.Endpoint{
 							{
-								Addresses: []corev1.EndpointAddress{
-									{
-										IP: fmt.Sprintf("10.%d.%d.1", len(namespace), i+1),
-										TargetRef: &corev1.ObjectReference{
-											Kind:      "Pod",
-											Name:      fmt.Sprintf("%s-pod-%d", serviceName, i+1),
-											Namespace: namespace,
-										},
-									},
+								Addresses: []string{fmt.Sprintf("10.%d.%d.1", len(namespace), i+1)},
+								Conditions: discoveryv1.EndpointConditions{
+									Ready: func() *bool { b := true; return &b }(),
+								},
+								TargetRef: &corev1.ObjectReference{
+									Kind:      "Pod",
+									Name:      fmt.Sprintf("%s-pod-%d", serviceName, i+1),
+									Namespace: namespace,
 								},
 							},
 						},
@@ -513,7 +542,7 @@ func TestNamespaceIsolation(t *testing.T) {
 					_, err := ds.client.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
 					require.NoError(t, err)
 
-					_, err = ds.client.CoreV1().Endpoints(namespace).Create(context.Background(), endpoints, metav1.CreateOptions{})
+					_, err = ds.client.DiscoveryV1().EndpointSlices(namespace).Create(context.Background(), endpointSlice, metav1.CreateOptions{})
 					require.NoError(t, err)
 				}
 			}
@@ -625,22 +654,25 @@ func TestSidecarDetection(t *testing.T) {
 				},
 			}
 
-			endpoints := &corev1.Endpoints{
+			endpointSlice := &discoveryv1.EndpointSlice{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-service",
+					Name:      "test-service-abc123",
 					Namespace: "default",
+					Labels: map[string]string{
+						discoveryv1.LabelServiceName: "test-service",
+					},
 				},
-				Subsets: []corev1.EndpointSubset{
+				AddressType: discoveryv1.AddressTypeIPv4,
+				Endpoints: []discoveryv1.Endpoint{
 					{
-						Addresses: []corev1.EndpointAddress{
-							{
-								IP: "10.0.0.1",
-								TargetRef: &corev1.ObjectReference{
-									Kind:      "Pod",
-									Name:      tt.pod.Name,
-									Namespace: tt.pod.Namespace,
-								},
-							},
+						Addresses: []string{"10.0.0.1"},
+						Conditions: discoveryv1.EndpointConditions{
+							Ready: func() *bool { b := true; return &b }(),
+						},
+						TargetRef: &corev1.ObjectReference{
+							Kind:      "Pod",
+							Name:      tt.pod.Name,
+							Namespace: tt.pod.Namespace,
 						},
 					},
 				},
@@ -650,7 +682,7 @@ func TestSidecarDetection(t *testing.T) {
 			_, err := ds.client.CoreV1().Services("default").Create(context.Background(), service, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			_, err = ds.client.CoreV1().Endpoints("default").Create(context.Background(), endpoints, metav1.CreateOptions{})
+			_, err = ds.client.DiscoveryV1().EndpointSlices("default").Create(context.Background(), endpointSlice, metav1.CreateOptions{})
 			require.NoError(t, err)
 
 			_, err = ds.client.CoreV1().Pods("default").Create(context.Background(), tt.pod, metav1.CreateOptions{})
