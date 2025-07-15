@@ -59,7 +59,7 @@ func (p *Parser) summarizeRouteConfig(routeConfig *routev3.RouteConfiguration) *
 				Key:   header.Header.Key,
 				Value: header.Header.Value,
 			},
-			Append: header.Append.GetValue(),
+			Append: header.GetAppend().GetValue(),
 		})
 	}
 	summary.ResponseHeadersToRemove = routeConfig.ResponseHeadersToRemove
@@ -70,7 +70,7 @@ func (p *Parser) summarizeRouteConfig(routeConfig *routev3.RouteConfiguration) *
 				Key:   header.Header.Key,
 				Value: header.Header.Value,
 			},
-			Append: header.Append.GetValue(),
+			Append: header.GetAppend().GetValue(),
 		})
 	}
 	summary.RequestHeadersToRemove = routeConfig.RequestHeadersToRemove
