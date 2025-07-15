@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 /**
  * - INBOUND: INBOUND listeners receive traffic from external sources
  * - OUTBOUND: OUTBOUND listeners send traffic to external destinations

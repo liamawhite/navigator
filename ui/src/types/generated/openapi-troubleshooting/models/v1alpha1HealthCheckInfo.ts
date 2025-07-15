@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1CustomHealthCheckInfo } from './v1alpha1CustomHealthCheckInfo';
 import type { v1alpha1EventServiceConfigInfo } from './v1alpha1EventServiceConfigInfo';
 import type { v1alpha1GrpcHealthCheckInfo } from './v1alpha1GrpcHealthCheckInfo';

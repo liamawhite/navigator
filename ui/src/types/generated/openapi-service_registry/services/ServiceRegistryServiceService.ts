@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { rpcStatus } from '../models/rpcStatus';
 import type { v1alpha1GetServiceInstanceResponse } from '../models/v1alpha1GetServiceInstanceResponse';
 import type { v1alpha1GetServiceResponse } from '../models/v1alpha1GetServiceResponse';

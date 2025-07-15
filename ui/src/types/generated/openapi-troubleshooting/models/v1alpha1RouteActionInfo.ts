@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1CorsInfo } from './v1alpha1CorsInfo';
 import type { v1alpha1HashPolicyInfo } from './v1alpha1HashPolicyInfo';
 import type { v1alpha1HedgePolicyInfo } from './v1alpha1HedgePolicyInfo';

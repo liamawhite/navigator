@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1DecoratorInfo } from './v1alpha1DecoratorInfo';
 import type { v1alpha1HeaderValueOption } from './v1alpha1HeaderValueOption';
 import type { v1alpha1HedgePolicyInfo } from './v1alpha1HedgePolicyInfo';

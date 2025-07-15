@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1DynamicMetadataInfo } from './v1alpha1DynamicMetadataInfo';
 import type { v1alpha1ExtensionInfo } from './v1alpha1ExtensionInfo';
 import type { v1alpha1GenericKeyInfo } from './v1alpha1GenericKeyInfo';

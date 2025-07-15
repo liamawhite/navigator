@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1FilterChainMatchInfo } from './v1alpha1FilterChainMatchInfo';
 import type { v1alpha1FilterSummary } from './v1alpha1FilterSummary';
 import type { v1alpha1TLSContextInfo } from './v1alpha1TLSContextInfo';

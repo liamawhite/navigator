@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1AccessLogInfo } from './v1alpha1AccessLogInfo';
 import type { v1alpha1HTTPFilterSummary } from './v1alpha1HTTPFilterSummary';
 import type { v1alpha1RDSInfo } from './v1alpha1RDSInfo';

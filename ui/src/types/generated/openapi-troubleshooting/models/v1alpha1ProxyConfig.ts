@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1BootstrapSummary } from './v1alpha1BootstrapSummary';
 import type { v1alpha1ClusterSummary } from './v1alpha1ClusterSummary';
 import type { v1alpha1EndpointSummary } from './v1alpha1EndpointSummary';

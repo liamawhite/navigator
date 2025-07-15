@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1ContainerInfo } from './v1alpha1ContainerInfo';
 /**
  * ServiceInstanceDetail represents detailed information about a specific service instance.

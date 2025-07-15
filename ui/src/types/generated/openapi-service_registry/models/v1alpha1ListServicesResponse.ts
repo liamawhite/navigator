@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1Service } from './v1alpha1Service';
 /**
  * ListServicesResponse contains the list of services in the requested namespace(s).

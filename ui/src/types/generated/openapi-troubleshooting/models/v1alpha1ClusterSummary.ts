@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1CircuitBreakersInfo } from './v1alpha1CircuitBreakersInfo';
 import type { v1alpha1ClusterFilterInfo } from './v1alpha1ClusterFilterInfo';
 import type { v1alpha1CommonHttpProtocolOptionsInfo } from './v1alpha1CommonHttpProtocolOptionsInfo';

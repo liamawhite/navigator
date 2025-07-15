@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1SocketOptionInfo } from './v1alpha1SocketOptionInfo';
 import type { v1alpha1TcpKeepaliveInfo } from './v1alpha1TcpKeepaliveInfo';
 export type v1alpha1UpstreamConnectionOptionsInfo = {

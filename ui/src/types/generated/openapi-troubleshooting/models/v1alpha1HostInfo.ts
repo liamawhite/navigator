@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1HealthCheckConfigInfo } from './v1alpha1HealthCheckConfigInfo';
 import type { v1alpha1PipeInfo } from './v1alpha1PipeInfo';
 import type { v1alpha1SocketAddressInfo } from './v1alpha1SocketAddressInfo';

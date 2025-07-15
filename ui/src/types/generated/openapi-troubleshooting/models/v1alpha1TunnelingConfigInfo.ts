@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1HeaderValueOption } from './v1alpha1HeaderValueOption';
 export type v1alpha1TunnelingConfigInfo = {
     hostname?: string;

@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { v1alpha1LbSubsetSelectorInfo } from './v1alpha1LbSubsetSelectorInfo';
 export type v1alpha1LbSubsetConfigInfo = {
     fallbackPolicy?: string;
