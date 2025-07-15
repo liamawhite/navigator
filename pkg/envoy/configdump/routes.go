@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
+	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -59,7 +60,7 @@ func (p *Parser) summarizeRouteConfig(routeConfig *routev3.RouteConfiguration) *
 				Key:   header.Header.Key,
 				Value: header.Header.Value,
 			},
-			Append: header.GetAppend().GetValue(),
+			Append: header.GetAppendAction() == corev3.HeaderValueOption_APPEND_IF_EXISTS_OR_ADD,
 		})
 	}
 	summary.ResponseHeadersToRemove = routeConfig.ResponseHeadersToRemove
@@ -70,7 +71,7 @@ func (p *Parser) summarizeRouteConfig(routeConfig *routev3.RouteConfiguration) *
 				Key:   header.Header.Key,
 				Value: header.Header.Value,
 			},
-			Append: header.GetAppend().GetValue(),
+			Append: header.GetAppendAction() == corev3.HeaderValueOption_APPEND_IF_EXISTS_OR_ADD,
 		})
 	}
 	summary.RequestHeadersToRemove = routeConfig.RequestHeadersToRemove
