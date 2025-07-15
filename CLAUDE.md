@@ -71,11 +71,14 @@ make build-ui
 # Format both Go and UI code
 make format
 
-# Lint UI code (with auto-fix)
+# Lint both Go and UI code (with auto-fix)
 make lint
 
 # Run all quality checks (used in CI)
 make check
+
+# Clean up development environment
+make clean
 ```
 
 ### Logging Configuration
@@ -217,7 +220,17 @@ nix develop
 # - kind (Kubernetes in Docker)
 # - kubectl (Kubernetes CLI)
 # - docker (Container runtime)
+# - air (Go hot reloading)
+# - golangci-lint (Go linting)
 ```
+
+### Air Hot Reloading
+Air configuration (`.air.toml`) provides Go hot reloading:
+- Builds to `./tmp/navigator`
+- Serves on port 8080 with arguments: `serve -p 8080`
+- Excludes UI, testing, and generated code directories
+- Watches `.go`, `.tpl`, `.tmpl`, `.html` files
+- Automatically restarts on file changes
 
 ## Key Directory Structure
 
@@ -359,6 +372,50 @@ To add a new test scenario:
 3. The test will automatically run against all environments
 4. Use the flexible assertion system with different `AssertionType` and `TargetType` combinations
 
-## Service IDs
+## Demo Environment Management
 
-Services are identified by `namespace/name` format (e.g., `default/nginx-service`). This convention is used throughout the API and datastore implementations.
+Navigator includes a comprehensive demo system for local development and testing:
+
+### Demo Commands
+```bash
+# List available scenarios  
+./navigator demo --list
+
+# Set up basic demo environment
+./navigator demo --scenario basic
+
+# Set up microservice topology with Istio
+./navigator demo --scenario istio-demo
+
+# Clean up demo environment
+./navigator demo --teardown
+```
+
+### Available Scenarios
+- **basic**: Single web service for basic testing
+- **microservice-topology**: Chain of three interconnected services  
+- **istio-demo**: Full Istio service mesh demonstration with proxy analysis
+- **mixed-service-types**: Various service configurations for comprehensive testing
+
+### Kind Cluster Configuration
+Demo environments use Kind with custom configuration supporting:
+- Control plane and worker nodes
+- Port mappings for ingress (80, 443)
+- Istio-compatible networking setup
+- Cluster name: `navigator-demo`
+- Kubeconfig stored at `/tmp/navigator-demo-kubeconfig`
+
+## Continuous Integration
+
+Navigator uses GitHub Actions for automated quality assurance:
+
+### Hygiene Workflow (`.github/workflows/hygiene.yml`)
+- Code formatting checks (Go + TypeScript)
+- Linting with golangci-lint (excludes generated code)
+- Protocol buffer generation verification
+- Git cleanliness validation
+
+### Test Workflow (`.github/workflows/test.yml`)
+- Unit test execution across Go packages
+- Integration tests with Kind clusters
+- 20-minute timeout for complex test scenarios
