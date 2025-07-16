@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { v1alpha1CircuitBreakersInfo } from './v1alpha1CircuitBreakersInfo';
+import type { v1alpha1ClusterDirection } from './v1alpha1ClusterDirection';
 import type { v1alpha1ClusterFilterInfo } from './v1alpha1ClusterFilterInfo';
 import type { v1alpha1CommonHttpProtocolOptionsInfo } from './v1alpha1CommonHttpProtocolOptionsInfo';
 import type { v1alpha1CommonLbConfigInfo } from './v1alpha1CommonLbConfigInfo';
@@ -71,5 +72,10 @@ export type v1alpha1ClusterSummary = {
     dnsRefreshRate?: string;
     dnsQueryTimeout?: string;
     edsClusterConfig?: v1alpha1EdsClusterConfigInfo;
+    rawConfig?: string;
+    direction?: v1alpha1ClusterDirection;
+    port?: number;
+    subset?: string;
+    serviceFqdn?: string;
 };
 

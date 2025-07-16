@@ -499,19 +499,34 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                         className="w-full"
                                     >
                                         <TabsList className="grid w-full grid-cols-5">
-                                            <TabsTrigger value="listeners">
+                                            <TabsTrigger
+                                                value="listeners"
+                                                className="cursor-pointer"
+                                            >
                                                 Listeners
                                             </TabsTrigger>
-                                            <TabsTrigger value="routes">
+                                            <TabsTrigger
+                                                value="routes"
+                                                className="cursor-pointer"
+                                            >
                                                 Routes
                                             </TabsTrigger>
-                                            <TabsTrigger value="clusters">
+                                            <TabsTrigger
+                                                value="clusters"
+                                                className="cursor-pointer"
+                                            >
                                                 Clusters
                                             </TabsTrigger>
-                                            <TabsTrigger value="endpoints">
+                                            <TabsTrigger
+                                                value="endpoints"
+                                                className="cursor-pointer"
+                                            >
                                                 Endpoints
                                             </TabsTrigger>
-                                            <TabsTrigger value="bootstrap">
+                                            <TabsTrigger
+                                                value="bootstrap"
+                                                className="cursor-pointer"
+                                            >
                                                 Bootstrap
                                             </TabsTrigger>
                                         </TabsList>
