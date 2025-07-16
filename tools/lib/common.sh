@@ -139,9 +139,38 @@ wait_for_service() {
 build_navigator_if_needed() {
     local component="${1:-common}"
     
-    if [ ! -f "./navigator" ] || [ "./navigator" -ot "cmd/navigator/main.go" ]; then
+    # Create bin directory if it doesn't exist
+    mkdir -p bin
+    
+    # Check if UI needs to be built (if ui/dist doesn't exist or UI source files are newer)
+    local ui_needs_build=false
+    if [ ! -d "ui/dist" ]; then
+        ui_needs_build=true
+    else
+        # Check if any UI source files are newer than dist
+        if [ -n "$(find ui/src -name '*.tsx' -o -name '*.ts' -o -name '*.jsx' -o -name '*.js' -o -name '*.css' -o -name '*.html' -newer ui/dist 2>/dev/null)" ]; then
+            ui_needs_build=true
+        fi
+        # Also check package.json and vite.config.ts
+        if [ "ui/package.json" -nt "ui/dist" ] || [ "ui/vite.config.ts" -nt "ui/dist" ]; then
+            ui_needs_build=true
+        fi
+    fi
+    
+    # Build UI if needed
+    if [ "$ui_needs_build" = true ]; then
+        log "$component" "Building UI..."
+        if ! (cd ui && npm ci && npm run build); then
+            error "$component" "Failed to build UI"
+            return 1
+        fi
+        success "$component" "UI built successfully"
+    fi
+    
+    # Check if Navigator binary needs to be built
+    if [ ! -f "bin/navigator" ] || [ "bin/navigator" -ot "cmd/navigator/main.go" ] || [ "$ui_needs_build" = true ]; then
         log "$component" "Building Navigator..."
-        if ! go build -o navigator cmd/navigator/main.go; then
+        if ! go build -o bin/navigator cmd/navigator/main.go; then
             error "$component" "Failed to build Navigator"
             return 1
         fi
@@ -167,8 +196,8 @@ show_cluster_missing_error() {
     error "$component" "  ./navigator demo --scenario <scenario>  # Specific scenario"
     error "$component" ""
     error "$component" "Available scenarios:"
-    if [ -f "./navigator" ]; then
-        ./navigator demo --list 2>/dev/null | grep -E "^  [a-z-]+" | head -6
+    if [ -f "bin/navigator" ]; then
+        bin/navigator demo --list 2>/dev/null | grep -E "^  [a-z-]+" | head -6
     fi
 }
 
@@ -186,7 +215,7 @@ auto_setup_cluster_if_needed() {
         
         # Create cluster with basic scenario
         log "$component" "Setting up demo cluster with microservice topology..."
-        if ! ./navigator demo --scenario microservice-topology --cleanup-on-exit=false; then
+        if ! bin/navigator demo --scenario microservice-topology --cleanup-on-exit=false; then
             error "$component" "Failed to create demo cluster"
             return 1
         fi

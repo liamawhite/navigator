@@ -25,7 +25,7 @@ start_navigator() {
     fi
     
     # Start Navigator server
-    exec ./navigator serve --kubeconfig "${KUBECONFIG_FILE}" --port "${NAVIGATOR_PORT}"
+    exec bin/navigator serve --kubeconfig "${KUBECONFIG_FILE}" --port "${NAVIGATOR_PORT}"
 }
 
 # Cleanup function for graceful shutdown

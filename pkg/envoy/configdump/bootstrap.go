@@ -2,6 +2,7 @@ package configdump
 
 import (
 	"fmt"
+	"strings"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
 	bootstrapv3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
@@ -23,6 +24,30 @@ func (p *Parser) parseBootstrapFromAny(configAny *anypb.Any, parsed *ParsedConfi
 	return nil
 }
 
+// parseProxyModeFromNodeId extracts the proxy mode from a node ID
+// Node ID format: sidecar~10.244.1.4~frontend-694f65c7d-g7hz4.demo~demo.svc.cluster.local
+func parseProxyModeFromNodeId(nodeId string) v1alpha1.ProxyMode {
+	if nodeId == "" {
+		return v1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
+	}
+
+	parts := strings.Split(nodeId, "~")
+	if len(parts) == 0 {
+		return v1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
+	}
+
+	switch strings.ToLower(parts[0]) {
+	case "sidecar":
+		return v1alpha1.ProxyMode_SIDECAR
+	case "gateway":
+		return v1alpha1.ProxyMode_GATEWAY
+	case "router":
+		return v1alpha1.ProxyMode_ROUTER
+	default:
+		return v1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
+	}
+}
+
 // summarizeBootstrap converts a Bootstrap config to a BootstrapSummary
 func (p *Parser) summarizeBootstrap(bootstrap *bootstrapv3.Bootstrap) *v1alpha1.BootstrapSummary {
 	if bootstrap == nil {
@@ -34,8 +59,9 @@ func (p *Parser) summarizeBootstrap(bootstrap *bootstrapv3.Bootstrap) *v1alpha1.
 	// Extract node information
 	if bootstrap.Node != nil {
 		summary.Node = &v1alpha1.NodeSummary{
-			Id:      bootstrap.Node.Id,
-			Cluster: bootstrap.Node.Cluster,
+			Id:        bootstrap.Node.Id,
+			Cluster:   bootstrap.Node.Cluster,
+			ProxyMode: parseProxyModeFromNodeId(bootstrap.Node.Id),
 		}
 
 		// Extract metadata as simple string map

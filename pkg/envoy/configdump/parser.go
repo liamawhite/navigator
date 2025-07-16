@@ -45,6 +45,12 @@ type ParsedConfig struct {
 	RawClusters  map[string]string // cluster name -> raw JSON config
 	RawEndpoints map[string]string // endpoint name -> raw JSON config
 	RawRoutes    map[string]string // route name -> raw JSON config
+
+	// Track which routes came from static configs
+	StaticRouteNames map[string]bool // route name -> true if from StaticRouteConfigs
+
+	// Track route config to raw config key mapping for routes with duplicate names
+	RouteConfigToRawKey map[*routev3.RouteConfiguration]string
 }
 
 // ParsedSummary represents the summary components for UI display
@@ -147,6 +153,13 @@ func (p *Parser) extractRawListenerConfigs(rawConfigDump string, parsed *ParsedC
 				return fmt.Errorf("failed to extract listener raw configs: %w", err)
 			}
 		}
+
+		// Look for route config
+		if typeUrl, ok := configMap["@type"].(string); ok && typeUrl == "type.googleapis.com/envoy.admin.v3.RoutesConfigDump" {
+			if err := p.extractRouteRawConfigs(configMap, parsed); err != nil {
+				return fmt.Errorf("failed to extract route raw configs: %w", err)
+			}
+		}
 	}
 
 	return nil
@@ -197,6 +210,59 @@ func (p *Parser) extractListenerRawConfigs(listenersConfigDump map[string]interf
 	return nil
 }
 
+// extractRouteRawConfigs extracts raw JSON for each individual route configuration
+func (p *Parser) extractRouteRawConfigs(routesConfigDump map[string]interface{}, parsed *ParsedConfig) error {
+	// Extract dynamic routes
+	if dynamicRoutes, ok := routesConfigDump["dynamic_route_configs"].([]interface{}); ok {
+		for i, dynRoute := range dynamicRoutes {
+			dynRouteMap, ok := dynRoute.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if routeConfig, ok := dynRouteMap["route_config"].(map[string]interface{}); ok {
+				if name, ok := routeConfig["name"].(string); ok {
+					// Convert back to JSON string
+					if rawJSON, err := json.MarshalIndent(routeConfig, "", "  "); err == nil {
+						// Use unique key for empty names to avoid collisions
+						key := name
+						if name == "" {
+							key = fmt.Sprintf("__empty_dynamic_%d", i)
+						}
+						parsed.RawRoutes[key] = string(rawJSON)
+					}
+				}
+			}
+		}
+	}
+
+	// Extract static routes
+	if staticRoutes, ok := routesConfigDump["static_route_configs"].([]interface{}); ok {
+		for i, staticRoute := range staticRoutes {
+			staticRouteMap, ok := staticRoute.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if routeConfig, ok := staticRouteMap["route_config"].(map[string]interface{}); ok {
+				if name, ok := routeConfig["name"].(string); ok {
+					// Convert back to JSON string
+					if rawJSON, err := json.MarshalIndent(routeConfig, "", "  "); err == nil {
+						// Use unique key for empty names to avoid collisions
+						key := name
+						if name == "" {
+							key = fmt.Sprintf("__empty_static_%d", i)
+						}
+						parsed.RawRoutes[key] = string(rawJSON)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // ParseJSONToSummary parses a raw Envoy config dump JSON string into summary proto structures
 func (p *Parser) ParseJSONToSummary(rawConfigDump string) (*ParsedSummary, error) {
 	// First parse to get the structured protobuf types
@@ -230,7 +296,7 @@ func (p *Parser) ParseJSONToSummary(rawConfigDump string) (*ParsedSummary, error
 
 	// Convert routes
 	for _, route := range parsed.Routes {
-		summary.Routes = append(summary.Routes, p.summarizeRouteConfig(route))
+		summary.Routes = append(summary.Routes, p.summarizeRouteConfig(route, parsed))
 	}
 
 	return summary, nil
@@ -239,10 +305,11 @@ func (p *Parser) ParseJSONToSummary(rawConfigDump string) (*ParsedSummary, error
 // parseFromConfigDump parses using istioctl-style protobuf unmarshaling
 func (p *Parser) parseFromConfigDump(configDump *admin.ConfigDump) (*ParsedConfig, error) {
 	parsed := &ParsedConfig{
-		RawListeners: make(map[string]string),
-		RawClusters:  make(map[string]string),
-		RawEndpoints: make(map[string]string),
-		RawRoutes:    make(map[string]string),
+		RawListeners:        make(map[string]string),
+		RawClusters:         make(map[string]string),
+		RawEndpoints:        make(map[string]string),
+		RawRoutes:           make(map[string]string),
+		RouteConfigToRawKey: make(map[*routev3.RouteConfiguration]string),
 	}
 
 	// Parse each section using the same approach as istioctl

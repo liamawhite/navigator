@@ -9,7 +9,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { RawConfigDialog } from '@/components/envoy/RawConfigDialog';
+import { ConfigActions } from '@/components/envoy/ConfigActions';
 import type { v1alpha1ListenerSummary } from '@/types/generated/openapi-troubleshooting';
 
 interface ListenersTableProps {
@@ -29,23 +29,23 @@ const formatListenerType = (type?: string | number): string => {
     const typeStr = String(type).toUpperCase();
     switch (typeStr) {
         case '0':
-        case 'INBOUND':
-            return 'inbound';
-        case '1':
-        case 'OUTBOUND':
-            return 'outbound';
-        case '2':
         case 'VIRTUAL_INBOUND':
             return 'virtual_inbound';
-        case '3':
+        case '1':
         case 'VIRTUAL_OUTBOUND':
             return 'virtual_outbound';
+        case '2':
+        case 'SERVICE_OUTBOUND':
+            return 'service_outbound';
+        case '3':
+        case 'PORT_OUTBOUND':
+            return 'port_outbound';
         case '4':
-        case 'METRICS':
-            return 'metrics';
+        case 'PROXY_METRICS':
+            return 'proxy_metrics';
         case '5':
-        case 'HEALTHCHECK':
-            return 'healthcheck';
+        case 'PROXY_HEALTHCHECK':
+            return 'proxy_healthcheck';
         case '6':
         case 'ADMIN_XDS':
             return 'admin_xds';
@@ -68,40 +68,41 @@ const getTypeVariant = (
     const typeStr = String(type).toUpperCase();
     switch (typeStr) {
         case '0':
-        case 'INBOUND':
-            return 'default'; // Blue - regular inbound
-        case '1':
-        case 'OUTBOUND':
-            return 'secondary'; // Gray - outbound traffic
-        case '2':
         case 'VIRTUAL_INBOUND':
-            return 'default'; // Blue - virtual inbound
-        case '3':
+            return 'default'; // Blue - primary virtual inbound (main traffic entry)
+        case '1':
         case 'VIRTUAL_OUTBOUND':
-            return 'secondary'; // Gray - virtual outbound
+            return 'default'; // Blue - primary virtual outbound (main traffic exit)
+        case '2':
+        case 'SERVICE_OUTBOUND':
+            return 'secondary'; // Gray - service-specific listeners
+        case '3':
+        case 'PORT_OUTBOUND':
+            return 'secondary'; // Gray - port-based listeners
         case '4':
-        case 'METRICS':
+        case 'PROXY_METRICS':
         case '5':
-        case 'HEALTHCHECK':
+        case 'PROXY_HEALTHCHECK':
+            return 'outline'; // Outlined - proxy operational listeners
         case '6':
         case 'ADMIN_XDS':
         case '7':
         case 'ADMIN_WEBHOOK':
         case '8':
         case 'ADMIN_DEBUG':
-            return 'outline'; // Outlined - admin/system traffic
+            return 'secondary'; // Gray - legacy admin types (now port-based)
         default:
             return 'outline';
     }
 };
 
-// Helper function to group listeners by type
+// Helper function to group listeners by type (4-category system for modern Istio architecture)
 const groupListenersByType = (listeners: v1alpha1ListenerSummary[]) => {
     const groups = {
         virtual: [] as v1alpha1ListenerSummary[],
-        inbound: [] as v1alpha1ListenerSummary[],
-        outbound: [] as v1alpha1ListenerSummary[],
-        admin: [] as v1alpha1ListenerSummary[],
+        service: [] as v1alpha1ListenerSummary[],
+        port: [] as v1alpha1ListenerSummary[],
+        proxy: [] as v1alpha1ListenerSummary[],
     };
 
     listeners.forEach((listener) => {
@@ -109,17 +110,37 @@ const groupListenersByType = (listeners: v1alpha1ListenerSummary[]) => {
         if (
             type === 'virtual_inbound' ||
             type === 'virtual_outbound' ||
-            type === '2' ||
-            type === '3'
+            type === '0' ||
+            type === '1'
         ) {
+            // Virtual listeners are the main traffic entry/exit points in Istio
             groups.virtual.push(listener);
-        } else if (type === 'inbound' || type === '0') {
-            groups.inbound.push(listener);
-        } else if (type === 'outbound' || type === '1') {
-            groups.outbound.push(listener);
+        } else if (type === 'service_outbound' || type === '2') {
+            // Service-specific outbound listeners (specific service destinations)
+            groups.service.push(listener);
+        } else if (
+            type === 'port_outbound' ||
+            type === '3' ||
+            type === 'admin_xds' ||
+            type === '6' ||
+            type === 'admin_webhook' ||
+            type === '7' ||
+            type === 'admin_debug' ||
+            type === '8'
+        ) {
+            // Port-based outbound listeners (generic port traffic including admin ports)
+            groups.port.push(listener);
+        } else if (
+            type === 'proxy_metrics' ||
+            type === '4' ||
+            type === 'proxy_healthcheck' ||
+            type === '5'
+        ) {
+            // Proxy-specific operational endpoints
+            groups.proxy.push(listener);
         } else {
-            // Admin types: metrics, healthcheck, admin_xds, admin_webhook, admin_debug
-            groups.admin.push(listener);
+            // Fallback - put unknown types in port group
+            groups.port.push(listener);
         }
     });
 
@@ -268,10 +289,11 @@ const ListenerGroup: React.FC<{
                                 </span>
                             </TableCell>
                             <TableCell>
-                                <RawConfigDialog
+                                <ConfigActions
                                     name={listener.name || 'Unknown'}
-                                    rawConfig={listener.rawConfig || '{}'}
+                                    rawConfig={listener.rawConfig || ''}
                                     configType="Listener"
+                                    copyId={`listener-${listener.name}`}
                                 />
                             </TableCell>
                         </TableRow>
@@ -326,20 +348,6 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
     return (
         <div className="space-y-6">
             <ListenerGroup
-                title="Inbound Listeners"
-                listeners={groups.inbound}
-                sortConfig={sortConfig}
-                handleSort={handleSort}
-                getSortIcon={getSortIcon}
-            />
-            <ListenerGroup
-                title="Outbound Listeners"
-                listeners={groups.outbound}
-                sortConfig={sortConfig}
-                handleSort={handleSort}
-                getSortIcon={getSortIcon}
-            />
-            <ListenerGroup
                 title="Virtual Listeners"
                 listeners={groups.virtual}
                 sortConfig={sortConfig}
@@ -347,8 +355,22 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
                 getSortIcon={getSortIcon}
             />
             <ListenerGroup
-                title="Admin Listeners"
-                listeners={groups.admin}
+                title="Service-Specific Listeners"
+                listeners={groups.service}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+            />
+            <ListenerGroup
+                title="Port-Based Listeners"
+                listeners={groups.port}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+            />
+            <ListenerGroup
+                title="Proxy Listeners"
+                listeners={groups.proxy}
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
