@@ -1,4 +1,4 @@
-//go:build ci
+//go:build test || integration
 
 package ui
 

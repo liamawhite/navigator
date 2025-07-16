@@ -12,14 +12,14 @@ format:
 	cd ui && npm ci && npm run format
 
 lint:
-	golangci-lint run
+	golangci-lint run --build-tags=test
 	cd ui && npm ci && npm run lint:fix
 
 test-unit: 
-	go test -tags=ci -v $(shell go list ./... | grep -v /testing/integration)
+	go test -tags=test -v ./cmd/... ./internal/... ./pkg/...
 
 test-integration:
-	go test -v -timeout 15m ./testing/integration/...
+	go test -tags=integration -v -timeout 15m ./testing/integration/...
 
 generate:
 	cd api && buf generate

@@ -5,6 +5,7 @@ run:
   skip-dirs:
     - testing
     - pkg/api
+    - ui
 
 linters:
   enable:
