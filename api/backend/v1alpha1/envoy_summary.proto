@@ -4,26 +4,48 @@ package navigator.backend.v1alpha1;
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 
+// ProxyMode indicates the type of proxy (extracted from node ID)
+enum ProxyMode {
+  // UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode
+  UNKNOWN_PROXY_MODE = 0;
+  // SIDECAR indicates a sidecar proxy (most common in Istio)
+  SIDECAR = 1;
+  // GATEWAY indicates a gateway proxy (ingress/egress gateways)
+  GATEWAY = 2;
+  // ROUTER indicates a router proxy
+  ROUTER = 3;
+}
+
 // ListenerType indicates the type/direction of a listener
 enum ListenerType {
-  // INBOUND listeners receive traffic from external sources
-  INBOUND = 0;
-  // OUTBOUND listeners send traffic to external destinations
-  OUTBOUND = 1;
   // VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)
-  VIRTUAL_INBOUND = 2;
+  VIRTUAL_INBOUND = 0;
   // VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)
-  VIRTUAL_OUTBOUND = 3;
-  // METRICS listeners serve Prometheus metrics (typically on port 15090)
-  METRICS = 4;
-  // HEALTHCHECK listeners serve health check endpoints (typically on port 15021)
-  HEALTHCHECK = 5;
+  VIRTUAL_OUTBOUND = 1;
+  // SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)
+  SERVICE_OUTBOUND = 2;
+  // PORT_OUTBOUND listeners for generic port traffic outbound (e.g., "80", "443")
+  PORT_OUTBOUND = 3;
+  // PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)
+  PROXY_METRICS = 4;
+  // PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)
+  PROXY_HEALTHCHECK = 5;
   // ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)
   ADMIN_XDS = 6;
   // ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)
   ADMIN_WEBHOOK = 7;
   // ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)
   ADMIN_DEBUG = 8;
+}
+
+// RouteType indicates the type/category of a route configuration
+enum RouteType {
+  // PORT_BASED routes are routes with just port numbers (e.g., "80", "443", "15010")
+  PORT_BASED = 0;
+  // SERVICE_SPECIFIC routes are routes with service hostnames and ports (e.g., "backend.demo.svc.cluster.local:8080", external domains from ServiceEntries)
+  SERVICE_SPECIFIC = 1;
+  // STATIC routes are Istio/Envoy internal routing patterns (e.g., "InboundPassthroughCluster", "inbound|8080||")
+  STATIC = 2;
 }
 
 // BootstrapSummary contains essential bootstrap configuration information
@@ -60,6 +82,9 @@ message NodeSummary {
   
   // locality contains locality information
   LocalityInfo locality = 4;
+  
+  // proxy_mode is the proxy mode extracted from node ID
+  ProxyMode proxy_mode = 5;
 }
 
 // LocalityInfo contains locality information
@@ -807,6 +832,12 @@ message RouteConfigSummary {
   
   // cluster_specifier_plugins contains cluster specifier plugin configuration
   repeated ClusterSpecifierPluginInfo cluster_specifier_plugins = 11;
+  
+  // raw_config contains the raw route configuration in JSON format
+  string raw_config = 12;
+  
+  // type indicates the route type category
+  RouteType type = 13;
 }
 
 // Helper message types for complex configurations

@@ -85,6 +85,7 @@ export type { v1alpha1OutlierDetectionInfo } from './models/v1alpha1OutlierDetec
 export type { v1alpha1PipeInfo } from './models/v1alpha1PipeInfo';
 export type { v1alpha1PolicyInfo } from './models/v1alpha1PolicyInfo';
 export type { v1alpha1ProxyConfig } from './models/v1alpha1ProxyConfig';
+export { v1alpha1ProxyMode } from './models/v1alpha1ProxyMode';
 export type { v1alpha1QueryParameterMatcherInfo } from './models/v1alpha1QueryParameterMatcherInfo';
 export type { v1alpha1RangeMatchInfo } from './models/v1alpha1RangeMatchInfo';
 export type { v1alpha1RateLimitActionInfo } from './models/v1alpha1RateLimitActionInfo';
@@ -104,6 +105,7 @@ export type { v1alpha1RouteConfigInfo } from './models/v1alpha1RouteConfigInfo';
 export type { v1alpha1RouteConfigSummary } from './models/v1alpha1RouteConfigSummary';
 export type { v1alpha1RouteInfo } from './models/v1alpha1RouteInfo';
 export type { v1alpha1RouteMatchInfo } from './models/v1alpha1RouteMatchInfo';
+export { v1alpha1RouteType } from './models/v1alpha1RouteType';
 export type { v1alpha1RuntimeDoubleInfo } from './models/v1alpha1RuntimeDoubleInfo';
 export type { v1alpha1RuntimeFractionInfo } from './models/v1alpha1RuntimeFractionInfo';
 export type { v1alpha1SocketAddressInfo } from './models/v1alpha1SocketAddressInfo';

@@ -23,46 +23,46 @@ func TestParser_DetermineListenerType(t *testing.T) {
 	}{
 		// Admin ports
 		{
-			name:         "XDS admin port",
+			name:         "XDS port - port-based",
 			listenerName: "0.0.0.0_15010",
 			address:      "0.0.0.0",
 			port:         15010,
-			expected:     v1alpha1.ListenerType_ADMIN_XDS,
+			expected:     v1alpha1.ListenerType_PORT_OUTBOUND,
 		},
 		{
 			name:         "Webhook admin port on specific IP",
 			listenerName: "10.96.245.191_15012",
 			address:      "10.96.245.191",
 			port:         15012,
-			expected:     v1alpha1.ListenerType_OUTBOUND,
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 		},
 		{
-			name:         "Debug admin port",
+			name:         "Debug port - port-based",
 			listenerName: "0.0.0.0_15014",
 			address:      "0.0.0.0",
 			port:         15014,
-			expected:     v1alpha1.ListenerType_ADMIN_DEBUG,
+			expected:     v1alpha1.ListenerType_PORT_OUTBOUND,
 		},
 		{
 			name:         "Metrics port",
 			listenerName: "0.0.0.0_15090",
 			address:      "0.0.0.0",
 			port:         15090,
-			expected:     v1alpha1.ListenerType_METRICS,
+			expected:     v1alpha1.ListenerType_PROXY_METRICS,
 		},
 		{
 			name:         "Health check port - 0.0.0.0",
 			listenerName: "0.0.0.0_15021",
 			address:      "0.0.0.0",
 			port:         15021,
-			expected:     v1alpha1.ListenerType_HEALTHCHECK,
+			expected:     v1alpha1.ListenerType_PROXY_HEALTHCHECK,
 		},
 		{
 			name:         "Health check port - specific IP",
 			listenerName: "10.96.240.89_15021",
 			address:      "10.96.240.89",
 			port:         15021,
-			expected:     v1alpha1.ListenerType_OUTBOUND,
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 		},
 		// Virtual listeners by name (most reliable)
 		{
@@ -79,14 +79,14 @@ func TestParser_DetermineListenerType(t *testing.T) {
 			port:         9000,
 			expected:     v1alpha1.ListenerType_VIRTUAL_INBOUND,
 		},
-		// Other listeners on 0.0.0.0 without literal names fall back to INBOUND
+		// Other listeners on 0.0.0.0 without literal names fall back to virtual types
 		{
 			name:           "Port 15001 without literal name",
 			listenerName:   "0.0.0.0_15001",
 			address:        "0.0.0.0",
 			port:           15001,
 			useOriginalDst: true,
-			expected:       v1alpha1.ListenerType_INBOUND,
+			expected:       v1alpha1.ListenerType_VIRTUAL_OUTBOUND,
 		},
 		{
 			name:           "Port 9000 without literal name",
@@ -94,22 +94,29 @@ func TestParser_DetermineListenerType(t *testing.T) {
 			address:        "0.0.0.0",
 			port:           9000,
 			useOriginalDst: false,
-			expected:       v1alpha1.ListenerType_INBOUND,
+			expected:       v1alpha1.ListenerType_PORT_OUTBOUND,
 		},
-		// Regular listeners
+		// Service-specific outbound listeners
 		{
-			name:         "Outbound listener - specific IP",
+			name:         "Service outbound listener - specific IP",
 			listenerName: "10.96.173.1_8080",
 			address:      "10.96.173.1",
 			port:         8080,
-			expected:     v1alpha1.ListenerType_OUTBOUND, // Specific IPs are outbound connections
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 		},
 		{
-			name:         "Inbound application port",
+			name:         "Application port - port-based",
 			listenerName: "0.0.0.0_80",
 			address:      "0.0.0.0",
 			port:         80,
-			expected:     v1alpha1.ListenerType_INBOUND,
+			expected:     v1alpha1.ListenerType_PORT_OUTBOUND,
+		},
+		{
+			name:         "Port-based listener - generic port on 0.0.0.0",
+			listenerName: "0.0.0.0_3000",
+			address:      "0.0.0.0",
+			port:         3000,
+			expected:     v1alpha1.ListenerType_PORT_OUTBOUND,
 		},
 	}
 
@@ -146,7 +153,7 @@ func TestParser_DetermineListenerType_RealEnvoyScenarios(t *testing.T) {
 			listenerName: "10.96.0.10_53",
 			address:      "10.96.0.10",
 			port:         53,
-			expected:     v1alpha1.ListenerType_OUTBOUND,
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 			description:  "Outbound to kube-dns service",
 		},
 		{
@@ -154,39 +161,39 @@ func TestParser_DetermineListenerType_RealEnvoyScenarios(t *testing.T) {
 			listenerName: "10.96.0.10_9153",
 			address:      "10.96.0.10",
 			port:         9153,
-			expected:     v1alpha1.ListenerType_OUTBOUND,
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 			description:  "Outbound to kube-dns metrics",
 		},
 		{
-			name:         "XDS admin - 0.0.0.0",
+			name:         "XDS port - 0.0.0.0",
 			listenerName: "0.0.0.0_15010",
 			address:      "0.0.0.0",
 			port:         15010,
-			expected:     v1alpha1.ListenerType_ADMIN_XDS,
-			description:  "Istio xDS configuration",
+			expected:     v1alpha1.ListenerType_PORT_OUTBOUND,
+			description:  "Generic traffic on xDS port",
 		},
 		{
 			name:         "Health check - specific IP",
 			listenerName: "10.96.240.89_15021",
 			address:      "10.96.240.89",
 			port:         15021,
-			expected:     v1alpha1.ListenerType_OUTBOUND,
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 			description:  "Outbound to Istio gateway health check",
 		},
 		{
-			name:         "Application port - inbound",
+			name:         "Application port - port-based",
 			listenerName: "0.0.0.0_80",
 			address:      "0.0.0.0",
 			port:         80,
-			expected:     v1alpha1.ListenerType_INBOUND,
-			description:  "Accept HTTP traffic from anywhere",
+			expected:     v1alpha1.ListenerType_PORT_OUTBOUND,
+			description:  "Generic HTTP port traffic",
 		},
 		{
 			name:         "Backend service",
 			listenerName: "10.96.173.1_8080",
 			address:      "10.96.173.1",
 			port:         8080,
-			expected:     v1alpha1.ListenerType_OUTBOUND,
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 			description:  "Outbound to backend service",
 		},
 		{
@@ -194,23 +201,23 @@ func TestParser_DetermineListenerType_RealEnvoyScenarios(t *testing.T) {
 			listenerName: "10.96.245.191_15012",
 			address:      "10.96.245.191",
 			port:         15012,
-			expected:     v1alpha1.ListenerType_OUTBOUND,
+			expected:     v1alpha1.ListenerType_SERVICE_OUTBOUND,
 			description:  "Outbound to Istio webhook service",
 		},
 		{
-			name:         "Debug admin - 0.0.0.0",
+			name:         "Debug port - 0.0.0.0",
 			listenerName: "0.0.0.0_15014",
 			address:      "0.0.0.0",
 			port:         15014,
-			expected:     v1alpha1.ListenerType_ADMIN_DEBUG,
-			description:  "Envoy debug interface",
+			expected:     v1alpha1.ListenerType_PORT_OUTBOUND,
+			description:  "Generic traffic on debug port",
 		},
 		{
 			name:         "Metrics - 0.0.0.0",
 			listenerName: "0.0.0.0_15090",
 			address:      "0.0.0.0",
 			port:         15090,
-			expected:     v1alpha1.ListenerType_METRICS,
+			expected:     v1alpha1.ListenerType_PROXY_METRICS,
 			description:  "Prometheus metrics",
 		},
 		{
@@ -218,7 +225,7 @@ func TestParser_DetermineListenerType_RealEnvoyScenarios(t *testing.T) {
 			listenerName: "0.0.0.0_15021",
 			address:      "0.0.0.0",
 			port:         15021,
-			expected:     v1alpha1.ListenerType_HEALTHCHECK,
+			expected:     v1alpha1.ListenerType_PROXY_HEALTHCHECK,
 			description:  "Health check endpoint",
 		},
 	}
@@ -256,23 +263,23 @@ func TestParser_RealEnvoyConfigListenerTypes(t *testing.T) {
 	//  virtualOutbound virtualInbound 0.0.0.0_15090 0.0.0.0_15021]
 
 	expectedTypes := map[string]v1alpha1.ListenerType{
-		"10.96.0.10_53":       v1alpha1.ListenerType_OUTBOUND,         // DNS outbound
-		"10.96.0.10_9153":     v1alpha1.ListenerType_OUTBOUND,         // DNS metrics outbound
-		"0.0.0.0_15010":       v1alpha1.ListenerType_ADMIN_XDS,        // XDS admin
-		"10.96.240.89_15021":  v1alpha1.ListenerType_OUTBOUND,         // Gateway health check outbound
-		"0.0.0.0_80":          v1alpha1.ListenerType_INBOUND,          // App inbound
-		"10.96.173.1_8080":    v1alpha1.ListenerType_OUTBOUND,         // Backend service outbound
-		"10.96.36.70_8080":    v1alpha1.ListenerType_OUTBOUND,         // Database service outbound
-		"10.96.86.22_8080":    v1alpha1.ListenerType_OUTBOUND,         // Frontend service outbound
-		"10.96.0.1_443":       v1alpha1.ListenerType_OUTBOUND,         // Kubernetes API outbound
-		"10.96.245.191_15012": v1alpha1.ListenerType_OUTBOUND,         // Istio webhook outbound
-		"10.96.245.191_443":   v1alpha1.ListenerType_OUTBOUND,         // Istio webhook HTTPS outbound
-		"0.0.0.0_15014":       v1alpha1.ListenerType_ADMIN_DEBUG,      // Debug admin
-		"10.96.240.89_443":    v1alpha1.ListenerType_OUTBOUND,         // Gateway HTTPS outbound
-		"virtualOutbound":     v1alpha1.ListenerType_VIRTUAL_OUTBOUND, // Virtual outbound
-		"virtualInbound":      v1alpha1.ListenerType_VIRTUAL_INBOUND,  // Virtual inbound
-		"0.0.0.0_15090":       v1alpha1.ListenerType_METRICS,          // Prometheus metrics
-		"0.0.0.0_15021":       v1alpha1.ListenerType_HEALTHCHECK,      // Health check
+		"10.96.0.10_53":       v1alpha1.ListenerType_SERVICE_OUTBOUND,  // DNS service outbound
+		"10.96.0.10_9153":     v1alpha1.ListenerType_SERVICE_OUTBOUND,  // DNS metrics service outbound
+		"0.0.0.0_15010":       v1alpha1.ListenerType_PORT_OUTBOUND,     // Generic xDS port traffic
+		"10.96.240.89_15021":  v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Gateway health check service outbound
+		"0.0.0.0_80":          v1alpha1.ListenerType_PORT_OUTBOUND,     // Generic HTTP port traffic
+		"10.96.173.1_8080":    v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Backend service outbound
+		"10.96.36.70_8080":    v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Database service outbound
+		"10.96.86.22_8080":    v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Frontend service outbound
+		"10.96.0.1_443":       v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Kubernetes API service outbound
+		"10.96.245.191_15012": v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Istio webhook service outbound
+		"10.96.245.191_443":   v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Istio webhook HTTPS service outbound
+		"0.0.0.0_15014":       v1alpha1.ListenerType_PORT_OUTBOUND,     // Generic debug port traffic
+		"10.96.240.89_443":    v1alpha1.ListenerType_SERVICE_OUTBOUND,  // Gateway HTTPS service outbound
+		"virtualOutbound":     v1alpha1.ListenerType_VIRTUAL_OUTBOUND,  // Virtual outbound
+		"virtualInbound":      v1alpha1.ListenerType_VIRTUAL_INBOUND,   // Virtual inbound
+		"0.0.0.0_15090":       v1alpha1.ListenerType_PROXY_METRICS,     // Prometheus metrics
+		"0.0.0.0_15021":       v1alpha1.ListenerType_PROXY_HEALTHCHECK, // Health check
 	}
 
 	require.Equal(t, len(expectedTypes), len(parsed.Listeners),
@@ -301,13 +308,12 @@ func TestParser_RealEnvoyConfigListenerTypes(t *testing.T) {
 	}
 
 	// Verify we have all expected types with correct counts
-	assert.Greater(t, typeCounts[v1alpha1.ListenerType_OUTBOUND], 0, "Should have outbound listeners")
+	assert.Greater(t, typeCounts[v1alpha1.ListenerType_SERVICE_OUTBOUND], 0, "Should have service outbound listeners")
+	assert.Greater(t, typeCounts[v1alpha1.ListenerType_PORT_OUTBOUND], 0, "Should have port outbound listeners")
 	assert.Greater(t, typeCounts[v1alpha1.ListenerType_VIRTUAL_INBOUND], 0, "Should have virtual inbound listeners")
 	assert.Greater(t, typeCounts[v1alpha1.ListenerType_VIRTUAL_OUTBOUND], 0, "Should have virtual outbound listeners")
-	assert.Greater(t, typeCounts[v1alpha1.ListenerType_ADMIN_XDS], 0, "Should have XDS admin listeners")
-	assert.Greater(t, typeCounts[v1alpha1.ListenerType_ADMIN_DEBUG], 0, "Should have debug admin listeners")
-	assert.Greater(t, typeCounts[v1alpha1.ListenerType_METRICS], 0, "Should have metrics listeners")
-	assert.Greater(t, typeCounts[v1alpha1.ListenerType_HEALTHCHECK], 0, "Should have health check listeners")
+	assert.Greater(t, typeCounts[v1alpha1.ListenerType_PROXY_METRICS], 0, "Should have proxy metrics listeners")
+	assert.Greater(t, typeCounts[v1alpha1.ListenerType_PROXY_HEALTHCHECK], 0, "Should have proxy health check listeners")
 }
 
 func TestParser_RawConfigPopulation(t *testing.T) {

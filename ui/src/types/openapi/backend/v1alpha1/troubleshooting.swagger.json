@@ -1769,18 +1769,18 @@
     "v1alpha1ListenerType": {
       "type": "string",
       "enum": [
-        "INBOUND",
-        "OUTBOUND",
         "VIRTUAL_INBOUND",
         "VIRTUAL_OUTBOUND",
-        "METRICS",
-        "HEALTHCHECK",
+        "SERVICE_OUTBOUND",
+        "PORT_OUTBOUND",
+        "PROXY_METRICS",
+        "PROXY_HEALTHCHECK",
         "ADMIN_XDS",
         "ADMIN_WEBHOOK",
         "ADMIN_DEBUG"
       ],
-      "default": "INBOUND",
-      "description": "- INBOUND: INBOUND listeners receive traffic from external sources\n - OUTBOUND: OUTBOUND listeners send traffic to external destinations\n - VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)\n - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)\n - METRICS: METRICS listeners serve Prometheus metrics (typically on port 15090)\n - HEALTHCHECK: HEALTHCHECK listeners serve health check endpoints (typically on port 15021)\n - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)\n - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)\n - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)",
+      "default": "VIRTUAL_INBOUND",
+      "description": "- VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)\n - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)\n - SERVICE_OUTBOUND: SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)\n - PORT_OUTBOUND: PORT_OUTBOUND listeners for generic port traffic outbound (e.g., \"80\", \"443\")\n - PROXY_METRICS: PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)\n - PROXY_HEALTHCHECK: PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)\n - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)\n - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)\n - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)",
       "title": "ListenerType indicates the type/direction of a listener"
     },
     "v1alpha1LocalityInfo": {
@@ -1966,6 +1966,10 @@
         "locality": {
           "$ref": "#/definitions/v1alpha1LocalityInfo",
           "title": "locality contains locality information"
+        },
+        "proxyMode": {
+          "$ref": "#/definitions/v1alpha1ProxyMode",
+          "title": "proxy_mode is the proxy mode extracted from node ID"
         }
       },
       "title": "NodeSummary contains information about the Envoy node"
@@ -2192,6 +2196,18 @@
         }
       },
       "description": "ProxyConfig represents the configuration of a proxy sidecar (e.g., Envoy)."
+    },
+    "v1alpha1ProxyMode": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN_PROXY_MODE",
+        "SIDECAR",
+        "GATEWAY",
+        "ROUTER"
+      ],
+      "default": "UNKNOWN_PROXY_MODE",
+      "description": "- UNKNOWN_PROXY_MODE: UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode\n - SIDECAR: SIDECAR indicates a sidecar proxy (most common in Istio)\n - GATEWAY: GATEWAY indicates a gateway proxy (ingress/egress gateways)\n - ROUTER: ROUTER indicates a router proxy",
+      "title": "ProxyMode indicates the type of proxy (extracted from node ID)"
     },
     "v1alpha1QueryParameterMatcherInfo": {
       "type": "object",
@@ -2769,6 +2785,14 @@
             "$ref": "#/definitions/v1alpha1ClusterSpecifierPluginInfo"
           },
           "title": "cluster_specifier_plugins contains cluster specifier plugin configuration"
+        },
+        "rawConfig": {
+          "type": "string",
+          "title": "raw_config contains the raw route configuration in JSON format"
+        },
+        "type": {
+          "$ref": "#/definitions/v1alpha1RouteType",
+          "title": "type indicates the route type category"
         }
       },
       "title": "RouteConfigSummary contains route configuration summary"
@@ -2926,6 +2950,17 @@
         }
       },
       "title": "RouteMatchInfo contains route matching information"
+    },
+    "v1alpha1RouteType": {
+      "type": "string",
+      "enum": [
+        "PORT_BASED",
+        "SERVICE_SPECIFIC",
+        "STATIC"
+      ],
+      "default": "PORT_BASED",
+      "description": "- PORT_BASED: PORT_BASED routes are routes with just port numbers (e.g., \"80\", \"443\", \"15010\")\n - SERVICE_SPECIFIC: SERVICE_SPECIFIC routes are routes with service hostnames and ports (e.g., \"backend.demo.svc.cluster.local:8080\", external domains from ServiceEntries)\n - STATIC: STATIC routes are Istio/Envoy internal routing patterns (e.g., \"InboundPassthroughCluster\", \"inbound|8080||\")",
+      "title": "RouteType indicates the type/category of a route configuration"
     },
     "v1alpha1RuntimeDoubleInfo": {
       "type": "object",

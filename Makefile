@@ -74,9 +74,9 @@ clean:
 		rm -f /tmp/navigator-demo-kubeconfig; \
 		echo "✅ Kubeconfig file removed"; \
 	fi
-	@if [ -f "./navigator" ]; then \
+	@if [ -f "bin/navigator" ]; then \
 		echo "🗑️  Removing navigator binary..."; \
-		rm -f ./navigator; \
+		rm -f bin/navigator; \
 		echo "✅ Navigator binary removed"; \
 	fi
 	@if [ -d "./bin" ]; then \

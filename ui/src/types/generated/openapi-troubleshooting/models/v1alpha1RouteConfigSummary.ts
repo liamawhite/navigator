@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { v1alpha1ClusterSpecifierPluginInfo } from './v1alpha1ClusterSpecifierPluginInfo';
 import type { v1alpha1HeaderValueOption } from './v1alpha1HeaderValueOption';
+import type { v1alpha1RouteType } from './v1alpha1RouteType';
 import type { v1alpha1VirtualHostInfo } from './v1alpha1VirtualHostInfo';
 export type v1alpha1RouteConfigSummary = {
     name?: string;
@@ -17,5 +18,7 @@ export type v1alpha1RouteConfigSummary = {
     validateClusters?: boolean;
     maxDirectResponseBodySizeBytes?: number;
     clusterSpecifierPlugins?: Array<v1alpha1ClusterSpecifierPluginInfo>;
+    rawConfig?: string;
+    type?: v1alpha1RouteType;
 };
 

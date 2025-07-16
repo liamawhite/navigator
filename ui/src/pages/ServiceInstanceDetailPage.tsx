@@ -43,7 +43,6 @@ import {
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import {
     ListenersTable,
@@ -51,7 +50,39 @@ import {
     EndpointsTable,
     RoutesTable,
     BootstrapConfig,
+    ConfigActions,
 } from '../components/envoy';
+import { v1alpha1ProxyMode } from '@/types/generated/openapi-troubleshooting';
+
+const formatProxyMode = (proxyMode: v1alpha1ProxyMode | undefined): string => {
+    switch (proxyMode) {
+        case v1alpha1ProxyMode.SIDECAR:
+            return 'Sidecar';
+        case v1alpha1ProxyMode.GATEWAY:
+            return 'Gateway';
+        case v1alpha1ProxyMode.ROUTER:
+            return 'Router';
+        case v1alpha1ProxyMode.UNKNOWN_PROXY_MODE:
+        default:
+            return 'Unknown';
+    }
+};
+
+const getProxyModeVariant = (
+    proxyMode: v1alpha1ProxyMode | undefined
+): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    switch (proxyMode) {
+        case v1alpha1ProxyMode.SIDECAR:
+            return 'default';
+        case v1alpha1ProxyMode.GATEWAY:
+            return 'outline';
+        case v1alpha1ProxyMode.ROUTER:
+            return 'outline';
+        case v1alpha1ProxyMode.UNKNOWN_PROXY_MODE:
+        default:
+            return 'secondary';
+    }
+};
 
 export const ServiceInstanceDetailPage: React.FC = () => {
     const { serviceId, instanceId } = useParams<{
@@ -399,9 +430,26 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                 {instance.isEnvoyPresent && (
                     <Card className="mb-6">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Hexagon className="w-5 h-5 text-purple-500" />
-                                Proxy Configuration
+                            <CardTitle className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Hexagon className="w-5 h-5 text-purple-500" />
+                                    Proxy Configuration
+                                </div>
+                                {proxyConfig && (
+                                    <ConfigActions
+                                        name={
+                                            proxyConfig.proxyConfig.bootstrap
+                                                ?.node?.id ||
+                                            'Proxy Configuration'
+                                        }
+                                        rawConfig={
+                                            proxyConfig.proxyConfig
+                                                .rawConfigDump || ''
+                                        }
+                                        configType="Configuration"
+                                        copyId="full-config-dump"
+                                    />
+                                )}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -412,16 +460,25 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                 </div>
                             ) : proxyConfig ? (
                                 <div className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">
-                                                Proxy Type
+                                                Proxy Mode
                                             </label>
-                                            <div className="text-sm font-mono">
-                                                {
-                                                    proxyConfig.proxyConfig
-                                                        .proxyType
-                                                }
+                                            <div className="text-sm">
+                                                <Badge
+                                                    variant={getProxyModeVariant(
+                                                        proxyConfig.proxyConfig
+                                                            .bootstrap?.node
+                                                            ?.proxyMode
+                                                    )}
+                                                >
+                                                    {formatProxyMode(
+                                                        proxyConfig.proxyConfig
+                                                            .bootstrap?.node
+                                                            ?.proxyMode
+                                                    )}
+                                                </Badge>
                                             </div>
                                         </div>
                                         <div>
@@ -435,24 +492,13 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                 }
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Admin Port
-                                            </label>
-                                            <div className="text-sm font-mono">
-                                                {
-                                                    proxyConfig.proxyConfig
-                                                        .adminPort
-                                                }
-                                            </div>
-                                        </div>
                                     </div>
 
                                     <Tabs
                                         defaultValue="listeners"
                                         className="w-full"
                                     >
-                                        <TabsList className="grid w-full grid-cols-6">
+                                        <TabsList className="grid w-full grid-cols-5">
                                             <TabsTrigger value="listeners">
                                                 Listeners
                                             </TabsTrigger>
@@ -467,9 +513,6 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                             </TabsTrigger>
                                             <TabsTrigger value="bootstrap">
                                                 Bootstrap
-                                            </TabsTrigger>
-                                            <TabsTrigger value="raw">
-                                                Raw Config
                                             </TabsTrigger>
                                         </TabsList>
 
@@ -566,54 +609,6 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                         proxyConfig.proxyConfig
                                                             .bootstrap || null
                                                     }
-                                                />
-                                            </div>
-                                        </TabsContent>
-
-                                        <TabsContent
-                                            value="raw"
-                                            className="mt-4"
-                                        >
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <h4 className="text-sm font-medium">
-                                                        Raw Configuration Dump
-                                                    </h4>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            copyToClipboard(
-                                                                proxyConfig
-                                                                    .proxyConfig
-                                                                    .rawConfigDump ||
-                                                                    '',
-                                                                'config-dump'
-                                                            )
-                                                        }
-                                                    >
-                                                        {copiedItem ===
-                                                        'config-dump' ? (
-                                                            <>
-                                                                <Circle className="w-3 h-3 mr-1 fill-green-500 text-green-500" />
-                                                                Copied
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Copy className="w-3 h-3 mr-1" />
-                                                                Copy Config
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                </div>
-                                                <Textarea
-                                                    value={
-                                                        proxyConfig.proxyConfig
-                                                            .rawConfigDump ||
-                                                        'No raw config available'
-                                                    }
-                                                    readOnly
-                                                    className="min-h-[300px] font-mono text-xs"
                                                 />
                                             </div>
                                         </TabsContent>

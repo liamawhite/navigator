@@ -3,3 +3,5 @@ export { ClustersTable } from './ClustersTable';
 export { EndpointsTable } from './EndpointsTable';
 export { RoutesTable } from './RoutesTable';
 export { BootstrapConfig } from './BootstrapConfig';
+export { RawConfigDialog } from './RawConfigDialog';
+export { ConfigActions } from './ConfigActions';

@@ -166,32 +166,55 @@ func (p *Parser) determineListenerType(name, address string, port uint32, useOri
 		return v1alpha1.ListenerType_VIRTUAL_OUTBOUND
 	}
 
-	// Second: Any specific IP address is an outbound connection (regardless of port)
-	if address != "0.0.0.0" {
-		return v1alpha1.ListenerType_OUTBOUND
+	// Second: Check for well-known proxy-specific ports on 0.0.0.0
+	if address == "0.0.0.0" {
+		switch port {
+		case 15090:
+			// Prometheus metrics endpoint
+			return v1alpha1.ListenerType_PROXY_METRICS
+		case 15021:
+			// Health check endpoint
+			return v1alpha1.ListenerType_PROXY_HEALTHCHECK
+		}
+
+		// Check for virtual listener patterns on 0.0.0.0
+		// Virtual outbound: typically port 15001 with use_original_dst
+		if (port == 15001 || port == 15006) && useOriginalDst {
+			return v1alpha1.ListenerType_VIRTUAL_OUTBOUND
+		}
+
+		// All other 0.0.0.0 listeners are port-based (generic port traffic)
+		// This includes application ports like 80, 8080, etc.
+		return v1alpha1.ListenerType_PORT_OUTBOUND
 	}
 
-	// For 0.0.0.0 addresses, check for well-known administrative ports
-	switch port {
-	case 15010:
-		// Envoy xDS configuration
-		return v1alpha1.ListenerType_ADMIN_XDS
-	case 15012:
-		// Istio webhook
-		return v1alpha1.ListenerType_ADMIN_WEBHOOK
-	case 15014:
-		// Envoy debug/admin interface
-		return v1alpha1.ListenerType_ADMIN_DEBUG
-	case 15090:
-		// Prometheus metrics endpoint
-		return v1alpha1.ListenerType_METRICS
-	case 15021:
-		// Health check endpoint
-		return v1alpha1.ListenerType_HEALTHCHECK
+	// Third: Specific IP addresses indicate outbound listeners (no inbound listeners in modern Istio)
+	// Distinguish between service-specific and port-based patterns
+
+	// Service-specific listeners: IP addresses that look like service cluster IPs
+	// These typically have full service.namespace.svc.cluster.local resolution
+	// Pattern: specific cluster IP with service port
+	if p.isServiceSpecificListener(name, address, port) {
+		return v1alpha1.ListenerType_SERVICE_OUTBOUND
 	}
 
-	// Anything remaining is considered inbound
-	return v1alpha1.ListenerType_INBOUND
+	// Port-based listeners: Generic port traffic patterns
+	// These handle broader traffic patterns by port
+	return v1alpha1.ListenerType_PORT_OUTBOUND
+}
+
+// isServiceSpecificListener determines if a listener is service-specific vs port-based
+func (p *Parser) isServiceSpecificListener(name, address string, port uint32) bool {
+	// Port-based listeners: 0.0.0.0 listeners that are not admin/virtual
+	// These handle generic port traffic patterns
+	if address == "0.0.0.0" {
+		// Already handled virtual and admin listeners above, so these are port-based
+		return false
+	}
+
+	// Service-specific listeners: Any specific IP address
+	// These are for outbound connections to specific services
+	return true
 }
 
 // extractHTTPConnectionManagerSummary extracts HCM configuration
