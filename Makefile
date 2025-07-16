@@ -16,7 +16,7 @@ lint:
 	cd ui && npm ci && npm run lint:fix
 
 test-unit: 
-	go test -v $(shell go list ./... | grep -v /testing/integration)
+	go test -tags=ci -v $(shell go list ./... | grep -v /testing/integration)
 
 test-integration:
 	go test -v -timeout 15m ./testing/integration/...
