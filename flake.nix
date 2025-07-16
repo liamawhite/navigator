@@ -16,6 +16,7 @@
               buf
               go
               golangci-lint
+              goreleaser
               gosec
               protobuf
               git
