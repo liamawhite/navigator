@@ -12,14 +12,14 @@ format:
 	cd ui && npm ci && npm run format
 
 lint:
-	golangci-lint run
+	golangci-lint run --build-tags=lint
 	cd ui && npm ci && npm run lint:fix
 
 test-unit: 
-	go test -v $(shell go list ./... | grep -v /testing/integration)
+	go test -tags=test -v ./cmd/... ./internal/... ./pkg/...
 
 test-integration:
-	go test -v -timeout 15m ./testing/integration/...
+	go test -tags=integration -v -timeout 15m ./testing/integration/...
 
 generate:
 	cd api && buf generate
@@ -66,5 +66,24 @@ clean:
 	fi
 	@echo "🎉 Development environment cleaned up!"
 
+# Build targets
+build: build-ui
+	go build -o navigator cmd/navigator/main.go
 
+build-ui:
+	cd ui && npm ci && npm run build
+
+# Development targets for UI
+dev-ui-only:
+	cd ui && npm run dev
+
+dev-backend:
+	air
+
+# Demo targets
+demo:
+	go run cmd/navigator/main.go demo
+
+demo-clean:
+	go run cmd/navigator/main.go demo --cleanup-on-exit=true
 

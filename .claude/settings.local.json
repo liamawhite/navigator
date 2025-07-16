@@ -31,7 +31,8 @@
       "Bash(true)",
       "Bash(timeout:*)",
       "Bash(npm run lint)",
-      "Bash(kubectl get pods:*)"
+      "Bash(kubectl get pods:*)",
+      "Bash(go list:*)"
     ],
     "deny": []
   }
