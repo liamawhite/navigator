@@ -154,6 +154,13 @@ func (p *Parser) extractRawListenerConfigs(rawConfigDump string, parsed *ParsedC
 			}
 		}
 
+		// Look for cluster config
+		if typeUrl, ok := configMap["@type"].(string); ok && typeUrl == "type.googleapis.com/envoy.admin.v3.ClustersConfigDump" {
+			if err := p.extractClusterRawConfigs(configMap, parsed); err != nil {
+				return fmt.Errorf("failed to extract cluster raw configs: %w", err)
+			}
+		}
+
 		// Look for route config
 		if typeUrl, ok := configMap["@type"].(string); ok && typeUrl == "type.googleapis.com/envoy.admin.v3.RoutesConfigDump" {
 			if err := p.extractRouteRawConfigs(configMap, parsed); err != nil {
@@ -263,6 +270,49 @@ func (p *Parser) extractRouteRawConfigs(routesConfigDump map[string]interface{},
 	return nil
 }
 
+// extractClusterRawConfigs extracts raw JSON for each individual cluster configuration
+func (p *Parser) extractClusterRawConfigs(clustersConfigDump map[string]interface{}, parsed *ParsedConfig) error {
+	// Extract dynamic clusters
+	if dynamicClusters, ok := clustersConfigDump["dynamic_active_clusters"].([]interface{}); ok {
+		for _, dynCluster := range dynamicClusters {
+			dynClusterMap, ok := dynCluster.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if cluster, ok := dynClusterMap["cluster"].(map[string]interface{}); ok {
+				if name, ok := cluster["name"].(string); ok {
+					// Convert back to JSON string
+					if rawJSON, err := json.MarshalIndent(cluster, "", "  "); err == nil {
+						parsed.RawClusters[name] = string(rawJSON)
+					}
+				}
+			}
+		}
+	}
+
+	// Extract static clusters
+	if staticClusters, ok := clustersConfigDump["static_clusters"].([]interface{}); ok {
+		for _, staticCluster := range staticClusters {
+			staticClusterMap, ok := staticCluster.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			if cluster, ok := staticClusterMap["cluster"].(map[string]interface{}); ok {
+				if name, ok := cluster["name"].(string); ok {
+					// Convert back to JSON string
+					if rawJSON, err := json.MarshalIndent(cluster, "", "  "); err == nil {
+						parsed.RawClusters[name] = string(rawJSON)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // ParseJSONToSummary parses a raw Envoy config dump JSON string into summary proto structures
 func (p *Parser) ParseJSONToSummary(rawConfigDump string) (*ParsedSummary, error) {
 	// First parse to get the structured protobuf types
@@ -286,7 +336,7 @@ func (p *Parser) ParseJSONToSummary(rawConfigDump string) (*ParsedSummary, error
 
 	// Convert clusters
 	for _, cluster := range parsed.Clusters {
-		summary.Clusters = append(summary.Clusters, p.summarizeCluster(cluster))
+		summary.Clusters = append(summary.Clusters, p.summarizeCluster(cluster, parsed))
 	}
 
 	// Convert endpoints

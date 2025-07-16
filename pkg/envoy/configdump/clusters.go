@@ -2,6 +2,8 @@ package configdump
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -41,7 +43,7 @@ func (p *Parser) parseClustersFromAny(configAny *anypb.Any, parsed *ParsedConfig
 }
 
 // summarizeCluster converts a Cluster config to a ClusterSummary
-func (p *Parser) summarizeCluster(cluster *clusterv3.Cluster) *v1alpha1.ClusterSummary {
+func (p *Parser) summarizeCluster(cluster *clusterv3.Cluster, parsed *ParsedConfig) *v1alpha1.ClusterSummary {
 	if cluster == nil {
 		return nil
 	}
@@ -52,6 +54,9 @@ func (p *Parser) summarizeCluster(cluster *clusterv3.Cluster) *v1alpha1.ClusterS
 		LoadBalancingPolicy: cluster.LbPolicy.String(),
 		AltStatName:         cluster.AltStatName,
 	}
+
+	// Parse cluster name components (format: direction|port|subset|servicefqdn)
+	p.parseClusterName(cluster.Name, summary)
 
 	// Set cluster type based on the enum value
 	switch cluster.GetType() {
@@ -156,5 +161,47 @@ func (p *Parser) summarizeCluster(cluster *clusterv3.Cluster) *v1alpha1.ClusterS
 		}
 	}
 
+	// Use the raw JSON config that was extracted directly from the original config dump
+	if rawJSON, exists := parsed.RawClusters[cluster.Name]; exists {
+		summary.RawConfig = rawJSON
+	}
+
 	return summary
+}
+
+// parseClusterName parses Istio cluster names in the format: direction|port|subset|servicefqdn
+func (p *Parser) parseClusterName(clusterName string, summary *v1alpha1.ClusterSummary) {
+	// Default values
+	summary.Direction = v1alpha1.ClusterDirection_UNSPECIFIED
+	summary.Port = 0
+	summary.Subset = ""
+	summary.ServiceFqdn = ""
+
+	// Split by pipe character
+	parts := strings.Split(clusterName, "|")
+	if len(parts) != 4 {
+		// Not in expected format, leave defaults
+		return
+	}
+
+	// Parse direction
+	switch strings.ToLower(parts[0]) {
+	case "inbound":
+		summary.Direction = v1alpha1.ClusterDirection_INBOUND
+	case "outbound":
+		summary.Direction = v1alpha1.ClusterDirection_OUTBOUND
+	default:
+		summary.Direction = v1alpha1.ClusterDirection_UNSPECIFIED
+	}
+
+	// Parse port
+	if port, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
+		summary.Port = uint32(port)
+	}
+
+	// Parse subset (may be empty)
+	summary.Subset = parts[2]
+
+	// Parse service FQDN
+	summary.ServiceFqdn = parts[3]
 }

@@ -618,6 +618,18 @@ message TCPProxySummary {
   string max_downstream_connection_duration = 11;
 }
 
+// ClusterDirection represents the traffic direction for a cluster
+enum ClusterDirection {
+  // UNSPECIFIED indicates the direction is not specified or unknown
+  UNSPECIFIED = 0;
+  
+  // INBOUND indicates traffic flowing into the service
+  INBOUND = 1;
+  
+  // OUTBOUND indicates traffic flowing out of the service
+  OUTBOUND = 2;
+}
+
 // ClusterSummary contains essential cluster configuration information
 message ClusterSummary {
   // name is the cluster name
@@ -760,6 +772,22 @@ message ClusterSummary {
   
   // eds_cluster_config contains EDS cluster configuration
   EdsClusterConfigInfo eds_cluster_config = 47;
+  
+  // raw_config contains the raw JSON configuration
+  string raw_config = 48;
+  
+  // Parsed cluster name components (format: direction|port|subset|servicefqdn)
+  // direction is the traffic direction
+  ClusterDirection direction = 49;
+  
+  // port is the service port
+  uint32 port = 50;
+  
+  // subset is the destination subset
+  string subset = 51;
+  
+  // service_fqdn is the fully qualified domain name of the service
+  string service_fqdn = 52;
 }
 
 // EndpointSummary contains endpoint configuration information

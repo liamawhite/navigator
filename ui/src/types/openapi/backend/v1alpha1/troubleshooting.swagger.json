@@ -156,6 +156,17 @@
       },
       "title": "CircuitBreakersInfo contains circuit breakers information"
     },
+    "v1alpha1ClusterDirection": {
+      "type": "string",
+      "enum": [
+        "UNSPECIFIED",
+        "INBOUND",
+        "OUTBOUND"
+      ],
+      "default": "UNSPECIFIED",
+      "description": "- UNSPECIFIED: UNSPECIFIED indicates the direction is not specified or unknown\n - INBOUND: INBOUND indicates traffic flowing into the service\n - OUTBOUND: OUTBOUND indicates traffic flowing out of the service",
+      "title": "ClusterDirection represents the traffic direction for a cluster"
+    },
     "v1alpha1ClusterFilterInfo": {
       "type": "object",
       "properties": {
@@ -433,6 +444,27 @@
         "edsClusterConfig": {
           "$ref": "#/definitions/v1alpha1EdsClusterConfigInfo",
           "title": "eds_cluster_config contains EDS cluster configuration"
+        },
+        "rawConfig": {
+          "type": "string",
+          "title": "raw_config contains the raw JSON configuration"
+        },
+        "direction": {
+          "$ref": "#/definitions/v1alpha1ClusterDirection",
+          "title": "Parsed cluster name components (format: direction|port|subset|servicefqdn)\ndirection is the traffic direction"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64",
+          "title": "port is the service port"
+        },
+        "subset": {
+          "type": "string",
+          "title": "subset is the destination subset"
+        },
+        "serviceFqdn": {
+          "type": "string",
+          "title": "service_fqdn is the fully qualified domain name of the service"
         }
       },
       "title": "ClusterSummary contains essential cluster configuration information"

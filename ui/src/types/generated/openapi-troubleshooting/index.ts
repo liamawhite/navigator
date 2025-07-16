@@ -12,6 +12,7 @@ export type { rpcStatus } from './models/rpcStatus';
 export type { v1alpha1AccessLogInfo } from './models/v1alpha1AccessLogInfo';
 export type { v1alpha1BootstrapSummary } from './models/v1alpha1BootstrapSummary';
 export type { v1alpha1CircuitBreakersInfo } from './models/v1alpha1CircuitBreakersInfo';
+export { v1alpha1ClusterDirection } from './models/v1alpha1ClusterDirection';
 export type { v1alpha1ClusterFilterInfo } from './models/v1alpha1ClusterFilterInfo';
 export type { v1alpha1ClusterManagerInfo } from './models/v1alpha1ClusterManagerInfo';
 export type { v1alpha1ClusterSpecifierPluginInfo } from './models/v1alpha1ClusterSpecifierPluginInfo';
