@@ -12,7 +12,7 @@ format:
 	cd ui && npm ci && npm run format
 
 lint:
-	golangci-lint run --build-tags=test
+	golangci-lint run --build-tags=lint
 	cd ui && npm ci && npm run lint:fix
 
 test-unit: 

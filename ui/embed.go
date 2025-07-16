@@ -1,4 +1,4 @@
-//go:build !test && !integration
+//go:build !test && !integration && !lint
 
 package ui
 
