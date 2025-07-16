@@ -28,6 +28,20 @@ generate:
 dirty:
 	git diff --exit-code
 
+# Build targets
+build:
+	@echo "🔨 Building navigator binary with version info..."
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
+	DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
+	go build -ldflags "-X github.com/liamawhite/navigator/pkg/version.version=$$VERSION -X github.com/liamawhite/navigator/pkg/version.commit=$$COMMIT -X github.com/liamawhite/navigator/pkg/version.date=$$DATE" -o navigator cmd/navigator/main.go
+	@echo "✅ Binary built successfully: ./navigator"
+
+build-ui:
+	@echo "🔨 Building UI for production..."
+	cd ui && npm ci && npm run build
+	@echo "✅ UI built successfully: ui/dist/"
+
 # Development targets
 dev:
 	@echo "🚀 Starting full-stack development with Kind cluster and hot reloading..."
