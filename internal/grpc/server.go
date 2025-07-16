@@ -147,7 +147,12 @@ func createUIHandler(uiFS fs.FS, apiPort int) http.Handler {
 				return
 			}
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				// Log error but don't fail the request
+				logging.For(logging.ComponentServer).Warn("failed to close file", "error", err)
+			}
+		}()
 
 		// Set appropriate content type
 		if strings.HasSuffix(path, ".js") {
