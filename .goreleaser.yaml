@@ -11,7 +11,7 @@ version: 2
 before:
   hooks:
     - go mod tidy
-    - cd ui && npm ci && npm run build
+    - sh -c 'cd ui && npm ci && npm run build'
 
 builds:
   - id: navigator
