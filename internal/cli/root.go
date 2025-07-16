@@ -18,6 +18,7 @@ import (
 	"github.com/liamawhite/navigator/pkg/datastore/kubeconfig"
 	"github.com/liamawhite/navigator/pkg/logging"
 	troubleshootingKubeconfig "github.com/liamawhite/navigator/pkg/troubleshooting/kubeconfig"
+	"github.com/liamawhite/navigator/pkg/version"
 )
 
 var (
@@ -46,8 +47,8 @@ When run without subcommands, Navigator starts the server with UI and opens a br
 		slog.SetDefault(logger)
 
 		// Log startup information
-		logging.For(logging.ComponentCLI).Info("navigator starting",
-			"version", "dev",
+		logging.For(logging.ComponentCLI).Debug("navigator starting",
+			"version", version.Get(),
 			"log_level", logLevel,
 			"log_format", logFormat)
 	},
@@ -176,4 +177,5 @@ func init() {
 
 	rootCmd.AddCommand(serveCmd)
 	rootCmd.AddCommand(demoCmd)
+	rootCmd.AddCommand(versionCmd)
 }
