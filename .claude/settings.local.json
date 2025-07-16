@@ -5,7 +5,9 @@
       "Bash(grep:*)",
       "Bash(buf generate:*)",
       "Bash(go doc:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": []
   }

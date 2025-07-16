@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -9,8 +9,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { ConfigActions } from '@/components/envoy/ConfigActions';
 import type { v1alpha1EndpointSummary } from '@/types/generated/openapi-troubleshooting';
-import type { v1alpha1EndpointInfo } from '@/types/generated/openapi-troubleshooting';
+import { v1alpha1ClusterType } from '@/types/generated/openapi-troubleshooting';
 
 interface EndpointsTableProps {
     endpoints: v1alpha1EndpointSummary[];
@@ -21,10 +22,334 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
+// Helper function to group endpoint summaries by cluster type
+const groupEndpointsByClusterType = (endpoints: v1alpha1EndpointSummary[]) => {
+    const groups = {
+        serviceDiscovery: [] as v1alpha1EndpointSummary[], // EDS clusters
+        static: [] as v1alpha1EndpointSummary[], // STATIC clusters
+        dns: [] as v1alpha1EndpointSummary[], // DNS-based clusters
+        special: [] as v1alpha1EndpointSummary[], // ORIGINAL_DST and others
+    };
+
+    endpoints.forEach((endpoint) => {
+        const type = endpoint.clusterType;
+
+        if (type === v1alpha1ClusterType.CLUSTER_EDS) {
+            groups.serviceDiscovery.push(endpoint);
+        } else if (type === v1alpha1ClusterType.CLUSTER_STATIC) {
+            groups.static.push(endpoint);
+        } else if (
+            type === v1alpha1ClusterType.CLUSTER_STRICT_DNS ||
+            type === v1alpha1ClusterType.CLUSTER_LOGICAL_DNS
+        ) {
+            groups.dns.push(endpoint);
+        } else if (
+            type === v1alpha1ClusterType.CLUSTER_ORIGINAL_DST ||
+            type === v1alpha1ClusterType.UNKNOWN_CLUSTER_TYPE ||
+            type === undefined
+        ) {
+            groups.special.push(endpoint);
+        } else {
+            // Fallback - put unknown types in special group
+            groups.special.push(endpoint);
+        }
+    });
+
+    return groups;
+};
+
+// Helper component for rendering a group of endpoint summaries
+const EndpointsGroup: React.FC<{
+    title: string;
+    endpoints: v1alpha1EndpointSummary[];
+    sortConfig: SortConfig;
+    handleSort: (key: string) => void;
+    getSortIcon: (key: string) => React.ReactNode;
+    expandedClusters: Set<string>;
+    toggleCluster: (clusterName: string) => void;
+}> = ({
+    title,
+    endpoints,
+    sortConfig,
+    handleSort,
+    getSortIcon,
+    expandedClusters,
+    toggleCluster,
+}) => {
+    if (endpoints.length === 0) return null;
+
+    const sortedClusters = [...endpoints].sort((a, b) => {
+        if (!sortConfig) return 0;
+
+        let aVal: string | number | undefined;
+        let bVal: string | number | undefined;
+
+        if (sortConfig.key === 'clusterName') {
+            aVal = a.clusterName;
+            bVal = b.clusterName;
+        } else if (sortConfig.key === 'serviceFqdn') {
+            aVal = a.serviceFqdn || a.clusterName;
+            bVal = b.serviceFqdn || b.clusterName;
+        } else if (sortConfig.key === 'port') {
+            aVal = a.port;
+            bVal = b.port;
+        } else if (sortConfig.key === 'subset') {
+            aVal = a.subset;
+            bVal = b.subset;
+        }
+
+        // Convert to string for comparison if needed
+        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+        // Handle null/undefined values
+        if (aVal == null && bVal == null) return 0;
+        if (aVal == null) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (bVal == null) return sortConfig.direction === 'asc' ? 1 : -1;
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    return (
+        <div className="space-y-2">
+            <h4 className="text-sm font-medium text-muted-foreground">
+                {title} ({endpoints.length})
+            </h4>
+            <Table className="table-fixed">
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-8">
+                            {/* Expand/collapse column */}
+                        </TableHead>
+                        <TableHead
+                            className="cursor-pointer select-none hover:bg-muted/50"
+                            onClick={() => handleSort('serviceFqdn')}
+                        >
+                            <div className="flex items-center">
+                                Service
+                                {getSortIcon('serviceFqdn')}
+                            </div>
+                        </TableHead>
+                        <TableHead
+                            className="cursor-pointer select-none hover:bg-muted/50 w-16"
+                            onClick={() => handleSort('port')}
+                        >
+                            <div className="flex items-center">
+                                Port
+                                {getSortIcon('port')}
+                            </div>
+                        </TableHead>
+                        <TableHead
+                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
+                            onClick={() => handleSort('subset')}
+                        >
+                            <div className="flex items-center">
+                                Subset
+                                {getSortIcon('subset')}
+                            </div>
+                        </TableHead>
+                        <TableHead className="text-right w-32">
+                            Health Summary
+                        </TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sortedClusters.map((cluster) => {
+                        const isExpanded = expandedClusters.has(
+                            cluster.clusterName || ''
+                        );
+                        const totalEndpoints = cluster.endpoints?.length || 0;
+                        const healthyEndpoints =
+                            cluster.endpoints?.filter(
+                                (ep) => ep.health === 'HEALTHY'
+                            ).length || 0;
+                        const unhealthyEndpoints =
+                            cluster.endpoints?.filter(
+                                (ep) => ep.health === 'UNHEALTHY'
+                            ).length || 0;
+                        const otherEndpoints =
+                            totalEndpoints -
+                            healthyEndpoints -
+                            unhealthyEndpoints;
+
+                        return (
+                            <>
+                                {/* Cluster row */}
+                                <TableRow
+                                    key={cluster.clusterName}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() =>
+                                        toggleCluster(cluster.clusterName || '')
+                                    }
+                                >
+                                    <TableCell className="w-8">
+                                        {totalEndpoints > 0 && (
+                                            <div className="flex items-center justify-center">
+                                                {isExpanded ? (
+                                                    <ChevronDown className="w-4 h-4" />
+                                                ) : (
+                                                    <ChevronRight className="w-4 h-4" />
+                                                )}
+                                            </div>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className="font-mono text-sm">
+                                            {cluster.serviceFqdn ||
+                                                cluster.clusterName ||
+                                                'N/A'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="w-16">
+                                        <span className="font-mono text-sm">
+                                            {cluster.port || 'N/A'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="w-20">
+                                        <span className="text-sm">
+                                            {cluster.subset || '-'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="text-right w-32">
+                                        <div className="flex gap-1 justify-end">
+                                            {healthyEndpoints > 0 && (
+                                                <Badge
+                                                    variant="default"
+                                                    className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                                                >
+                                                    {healthyEndpoints} Healthy
+                                                </Badge>
+                                            )}
+                                            {unhealthyEndpoints > 0 && (
+                                                <Badge
+                                                    variant="destructive"
+                                                    className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+                                                >
+                                                    {unhealthyEndpoints}{' '}
+                                                    Unhealthy
+                                                </Badge>
+                                            )}
+                                            {otherEndpoints > 0 && (
+                                                <Badge variant="secondary">
+                                                    {otherEndpoints} Other
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+
+                                {/* Expanded endpoint header */}
+                                {isExpanded && (
+                                    <TableRow className="bg-muted/10 border-b">
+                                        <TableCell className="w-8"></TableCell>
+                                        <TableCell colSpan={4}>
+                                            <div className="grid grid-cols-5 gap-4 px-6">
+                                                <span className="text-xs font-medium text-muted-foreground">
+                                                    Host Identifier
+                                                </span>
+                                                <span className="text-xs font-medium text-muted-foreground">
+                                                    Health
+                                                </span>
+                                                <span className="text-xs font-medium text-muted-foreground">
+                                                    Priority
+                                                </span>
+                                                <span className="text-xs font-medium text-muted-foreground">
+                                                    Weight
+                                                </span>
+                                                <span className="text-xs font-medium text-muted-foreground">
+                                                    Actions
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+
+                                {/* Expanded endpoint rows */}
+                                {isExpanded &&
+                                    cluster.endpoints?.map(
+                                        (endpoint, index) => (
+                                            <TableRow
+                                                key={`${cluster.clusterName}-${index}`}
+                                                className="bg-muted/25"
+                                            >
+                                                <TableCell className="w-8"></TableCell>
+                                                <TableCell colSpan={4}>
+                                                    <div className="grid grid-cols-5 gap-4 px-6 items-center">
+                                                        <span className="font-mono text-xs text-muted-foreground">
+                                                            {endpoint.hostIdentifier ||
+                                                                'N/A'}
+                                                        </span>
+                                                        <Badge
+                                                            variant={
+                                                                endpoint.health ===
+                                                                'HEALTHY'
+                                                                    ? 'default'
+                                                                    : endpoint.health ===
+                                                                        'UNHEALTHY'
+                                                                      ? 'destructive'
+                                                                      : 'secondary'
+                                                            }
+                                                            className={
+                                                                endpoint.health ===
+                                                                'HEALTHY'
+                                                                    ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30'
+                                                                    : endpoint.health ===
+                                                                        'UNHEALTHY'
+                                                                      ? 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30'
+                                                                      : ''
+                                                            }
+                                                        >
+                                                            {endpoint.health ||
+                                                                'UNKNOWN'}
+                                                        </Badge>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {endpoint.priority ||
+                                                                0}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {endpoint.weight ||
+                                                                endpoint.loadBalancingWeight ||
+                                                                'N/A'}
+                                                        </span>
+                                                        <ConfigActions
+                                                            name={
+                                                                endpoint.hostIdentifier ||
+                                                                'Unknown'
+                                                            }
+                                                            rawConfig={JSON.stringify(
+                                                                endpoint,
+                                                                null,
+                                                                2
+                                                            )}
+                                                            configType="Endpoint"
+                                                            copyId={`endpoint-${cluster.clusterName}-${index}`}
+                                                        />
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    )}
+                            </>
+                        );
+                    })}
+                </TableBody>
+            </Table>
+        </div>
+    );
+};
+
 export const EndpointsTable: React.FC<EndpointsTableProps> = ({
     endpoints,
 }) => {
-    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({
+        key: 'serviceFqdn',
+        direction: 'asc',
+    });
+    const [expandedClusters, setExpandedClusters] = useState<Set<string>>(
+        new Set()
+    );
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -49,50 +374,17 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
         );
     };
 
-    // Flatten the endpoints data
-    const flatEndpoints = endpoints.flatMap(
-        (endpoint) =>
-            endpoint.endpoints?.map((ep) => ({
-                ...ep,
-                clusterName: endpoint.clusterName,
-            })) || []
-    );
-
-    const sortedEndpoints = [...flatEndpoints].sort((a, b) => {
-        if (!sortConfig) return 0;
-
-        let aVal: string | number | undefined = a[
-            sortConfig.key as keyof (v1alpha1EndpointInfo & {
-                clusterName?: string;
-            })
-        ] as string | number | undefined;
-        let bVal: string | number | undefined = b[
-            sortConfig.key as keyof (v1alpha1EndpointInfo & {
-                clusterName?: string;
-            })
-        ] as string | number | undefined;
-
-        // Handle weight special case
-        if (sortConfig.key === 'weight') {
-            aVal = a.weight || a.loadBalancingWeight || 0;
-            bVal = b.weight || b.loadBalancingWeight || 0;
+    const toggleCluster = (clusterName: string) => {
+        const newExpanded = new Set(expandedClusters);
+        if (newExpanded.has(clusterName)) {
+            newExpanded.delete(clusterName);
+        } else {
+            newExpanded.add(clusterName);
         }
+        setExpandedClusters(newExpanded);
+    };
 
-        // Convert to string for comparison if needed
-        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
-        // Handle null/undefined values
-        if (aVal == null && bVal == null) return 0;
-        if (aVal == null) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (bVal == null) return sortConfig.direction === 'asc' ? 1 : -1;
-
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-    });
-
-    if (flatEndpoints.length === 0) {
+    if (endpoints.length === 0) {
         return (
             <p className="text-sm text-muted-foreground">
                 No endpoints configured
@@ -100,108 +392,46 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
         );
     }
 
+    const groups = groupEndpointsByClusterType(endpoints);
+
     return (
-        <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead
-                        className="cursor-pointer select-none hover:bg-muted/50"
-                        onClick={() => handleSort('clusterName')}
-                    >
-                        <div className="flex items-center">
-                            Cluster Name
-                            {getSortIcon('clusterName')}
-                        </div>
-                    </TableHead>
-                    <TableHead
-                        className="cursor-pointer select-none hover:bg-muted/50"
-                        onClick={() => handleSort('address')}
-                    >
-                        <div className="flex items-center">
-                            Address:Port
-                            {getSortIcon('address')}
-                        </div>
-                    </TableHead>
-                    <TableHead
-                        className="cursor-pointer select-none hover:bg-muted/50"
-                        onClick={() => handleSort('health')}
-                    >
-                        <div className="flex items-center">
-                            Health Status
-                            {getSortIcon('health')}
-                        </div>
-                    </TableHead>
-                    <TableHead
-                        className="cursor-pointer select-none hover:bg-muted/50"
-                        onClick={() => handleSort('priority')}
-                    >
-                        <div className="flex items-center">
-                            Priority
-                            {getSortIcon('priority')}
-                        </div>
-                    </TableHead>
-                    <TableHead
-                        className="cursor-pointer select-none hover:bg-muted/50"
-                        onClick={() => handleSort('weight')}
-                    >
-                        <div className="flex items-center">
-                            Weight
-                            {getSortIcon('weight')}
-                        </div>
-                    </TableHead>
-                    <TableHead
-                        className="cursor-pointer select-none hover:bg-muted/50"
-                        onClick={() => handleSort('hostIdentifier')}
-                    >
-                        <div className="flex items-center">
-                            Host Identifier
-                            {getSortIcon('hostIdentifier')}
-                        </div>
-                    </TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {sortedEndpoints.map((ep, index) => (
-                    <TableRow key={`${ep.clusterName}-${index}`}>
-                        <TableCell>
-                            <span className="font-mono text-sm">
-                                {ep.clusterName || 'N/A'}
-                            </span>
-                        </TableCell>
-                        <TableCell>
-                            <span className="font-mono text-sm">
-                                {ep.address || 'N/A'}:{ep.port || 'N/A'}
-                            </span>
-                        </TableCell>
-                        <TableCell>
-                            <Badge
-                                variant={
-                                    ep.health === 'HEALTHY'
-                                        ? 'default'
-                                        : ep.health === 'UNHEALTHY'
-                                          ? 'destructive'
-                                          : 'secondary'
-                                }
-                            >
-                                {ep.health || 'UNKNOWN'}
-                            </Badge>
-                        </TableCell>
-                        <TableCell>
-                            <span className="text-sm">{ep.priority || 0}</span>
-                        </TableCell>
-                        <TableCell>
-                            <span className="text-sm">
-                                {ep.weight || ep.loadBalancingWeight || 'N/A'}
-                            </span>
-                        </TableCell>
-                        <TableCell>
-                            <span className="font-mono text-xs">
-                                {ep.hostIdentifier || 'N/A'}
-                            </span>
-                        </TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+        <div className="space-y-6">
+            <EndpointsGroup
+                title="Service Discovery Clusters"
+                endpoints={groups.serviceDiscovery}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+                expandedClusters={expandedClusters}
+                toggleCluster={toggleCluster}
+            />
+            <EndpointsGroup
+                title="Static Clusters"
+                endpoints={groups.static}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+                expandedClusters={expandedClusters}
+                toggleCluster={toggleCluster}
+            />
+            <EndpointsGroup
+                title="DNS-Based Clusters"
+                endpoints={groups.dns}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+                expandedClusters={expandedClusters}
+                toggleCluster={toggleCluster}
+            />
+            <EndpointsGroup
+                title="Special Clusters"
+                endpoints={groups.special}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+                expandedClusters={expandedClusters}
+                toggleCluster={toggleCluster}
+            />
+        </div>
     );
 };

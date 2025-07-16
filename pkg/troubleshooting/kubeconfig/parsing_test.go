@@ -331,7 +331,7 @@ func TestParseEnvoyConfigDumpWithMalformedJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &datastore{}
-			proxyConfig, err := d.parseEnvoyConfigDump(tt.configJSON, tt.proxyType, tt.version)
+			proxyConfig, err := d.parseEnvoyConfigWithClusters(tt.configJSON, "", tt.proxyType, tt.version)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -367,7 +367,7 @@ func BenchmarkParseEnvoyConfigDump(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := d.parseEnvoyConfigDump(configDumpStr, "istio-proxy", "1.34.2")
+		_, err := d.parseEnvoyConfigWithClusters(configDumpStr, "", "istio-proxy", "1.34.2")
 		if err != nil {
 			b.Fatalf("parsing failed: %v", err)
 		}
