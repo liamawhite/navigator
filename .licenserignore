@@ -1,0 +1,6 @@
+*.nix
+*.yml
+*.yaml
+*.json
+*.lock
+LICENSE
