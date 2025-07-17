@@ -469,6 +469,20 @@
       },
       "title": "ClusterSummary contains essential cluster configuration information"
     },
+    "v1alpha1ClusterType": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN_CLUSTER_TYPE",
+        "CLUSTER_EDS",
+        "CLUSTER_STATIC",
+        "CLUSTER_STRICT_DNS",
+        "CLUSTER_LOGICAL_DNS",
+        "CLUSTER_ORIGINAL_DST"
+      ],
+      "default": "UNKNOWN_CLUSTER_TYPE",
+      "description": "- UNKNOWN_CLUSTER_TYPE: UNKNOWN_CLUSTER_TYPE indicates an unknown or unspecified cluster type\n - CLUSTER_EDS: CLUSTER_EDS indicates Endpoint Discovery Service clusters (dynamic service discovery)\n - CLUSTER_STATIC: CLUSTER_STATIC indicates static clusters with predefined endpoints\n - CLUSTER_STRICT_DNS: CLUSTER_STRICT_DNS indicates clusters using strict DNS resolution\n - CLUSTER_LOGICAL_DNS: CLUSTER_LOGICAL_DNS indicates clusters using logical DNS resolution\n - CLUSTER_ORIGINAL_DST: CLUSTER_ORIGINAL_DST indicates clusters using original destination routing",
+      "title": "ClusterType represents the discovery type of a cluster"
+    },
     "v1alpha1CommonHttpProtocolOptionsInfo": {
       "type": "object",
       "properties": {
@@ -879,6 +893,27 @@
             "$ref": "#/definitions/v1alpha1EndpointInfo"
           },
           "title": "endpoints contains endpoint information"
+        },
+        "clusterType": {
+          "$ref": "#/definitions/v1alpha1ClusterType",
+          "title": "cluster_type is the type of cluster (EDS, STATIC, STRICT_DNS, etc.)"
+        },
+        "direction": {
+          "$ref": "#/definitions/v1alpha1ClusterDirection",
+          "title": "direction is the traffic direction (inbound/outbound)"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64",
+          "title": "port is the port number parsed from cluster name"
+        },
+        "subset": {
+          "type": "string",
+          "title": "subset is the subset name parsed from cluster name"
+        },
+        "serviceFqdn": {
+          "type": "string",
+          "title": "service_fqdn is the fully qualified domain name of the service"
         }
       },
       "title": "EndpointSummary contains endpoint configuration information"

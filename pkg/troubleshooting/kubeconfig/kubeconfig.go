@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/transport/spdy"
 
 	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/envoy/clusters"
 	"github.com/liamawhite/navigator/pkg/envoy/configdump"
 	"github.com/liamawhite/navigator/pkg/logging"
 	types "github.com/liamawhite/navigator/pkg/troubleshooting"
@@ -73,13 +74,13 @@ func (d *datastore) GetProxyConfig(ctx context.Context, serviceID, instanceID st
 	}
 
 	// Get proxy configuration using port-forward to Envoy admin interface
-	configDump, proxyType, version, err := d.getEnvoyConfig(ctx, namespace, podName)
+	configDump, clustersData, proxyType, version, err := d.getEnvoyConfigWithClusters(ctx, namespace, podName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proxy config for pod %s/%s: %w", namespace, podName, err)
 	}
 
-	// Parse the config dump into Envoy protobuf structures
-	proxyConfig, err := d.parseEnvoyConfigDump(configDump, proxyType, version)
+	// Parse the config dump and clusters data into Envoy protobuf structures
+	proxyConfig, err := d.parseEnvoyConfigWithClusters(configDump, clustersData, proxyType, version)
 	if err != nil {
 		logger.Warn("failed to parse config dump, returning raw data only", "error", err)
 		// If parsing fails, return basic information with raw config dump
@@ -114,8 +115,8 @@ func (d *datastore) checkPodForProxySidecar(pod *corev1.Pod) bool {
 	return false
 }
 
-// getEnvoyConfig retrieves the configuration dump from Envoy admin interface
-func (d *datastore) getEnvoyConfig(ctx context.Context, namespace, podName string) (configDump, proxyType, version string, err error) {
+// getEnvoyConfigWithClusters retrieves both config dump and clusters data from Envoy admin interface
+func (d *datastore) getEnvoyConfigWithClusters(ctx context.Context, namespace, podName string) (configDump, clustersData, proxyType, version string, err error) {
 	logger := logging.LoggerFromContextOrDefault(ctx, logging.For(logging.ComponentDatastore), logging.ComponentDatastore)
 
 	// Create a port-forward to the Envoy admin interface (port 15000)
@@ -127,7 +128,7 @@ func (d *datastore) getEnvoyConfig(ctx context.Context, namespace, podName strin
 
 	transport, upgrader, err := spdy.RoundTripperFor(d.config)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to create SPDY round tripper: %w", err)
+		return "", "", "", "", fmt.Errorf("failed to create SPDY round tripper: %w", err)
 	}
 
 	// Create the dialer
@@ -145,7 +146,7 @@ func (d *datastore) getEnvoyConfig(ctx context.Context, namespace, podName strin
 	// Set up port forwarding from local port 0 (auto-assign) to pod port 15000
 	forwarder, err := portforward.New(dialer, []string{"0:15000"}, stopChan, readyChan, io.Discard, io.Discard)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to create port forwarder: %w", err)
+		return "", "", "", "", fmt.Errorf("failed to create port forwarder: %w", err)
 	}
 
 	// Start port forwarding in a goroutine
@@ -161,17 +162,17 @@ func (d *datastore) getEnvoyConfig(ctx context.Context, namespace, podName strin
 	case <-readyChan:
 		// Port forwarding is ready
 	case err := <-errorChan:
-		return "", "", "", err
+		return "", "", "", "", err
 	case <-portForwardCtx.Done():
 		close(stopChan)
-		return "", "", "", fmt.Errorf("timeout waiting for port forwarding to be ready")
+		return "", "", "", "", fmt.Errorf("timeout waiting for port forwarding to be ready")
 	}
 
 	// Get the forwarded ports
 	ports, err := forwarder.GetPorts()
 	if err != nil || len(ports) == 0 {
 		close(stopChan)
-		return "", "", "", fmt.Errorf("failed to get forwarded ports: %w", err)
+		return "", "", "", "", fmt.Errorf("failed to get forwarded ports: %w", err)
 	}
 
 	localPort := ports[0].Local
@@ -184,7 +185,7 @@ func (d *datastore) getEnvoyConfig(ctx context.Context, namespace, podName strin
 	configResp, err := client.Get(configURL)
 	if err != nil {
 		close(stopChan)
-		return "", "", "", fmt.Errorf("failed to get config dump: %w", err)
+		return "", "", "", "", fmt.Errorf("failed to get config dump: %w", err)
 	}
 	defer func() {
 		if err := configResp.Body.Close(); err != nil {
@@ -195,7 +196,26 @@ func (d *datastore) getEnvoyConfig(ctx context.Context, namespace, podName strin
 	configData, err := io.ReadAll(configResp.Body)
 	if err != nil {
 		close(stopChan)
-		return "", "", "", fmt.Errorf("failed to read config dump response: %w", err)
+		return "", "", "", "", fmt.Errorf("failed to read config dump response: %w", err)
+	}
+
+	// Get clusters data (for endpoints, following istioctl approach)
+	clustersURL := fmt.Sprintf("http://localhost:%d/clusters?format=json", localPort)
+	clustersResp, err := client.Get(clustersURL)
+	if err != nil {
+		close(stopChan)
+		return "", "", "", "", fmt.Errorf("failed to get clusters data: %w", err)
+	}
+	defer func() {
+		if err := clustersResp.Body.Close(); err != nil {
+			logger.Warn("failed to close clusters response body", "error", err)
+		}
+	}()
+
+	clustersRawData, err := io.ReadAll(clustersResp.Body)
+	if err != nil {
+		close(stopChan)
+		return "", "", "", "", fmt.Errorf("failed to read clusters response: %w", err)
 	}
 
 	// Get server info for proxy type and version
@@ -245,18 +265,18 @@ func (d *datastore) getEnvoyConfig(ctx context.Context, namespace, podName strin
 	// Clean up port forwarding
 	close(stopChan)
 
-	logger.Debug("retrieved envoy config", "pod", podName, "config_size", len(configData), "proxy_type", proxyType, "version", version)
+	logger.Debug("retrieved envoy config", "pod", podName, "config_size", len(configData), "clusters_size", len(clustersRawData), "proxy_type", proxyType, "version", version)
 
-	return string(configData), proxyType, version, nil
+	return string(configData), string(clustersRawData), proxyType, version, nil
 }
 
-// parseEnvoyConfigDump parses the raw Envoy config dump JSON into structured protobuf messages
-func (d *datastore) parseEnvoyConfigDump(rawConfigDump, proxyType, version string) (*v1alpha1.ProxyConfig, error) {
+// parseEnvoyConfigWithClusters parses both config dump and clusters data into structured protobuf messages
+func (d *datastore) parseEnvoyConfigWithClusters(rawConfigDump, clustersData, proxyType, version string) (*v1alpha1.ProxyConfig, error) {
 	logger := logging.For(logging.ComponentDatastore)
 
-	// Use the dedicated configdump parser to get summary structs
-	parser := configdump.NewParser()
-	parsed, err := parser.ParseJSONToSummary(rawConfigDump)
+	// Use the dedicated configdump parser to get summary structs (except endpoints)
+	configParser := configdump.NewParser()
+	parsed, err := configParser.ParseJSONToSummary(rawConfigDump)
 	if err != nil {
 		logger.Warn("failed to parse config dump, returning raw data only", "error", err)
 		// If parsing fails, return basic information with raw config dump
@@ -268,7 +288,25 @@ func (d *datastore) parseEnvoyConfigDump(rawConfigDump, proxyType, version strin
 		}, nil
 	}
 
-	logger.Debug("parsed envoy config", "bootstrap", parsed.Bootstrap != nil, "listeners", len(parsed.Listeners), "clusters", len(parsed.Clusters), "endpoints", len(parsed.Endpoints), "routes", len(parsed.Routes))
+	// Use the dedicated clusters parser for endpoints (following istioctl approach)
+	var endpoints []*v1alpha1.EndpointSummary
+	if clustersData != "" {
+		clustersParser := clusters.NewParser()
+		endpointSummaries, err := clustersParser.ParseJSON(clustersData)
+		if err != nil {
+			logger.Warn("failed to parse clusters data for endpoints", "error", err)
+			// If clusters parsing fails, fall back to config dump endpoints (may be empty)
+			endpoints = parsed.Endpoints
+		} else {
+			endpoints = endpointSummaries
+			logger.Debug("parsed endpoints from clusters API", "count", len(endpoints))
+		}
+	} else {
+		// Fall back to config dump endpoints if no clusters data
+		endpoints = parsed.Endpoints
+	}
+
+	logger.Debug("parsed envoy config", "bootstrap", parsed.Bootstrap != nil, "listeners", len(parsed.Listeners), "clusters", len(parsed.Clusters), "endpoints", len(endpoints), "routes", len(parsed.Routes))
 
 	return &v1alpha1.ProxyConfig{
 		ProxyType:     proxyType,
@@ -277,7 +315,7 @@ func (d *datastore) parseEnvoyConfigDump(rawConfigDump, proxyType, version strin
 		Bootstrap:     parsed.Bootstrap,
 		Listeners:     parsed.Listeners,
 		Clusters:      parsed.Clusters,
-		Endpoints:     parsed.Endpoints,
+		Endpoints:     endpoints, // Use endpoints from clusters API
 		Routes:        parsed.Routes,
 		RawConfigDump: rawConfigDump,
 	}, nil

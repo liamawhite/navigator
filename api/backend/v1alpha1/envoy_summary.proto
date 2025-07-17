@@ -618,6 +618,27 @@ message TCPProxySummary {
   string max_downstream_connection_duration = 11;
 }
 
+// ClusterType represents the discovery type of a cluster
+enum ClusterType {
+  // UNKNOWN_CLUSTER_TYPE indicates an unknown or unspecified cluster type
+  UNKNOWN_CLUSTER_TYPE = 0;
+  
+  // CLUSTER_EDS indicates Endpoint Discovery Service clusters (dynamic service discovery)
+  CLUSTER_EDS = 1;
+  
+  // CLUSTER_STATIC indicates static clusters with predefined endpoints
+  CLUSTER_STATIC = 2;
+  
+  // CLUSTER_STRICT_DNS indicates clusters using strict DNS resolution
+  CLUSTER_STRICT_DNS = 3;
+  
+  // CLUSTER_LOGICAL_DNS indicates clusters using logical DNS resolution
+  CLUSTER_LOGICAL_DNS = 4;
+  
+  // CLUSTER_ORIGINAL_DST indicates clusters using original destination routing
+  CLUSTER_ORIGINAL_DST = 5;
+}
+
 // ClusterDirection represents the traffic direction for a cluster
 enum ClusterDirection {
   // UNSPECIFIED indicates the direction is not specified or unknown
@@ -797,6 +818,21 @@ message EndpointSummary {
   
   // endpoints contains endpoint information
   repeated EndpointInfo endpoints = 2;
+  
+  // cluster_type is the type of cluster (EDS, STATIC, STRICT_DNS, etc.)
+  ClusterType cluster_type = 3;
+  
+  // direction is the traffic direction (inbound/outbound)
+  ClusterDirection direction = 4;
+  
+  // port is the port number parsed from cluster name
+  uint32 port = 5;
+  
+  // subset is the subset name parsed from cluster name
+  string subset = 6;
+  
+  // service_fqdn is the fully qualified domain name of the service
+  string service_fqdn = 7;
 }
 
 // EndpointInfo contains individual endpoint information

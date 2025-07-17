@@ -17,6 +17,7 @@ export type { v1alpha1ClusterFilterInfo } from './models/v1alpha1ClusterFilterIn
 export type { v1alpha1ClusterManagerInfo } from './models/v1alpha1ClusterManagerInfo';
 export type { v1alpha1ClusterSpecifierPluginInfo } from './models/v1alpha1ClusterSpecifierPluginInfo';
 export type { v1alpha1ClusterSummary } from './models/v1alpha1ClusterSummary';
+export { v1alpha1ClusterType } from './models/v1alpha1ClusterType';
 export type { v1alpha1CommonHttpProtocolOptionsInfo } from './models/v1alpha1CommonHttpProtocolOptionsInfo';
 export type { v1alpha1CommonLbConfigInfo } from './models/v1alpha1CommonLbConfigInfo';
 export type { v1alpha1ConfigSourceInfo } from './models/v1alpha1ConfigSourceInfo';
