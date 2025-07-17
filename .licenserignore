@@ -1,0 +1,13 @@
+*.nix
+*.yml
+*.yaml
+*.json
+*.lock
+LICENSE
+pkg/api/
+ui/dist/
+ui/node_modules/
+ui/src/types/generated/
+bin/
+tmp/
+.air.toml
