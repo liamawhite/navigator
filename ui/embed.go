@@ -16,6 +16,9 @@
 
 package ui
 
+//go:generate sh -c "npm ci || npm install"
+//go:generate npm run build
+
 import (
 	"embed"
 	"io/fs"

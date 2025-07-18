@@ -15,8 +15,10 @@
 import axios from 'axios';
 import type { v1alpha1Service } from '../types/generated/openapi';
 import type { v1alpha1ListServicesResponse } from '../types/generated/openapi';
-import type { v1alpha1ServiceInstanceDetail } from '../types/generated/openapi';
-import type { v1alpha1GetProxyConfigResponse } from '../types/generated/openapi-troubleshooting';
+import type {
+    v1alpha1GetProxyConfigResponse,
+    v1alpha1ServiceInstanceDetail,
+} from '../types/generated/openapi-service_registry';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -48,9 +50,7 @@ export const serviceApi = {
     ): Promise<v1alpha1ServiceInstanceDetail> => {
         const response = await api.get<{
             instance: v1alpha1ServiceInstanceDetail;
-        }>(
-            `/api/v1alpha1/services/${encodeURIComponent(serviceId)}/instances/${encodeURIComponent(instanceId)}`
-        );
+        }>(`/api/v1alpha1/services/${serviceId}/instances/${instanceId}`);
         return response.data.instance;
     },
 
@@ -59,7 +59,7 @@ export const serviceApi = {
         instanceId: string
     ): Promise<v1alpha1GetProxyConfigResponse> => {
         const response = await api.get<v1alpha1GetProxyConfigResponse>(
-            `/api/v1alpha1/troubleshooting/services/${serviceId}/instances/${instanceId}/proxy-config`
+            `/api/v1alpha1/services/${serviceId}/instances/${instanceId}/proxy-config`
         );
         return response.data;
     },

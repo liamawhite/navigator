@@ -1,0 +1,106 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package navigator.backend.v1alpha1;
+
+import "backend/v1alpha1/clusterstate.proto";
+import "types/v1alpha1/proxy_types.proto";
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
+
+// ManagerService provides bidirectional streaming communication between edge processes and the central manager.
+// This enables edge processes to sync cluster state information to the manager.
+service ManagerService {
+  // Connect establishes a bidirectional streaming connection between an edge process and the manager.
+  // The edge process identifies its cluster and sends periodic cluster state updates.
+  rpc Connect(stream ConnectRequest) returns (stream ConnectResponse);
+}
+
+// ConnectRequest represents messages sent from the edge process to the manager.
+message ConnectRequest {
+  oneof message {
+    // cluster_identification is sent when the edge process connects to identify which cluster it manages.
+    ClusterIdentification cluster_identification = 1;
+    
+    // cluster_state contains the current state of the cluster.
+    ClusterState cluster_state = 2;
+    
+    // proxy_config_response is sent in response to a proxy config request from the manager.
+    ProxyConfigResponse proxy_config_response = 3;
+  }
+}
+
+// ConnectResponse represents messages sent from the manager to the edge process.
+message ConnectResponse {
+  oneof message {
+    // connection_ack acknowledges the cluster identification and indicates if the connection is accepted.
+    // once received, the edge process can start sending cluster state updates.
+    ConnectionAck connection_ack = 1;
+    
+    // error indicates an error condition.
+    ErrorMessage error = 2;
+    
+    // proxy_config_request asks the edge process to provide proxy config for a specific pod.
+    ProxyConfigRequest proxy_config_request = 3;
+  }
+}
+
+// ClusterIdentification is sent by the edge process to identify which cluster it manages.
+message ClusterIdentification {
+  // cluster_id is a unique identifier for the cluster this edge manages.
+  string cluster_id = 1;
+}
+
+// ConnectionAck acknowledges cluster identification and indicates connection status.
+message ConnectionAck {
+  // accepted indicates whether the connection was accepted.
+  bool accepted = 1;
+}
+
+// ErrorMessage indicates an error condition.
+message ErrorMessage {
+  // error_code provides a machine-readable error identifier.
+  string error_code = 1;
+  
+  // error_message provides a human-readable error description.
+  string error_message = 2;
+}
+
+// ProxyConfigRequest is sent by the manager to request proxy configuration for a specific pod.
+message ProxyConfigRequest {
+  // request_id is a unique identifier for this request, used for correlating the response.
+  string request_id = 1;
+  
+  // pod_namespace is the Kubernetes namespace of the pod.
+  string pod_namespace = 2;
+  
+  // pod_name is the Kubernetes name of the pod.
+  string pod_name = 3;
+}
+
+// ProxyConfigResponse is sent by the edge process in response to a proxy config request.
+message ProxyConfigResponse {
+  // request_id matches the request_id from the corresponding ProxyConfigRequest.
+  string request_id = 1;
+  
+  oneof result {
+    // proxy_config contains the proxy configuration for the requested pod.
+    navigator.types.v1alpha1.ProxyConfig proxy_config = 2;
+    
+    // error_message indicates that the proxy config could not be retrieved.
+    string error_message = 3;
+  }
+}

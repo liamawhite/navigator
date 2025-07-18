@@ -27,7 +27,7 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
     onClick,
 }) => {
     const proxiedInstances =
-        service.instances?.filter((i) => i.isEnvoyPresent).length || 0;
+        service.instances?.filter((i) => i.envoyPresent).length || 0;
 
     return (
         <Card

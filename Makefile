@@ -17,7 +17,13 @@
 export NIX_CONFIG := warn-dirty = false
 SHELL := nix develop --command bash
 
-.PHONY: fmt test-unit test-integration generate dirty check dev dev-ui-only dev-backend build build-ui lint demo demo-clean clean
+# Version variables
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS := -X github.com/liamawhite/navigator/pkg/version.version=$(VERSION) -X github.com/liamawhite/navigator/pkg/version.commit=$(COMMIT) -X github.com/liamawhite/navigator/pkg/version.date=$(DATE)
+
+.PHONY: build build-edge build-manager build-navctl build-ui check clean demo demo-clean dev dev-backend dev-ui-only dirty fmt generate generate-backend generate-frontend lint test-integration test-unit
 
 check: generate format lint test-unit dirty
 
@@ -33,86 +39,48 @@ lint:
 test-unit: 
 	go test -tags=test -v ./cmd/... ./internal/... ./pkg/...
 
-test-integration:
-	go test -tags=integration -v -timeout 15m ./testing/integration/...
-
-generate:
+generate: clean
 	cd api && buf generate
+	cd api && buf generate --template buf.gen.frontend.yaml
+	cd api && buf generate --template buf.gen.frontend-docs.yaml
+	cd api && buf generate --template buf.gen.backend-docs.yaml
+	cd api && buf generate --template buf.gen.types-docs.yaml
 	cd ui && npm ci && npm run generate
 
 dirty:
 	git diff --exit-code
 
+clean:
+	@rm -rf pkg/api/ ui/src/types/openapi/ ui/src/types/generated/ ui/dist/ bin/
+
 # Build targets
-build:
-	@echo "🔨 Building navigator binary with version info..."
+build-manager:
+	@echo "🔨 Building manager binary with version info..."
 	@mkdir -p bin
-	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
-	COMMIT=$$(git rev-parse --short HEAD 2>/dev/null || echo "unknown"); \
-	DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ"); \
-	go build -ldflags "-X github.com/liamawhite/navigator/pkg/version.version=$$VERSION -X github.com/liamawhite/navigator/pkg/version.commit=$$COMMIT -X github.com/liamawhite/navigator/pkg/version.date=$$DATE" -o bin/navigator cmd/navigator/main.go
-	@echo "✅ Binary built successfully: bin/navigator"
+	@go build -ldflags "$(LDFLAGS)" -o bin/manager manager/main.go
+	@echo "✅ Manager binary built successfully: bin/manager"
+
+build-edge:
+	@echo "🔨 Building edge binary with version info..."
+	@mkdir -p bin
+	@go build -ldflags "$(LDFLAGS)" -o bin/edge edge/main.go
+	@echo "✅ Edge binary built successfully: bin/edge"
+
+build-navctl:
+	@echo "🔨 Building navctl binary with version info..."
+	@mkdir -p bin
+	@go generate ./ui/...
+	@go build -ldflags "$(LDFLAGS)" -o bin/navctl navctl/main.go
+	@echo "✅ Navctl binary built successfully: bin/navctl"
 
 build-ui:
-	@echo "🔨 Building UI for production..."
-	cd ui && npm ci && npm run build
-	@echo "✅ UI built successfully: ui/dist/"
+	@echo "🔨 Building UI assets..."
+	@cd ui && npm ci && npm run build
+	@echo "✅ UI assets built successfully: ui/dist/"
 
-# Development targets
-dev:
-	@echo "🚀 Starting full-stack development with Kind cluster and hot reloading..."
-	@echo "📱 Frontend will be available at http://localhost:5173"
-	@echo "🔧 Backend API will be available at http://localhost:8081"
-	@echo ""
-	@echo "🐳 Setting up demo environment if needed..."
-	@if ! kind get clusters 2>/dev/null | grep -q "^navigator-demo$$"; then \
-		echo "⚙️  Creating Kind cluster with microservices and Istio..."; \
-		go run cmd/navigator/main.go demo --scenario istio-demo --cleanup-on-exit=false; \
-	else \
-		echo "✅ Kind cluster 'navigator-demo' already exists"; \
-	fi
-	@echo ""
-	@echo "🎬 Starting development environment..."
-	./tools/dev-full-stack.sh
+build: build-manager build-edge build-navctl build-ui
+	@echo "✅ All binaries and assets built successfully"
 
-clean:
-	@echo "🧹 Cleaning up development environment..."
-	@if kind get clusters 2>/dev/null | grep -q "^navigator-demo$$"; then \
-		echo "🗑️  Deleting Kind cluster 'navigator-demo'..."; \
-		kind delete cluster --name navigator-demo; \
-		echo "✅ Kind cluster deleted"; \
-	else \
-		echo "ℹ️  No Kind cluster 'navigator-demo' found to delete"; \
-	fi
-	@if [ -f "/tmp/navigator-demo-kubeconfig" ]; then \
-		echo "🗑️  Removing kubeconfig file..."; \
-		rm -f /tmp/navigator-demo-kubeconfig; \
-		echo "✅ Kubeconfig file removed"; \
-	fi
-	@if [ -f "bin/navigator" ]; then \
-		echo "🗑️  Removing navigator binary..."; \
-		rm -f bin/navigator; \
-		echo "✅ Navigator binary removed"; \
-	fi
-	@if [ -d "./bin" ]; then \
-		echo "🗑️  Removing bin directory..."; \
-		rm -rf ./bin; \
-		echo "✅ Bin directory removed"; \
-	fi
-	@echo "🎉 Development environment cleaned up!"
-
-
-# Development targets for UI
-dev-ui-only:
-	cd ui && npm run dev
-
-dev-backend:
-	air
-
-# Demo targets
-demo:
-	go run cmd/navigator/main.go demo
-
-demo-clean:
-	go run cmd/navigator/main.go demo --cleanup-on-exit=true
+local:
+	rm -rf bin/ && make build-navctl && bin/navctl local
 

@@ -1,0 +1,85 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package navigator.backend.v1alpha1;
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
+
+// ClusterState contains the current state of a cluster.
+message ClusterState {
+  // services is the list of all services in the cluster.
+  repeated Service services = 1;
+}
+
+// Service represents a Kubernetes Service.
+message Service {
+  // name is the name of the service.
+  string name = 1;
+  
+  // namespace is the namespace of the service.
+  string namespace = 2;
+  
+  // instances is the list of service instances backing this service.
+  repeated ServiceInstance instances = 3;
+}
+
+// Container represents a container running in a pod.
+message Container {
+  // name is the name of the container.
+  string name = 1;
+  
+  // image is the container image.
+  string image = 2;
+  
+  // status is the current status of the container (e.g., "Running", "Waiting", "Terminated").
+  string status = 3;
+  
+  // ready indicates whether the container is ready to serve requests.
+  bool ready = 4;
+  
+  // restart_count is the number of times the container has been restarted.
+  int32 restart_count = 5;
+}
+
+// ServiceInstance represents a single instance of a service.
+message ServiceInstance {
+  // ip is the IP address of the service instance.
+  string ip = 1;
+  
+  // pod_name is the name of the pod backing this service instance.
+  string pod_name = 2;
+  
+  // envoy_present indicates whether an Envoy proxy is present in this instance.
+  bool envoy_present = 3;
+  
+  // containers is the list of containers running in this pod.
+  repeated Container containers = 4;
+  
+  // pod_status is the current status of the pod (e.g., "Running", "Pending").
+  string pod_status = 5;
+  
+  // node_name is the name of the Kubernetes node hosting this pod.
+  string node_name = 6;
+  
+  // created_at is the timestamp when the pod was created.
+  string created_at = 7;
+  
+  // labels are the Kubernetes labels assigned to the pod.
+  map<string, string> labels = 8;
+  
+  // annotations are the Kubernetes annotations assigned to the pod.
+  map<string, string> annotations = 9;
+}

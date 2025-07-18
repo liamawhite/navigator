@@ -20,11 +20,10 @@ import (
 	"strings"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
-	corev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // determineRouteType categorizes a route name into one of three types
@@ -196,28 +195,7 @@ func (p *Parser) summarizeRouteConfig(routeConfig *routev3.RouteConfiguration, p
 		}
 	}
 
-	// Extract header modifications (simplified)
-	for _, header := range routeConfig.ResponseHeadersToAdd {
-		summary.ResponseHeadersToAdd = append(summary.ResponseHeadersToAdd, &v1alpha1.HeaderValueOption{
-			Header: &v1alpha1.HeaderInfo{
-				Key:   header.Header.Key,
-				Value: header.Header.Value,
-			},
-			Append: header.GetAppendAction() == corev3.HeaderValueOption_APPEND_IF_EXISTS_OR_ADD,
-		})
-	}
-	summary.ResponseHeadersToRemove = routeConfig.ResponseHeadersToRemove
-
-	for _, header := range routeConfig.RequestHeadersToAdd {
-		summary.RequestHeadersToAdd = append(summary.RequestHeadersToAdd, &v1alpha1.HeaderValueOption{
-			Header: &v1alpha1.HeaderInfo{
-				Key:   header.Header.Key,
-				Value: header.Header.Value,
-			},
-			Append: header.GetAppendAction() == corev3.HeaderValueOption_APPEND_IF_EXISTS_OR_ADD,
-		})
-	}
-	summary.RequestHeadersToRemove = routeConfig.RequestHeadersToRemove
+	// Header modifications not included in simplified schema
 
 	// Extract virtual hosts (basic version - can be expanded)
 	for _, vh := range routeConfig.VirtualHosts {

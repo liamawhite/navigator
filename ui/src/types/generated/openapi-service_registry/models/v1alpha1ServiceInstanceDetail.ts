@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { v1alpha1ContainerInfo } from './v1alpha1ContainerInfo';
+import type { v1alpha1Container } from './v1alpha1Container';
 /**
  * ServiceInstanceDetail represents detailed information about a specific service instance.
  */
@@ -13,9 +13,9 @@ export type v1alpha1ServiceInstanceDetail = {
      */
     ip?: string;
     /**
-     * pod is the name of the Kubernetes pod backing this instance.
+     * pod_name is the name of the Kubernetes pod backing this instance.
      */
-    pod?: string;
+    podName?: string;
     /**
      * namespace is the Kubernetes namespace containing the pod.
      */
@@ -25,36 +25,40 @@ export type v1alpha1ServiceInstanceDetail = {
      */
     clusterName?: string;
     /**
-     * is_envoy_present indicates whether this instance has an Envoy proxy sidecar.
+     * envoy_present indicates whether this instance has an Envoy proxy sidecar.
      */
-    isEnvoyPresent?: boolean;
+    envoyPresent?: boolean;
     /**
      * service_name is the name of the service this instance belongs to.
      */
     serviceName?: string;
     /**
-     * pod_status indicates the current status of the pod (e.g., "Running", "Pending", "Failed").
+     * containers is the list of containers running in this pod.
+     */
+    containers?: Array<v1alpha1Container>;
+    /**
+     * pod_status is the current status of the pod (e.g., "Running", "Pending").
      */
     podStatus?: string;
+    /**
+     * node_name is the name of the Kubernetes node hosting this pod.
+     */
+    nodeName?: string;
     /**
      * created_at is the timestamp when the pod was created.
      */
     createdAt?: string;
     /**
-     * labels are the Kubernetes labels applied to the pod.
+     * labels are the Kubernetes labels assigned to the pod.
      */
     labels?: Record<string, string>;
     /**
-     * annotations are the Kubernetes annotations applied to the pod.
+     * annotations are the Kubernetes annotations assigned to the pod.
      */
     annotations?: Record<string, string>;
     /**
-     * containers lists all containers in the pod.
+     * is_envoy_present indicates whether this instance has an Envoy proxy sidecar.
      */
-    containers?: Array<v1alpha1ContainerInfo>;
-    /**
-     * node_name is the name of the Kubernetes node where the pod is running.
-     */
-    nodeName?: string;
+    isEnvoyPresent?: boolean;
 };
 
