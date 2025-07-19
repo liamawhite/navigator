@@ -468,19 +468,42 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                     Proxy Configuration
                                 </div>
                                 {proxyConfig && (
-                                    <ConfigActions
-                                        name={
-                                            proxyConfig.proxyConfig.bootstrap
-                                                ?.node?.id ||
-                                            'Proxy Configuration'
-                                        }
-                                        rawConfig={
-                                            proxyConfig.proxyConfig
-                                                .rawConfigDump || ''
-                                        }
-                                        configType="Configuration"
-                                        copyId="full-config-dump"
-                                    />
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-1.5 border">
+                                            <Code className="w-3 h-3 text-blue-500" />
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                /config_dump
+                                            </span>
+                                            <ConfigActions
+                                                name={
+                                                    proxyConfig.proxyConfig
+                                                        .bootstrap?.node?.id ||
+                                                    'Proxy Configuration'
+                                                }
+                                                rawConfig={
+                                                    proxyConfig.proxyConfig
+                                                        .rawConfigDump || ''
+                                                }
+                                                configType="Configuration"
+                                                copyId="full-config-dump"
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-1.5 border">
+                                            <Database className="w-3 h-3 text-green-500" />
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                /clusters
+                                            </span>
+                                            <ConfigActions
+                                                name="Raw Clusters"
+                                                rawConfig={
+                                                    proxyConfig.proxyConfig
+                                                        .rawClusters || ''
+                                                }
+                                                configType="Clusters"
+                                                copyId="raw-clusters"
+                                            />
+                                        </div>
+                                    </div>
                                 )}
                             </CardTitle>
                         </CardHeader>

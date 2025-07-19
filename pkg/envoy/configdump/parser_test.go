@@ -60,7 +60,6 @@ func TestParser_ParseBootstrapConfig(t *testing.T) {
 	// Should not extract other components
 	assert.Empty(t, parsed.Listeners)
 	assert.Empty(t, parsed.Clusters)
-	assert.Empty(t, parsed.Endpoints)
 	assert.Empty(t, parsed.Routes)
 }
 
@@ -95,7 +94,6 @@ func TestParser_ParseListenersConfig(t *testing.T) {
 	// Should not extract other components
 	assert.Nil(t, parsed.Bootstrap)
 	assert.Empty(t, parsed.Clusters)
-	assert.Empty(t, parsed.Endpoints)
 	assert.Empty(t, parsed.Routes)
 }
 
@@ -130,7 +128,6 @@ func TestParser_ParseClustersConfig(t *testing.T) {
 	// Should not extract other components
 	assert.Nil(t, parsed.Bootstrap)
 	assert.Empty(t, parsed.Listeners)
-	assert.Empty(t, parsed.Endpoints)
 	assert.Empty(t, parsed.Routes)
 }
 
@@ -166,7 +163,6 @@ func TestParser_ParseRoutesConfig(t *testing.T) {
 	assert.Nil(t, parsed.Bootstrap)
 	assert.Empty(t, parsed.Listeners)
 	assert.Empty(t, parsed.Clusters)
-	assert.Empty(t, parsed.Endpoints)
 }
 
 func TestParser_ParseRealEnvoyConfigDump(t *testing.T) {
@@ -214,19 +210,6 @@ func TestParser_ParseRealEnvoyConfigDump(t *testing.T) {
 		}
 	})
 
-	t.Run("endpoints extraction", func(t *testing.T) {
-		t.Logf("Found %d endpoints", len(parsed.Endpoints))
-		if len(parsed.Endpoints) > 0 {
-			endpointNames := make([]string, len(parsed.Endpoints))
-			for i, endpoint := range parsed.Endpoints {
-				endpointNames[i] = endpoint.GetClusterName()
-			}
-			t.Logf("Endpoint cluster names: %v", endpointNames)
-		} else {
-			t.Log("No endpoints found in this config dump")
-		}
-	})
-
 	t.Run("routes extraction", func(t *testing.T) {
 		t.Logf("Found %d routes", len(parsed.Routes))
 		if len(parsed.Routes) > 0 {
@@ -257,6 +240,5 @@ func TestParser_ParseInvalidJSON(t *testing.T) {
 		assert.Empty(t, parsed.Listeners)
 		assert.Empty(t, parsed.Clusters)
 		assert.Empty(t, parsed.Routes)
-		assert.Empty(t, parsed.Endpoints)
 	})
 }

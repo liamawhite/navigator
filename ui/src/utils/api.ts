@@ -18,6 +18,8 @@ import type { v1alpha1ListServicesResponse } from '../types/generated/openapi';
 import type {
     v1alpha1GetProxyConfigResponse,
     v1alpha1ServiceInstanceDetail,
+    v1alpha1ListClustersResponse,
+    v1alpha1ClusterSyncInfo,
 } from '../types/generated/openapi-service_registry';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -62,6 +64,13 @@ export const serviceApi = {
             `/api/v1alpha1/services/${serviceId}/instances/${instanceId}/proxy-config`
         );
         return response.data;
+    },
+
+    listClusters: async (): Promise<v1alpha1ClusterSyncInfo[]> => {
+        const response = await api.get<v1alpha1ListClustersResponse>(
+            '/api/v1alpha1/clusters'
+        );
+        return response.data.clusters || [];
     },
 };
 

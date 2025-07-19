@@ -16,6 +16,29 @@
     "application/json"
   ],
   "paths": {
+    "/api/v1alpha1/clusters": {
+      "get": {
+        "summary": "ListClusters returns sync state information for all connected clusters.",
+        "operationId": "ServiceRegistryService_ListClusters",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ListClustersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    },
     "/api/v1alpha1/services": {
       "get": {
         "summary": "ListServices returns all services in the specified namespace, or all namespaces if not specified.\nServices are aggregated across all connected clusters.",
@@ -195,6 +218,18 @@
         }
       }
     },
+    "v1alpha1AddressType": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN_ADDRESS_TYPE",
+        "SOCKET_ADDRESS",
+        "ENVOY_INTERNAL_ADDRESS",
+        "PIPE_ADDRESS"
+      ],
+      "default": "UNKNOWN_ADDRESS_TYPE",
+      "description": "- UNKNOWN_ADDRESS_TYPE: UNKNOWN_ADDRESS_TYPE indicates an unknown or unspecified address type\n - SOCKET_ADDRESS: SOCKET_ADDRESS indicates a standard network socket address (IP:port)\n - ENVOY_INTERNAL_ADDRESS: ENVOY_INTERNAL_ADDRESS indicates an internal Envoy address for listener routing\n - PIPE_ADDRESS: PIPE_ADDRESS indicates a Unix domain socket address",
+      "title": "AddressType represents the type of endpoint address"
+    },
     "v1alpha1BootstrapSummary": {
       "type": "object",
       "properties": {
@@ -292,6 +327,33 @@
         }
       },
       "title": "ClusterSummary contains essential cluster configuration information"
+    },
+    "v1alpha1ClusterSyncInfo": {
+      "type": "object",
+      "properties": {
+        "clusterId": {
+          "type": "string",
+          "description": "cluster_id is the unique identifier for the edge cluster."
+        },
+        "connectedAt": {
+          "type": "string",
+          "description": "connected_at is when the connection was established (RFC3339 format)."
+        },
+        "lastUpdate": {
+          "type": "string",
+          "description": "last_update is when the last sync occurred (RFC3339 format)."
+        },
+        "serviceCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "service_count is the number of services currently synced from this cluster."
+        },
+        "syncStatus": {
+          "$ref": "#/definitions/v1alpha1SyncStatus",
+          "description": "sync_status indicates the health of the sync based on last_update timing."
+        }
+      },
+      "description": "ClusterSyncInfo represents the sync state of a connected edge cluster."
     },
     "v1alpha1ClusterType": {
       "type": "string",
@@ -409,6 +471,9 @@
         "loadBalancingWeight": {
           "type": "integer",
           "format": "int64"
+        },
+        "addressType": {
+          "$ref": "#/definitions/v1alpha1AddressType"
         }
       },
       "title": "EndpointInfo contains individual endpoint information"
@@ -474,6 +539,20 @@
         }
       },
       "description": "GetServiceResponse contains the requested service details."
+    },
+    "v1alpha1ListClustersResponse": {
+      "type": "object",
+      "properties": {
+        "clusters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ClusterSyncInfo"
+          },
+          "description": "clusters is the list of connected clusters with their sync state."
+        }
+      },
+      "description": "ListClustersResponse contains sync state for all connected clusters."
     },
     "v1alpha1ListServicesResponse": {
       "type": "object",
@@ -613,6 +692,10 @@
             "$ref": "#/definitions/v1alpha1RouteConfigSummary"
           },
           "description": "routes contains the route configuration summaries."
+        },
+        "rawClusters": {
+          "type": "string",
+          "description": "raw_clusters is the original raw clusters output from /clusters?format=json endpoint."
         }
       },
       "description": "ProxyConfig represents the configuration of a proxy sidecar (e.g., Envoy)."
@@ -850,6 +933,17 @@
         }
       },
       "description": "ServiceInstanceDetail represents detailed information about a specific service instance."
+    },
+    "v1alpha1SyncStatus": {
+      "type": "string",
+      "enum": [
+        "SYNC_STATUS_UNSPECIFIED",
+        "SYNC_STATUS_HEALTHY",
+        "SYNC_STATUS_STALE",
+        "SYNC_STATUS_DISCONNECTED"
+      ],
+      "default": "SYNC_STATUS_UNSPECIFIED",
+      "description": "SyncStatus represents the health of cluster synchronization.\n\n - SYNC_STATUS_HEALTHY: Recent updates within expected timeframe\n - SYNC_STATUS_STALE: No recent updates, potentially problematic\n - SYNC_STATUS_DISCONNECTED: Connection lost"
     },
     "v1alpha1VirtualHostInfo": {
       "type": "object",

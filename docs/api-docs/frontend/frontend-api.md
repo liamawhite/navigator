@@ -4,6 +4,7 @@
 ## Table of Contents
 
 - [frontend/v1alpha1/service_registry.proto](#frontend_v1alpha1_service_registry-proto)
+    - [ClusterSyncInfo](#navigator-frontend-v1alpha1-ClusterSyncInfo)
     - [Container](#navigator-frontend-v1alpha1-Container)
     - [GetProxyConfigRequest](#navigator-frontend-v1alpha1-GetProxyConfigRequest)
     - [GetProxyConfigResponse](#navigator-frontend-v1alpha1-GetProxyConfigResponse)
@@ -11,6 +12,8 @@
     - [GetServiceInstanceResponse](#navigator-frontend-v1alpha1-GetServiceInstanceResponse)
     - [GetServiceRequest](#navigator-frontend-v1alpha1-GetServiceRequest)
     - [GetServiceResponse](#navigator-frontend-v1alpha1-GetServiceResponse)
+    - [ListClustersRequest](#navigator-frontend-v1alpha1-ListClustersRequest)
+    - [ListClustersResponse](#navigator-frontend-v1alpha1-ListClustersResponse)
     - [ListServicesRequest](#navigator-frontend-v1alpha1-ListServicesRequest)
     - [ListServicesResponse](#navigator-frontend-v1alpha1-ListServicesResponse)
     - [Service](#navigator-frontend-v1alpha1-Service)
@@ -18,6 +21,8 @@
     - [ServiceInstanceDetail](#navigator-frontend-v1alpha1-ServiceInstanceDetail)
     - [ServiceInstanceDetail.AnnotationsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-AnnotationsEntry)
     - [ServiceInstanceDetail.LabelsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-LabelsEntry)
+  
+    - [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus)
   
     - [ServiceRegistryService](#navigator-frontend-v1alpha1-ServiceRegistryService)
   
@@ -29,6 +34,25 @@
 <p align="right"><a href="#top">Top</a></p>
 
 ## frontend/v1alpha1/service_registry.proto
+
+
+
+<a name="navigator-frontend-v1alpha1-ClusterSyncInfo"></a>
+
+### ClusterSyncInfo
+ClusterSyncInfo represents the sync state of a connected edge cluster.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| cluster_id | [string](#string) |  | cluster_id is the unique identifier for the edge cluster. |
+| connected_at | [string](#string) |  | connected_at is when the connection was established (RFC3339 format). |
+| last_update | [string](#string) |  | last_update is when the last sync occurred (RFC3339 format). |
+| service_count | [int32](#int32) |  | service_count is the number of services currently synced from this cluster. |
+| sync_status | [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus) |  | sync_status indicates the health of the sync based on last_update timing. |
+
+
+
 
 
 
@@ -137,6 +161,33 @@ GetServiceResponse contains the requested service details.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | service | [Service](#navigator-frontend-v1alpha1-Service) |  | service contains the detailed service information. |
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-ListClustersRequest"></a>
+
+### ListClustersRequest
+ListClustersRequest for retrieving cluster sync information.
+
+Currently no filters needed, but structured for future extensibility.
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-ListClustersResponse"></a>
+
+### ListClustersResponse
+ListClustersResponse contains sync state for all connected clusters.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| clusters | [ClusterSyncInfo](#navigator-frontend-v1alpha1-ClusterSyncInfo) | repeated | clusters is the list of connected clusters with their sync state. |
 
 
 
@@ -274,6 +325,20 @@ ServiceInstanceDetail represents detailed information about a specific service i
 
  
 
+
+<a name="navigator-frontend-v1alpha1-SyncStatus"></a>
+
+### SyncStatus
+SyncStatus represents the health of cluster synchronization.
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| SYNC_STATUS_UNSPECIFIED | 0 |  |
+| SYNC_STATUS_HEALTHY | 1 | Recent updates within expected timeframe |
+| SYNC_STATUS_STALE | 2 | No recent updates, potentially problematic |
+| SYNC_STATUS_DISCONNECTED | 3 | Connection lost |
+
+
  
 
  
@@ -291,6 +356,7 @@ It enables listing and retrieving services from multiple Kubernetes clusters via
 | GetService | [GetServiceRequest](#navigator-frontend-v1alpha1-GetServiceRequest) | [GetServiceResponse](#navigator-frontend-v1alpha1-GetServiceResponse) | GetService returns detailed information about a specific service. The service may have instances across multiple clusters. |
 | GetServiceInstance | [GetServiceInstanceRequest](#navigator-frontend-v1alpha1-GetServiceInstanceRequest) | [GetServiceInstanceResponse](#navigator-frontend-v1alpha1-GetServiceInstanceResponse) | GetServiceInstance returns detailed information about a specific service instance. |
 | GetProxyConfig | [GetProxyConfigRequest](#navigator-frontend-v1alpha1-GetProxyConfigRequest) | [GetProxyConfigResponse](#navigator-frontend-v1alpha1-GetProxyConfigResponse) | GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance. |
+| ListClusters | [ListClustersRequest](#navigator-frontend-v1alpha1-ListClustersRequest) | [ListClustersResponse](#navigator-frontend-v1alpha1-ListClustersResponse) | ListClusters returns sync state information for all connected clusters. |
 
  
 

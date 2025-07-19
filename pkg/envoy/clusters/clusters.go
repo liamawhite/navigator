@@ -102,10 +102,13 @@ func (p *Parser) convertHostToEndpoint(host *admin.HostStatus) *v1alpha1.Endpoin
 
 	endpoint := &v1alpha1.EndpointInfo{
 		Health:              p.getHealthStatus(host),
-		Priority:            0,                       // Default
-		Weight:              0,                       // Default
-		LoadBalancingWeight: 0,                       // Default
-		Metadata:            make(map[string]string), // Always initialize
+		Priority:            0,                                         // Default
+		Weight:              0,                                         // Default
+		LoadBalancingWeight: 0,                                         // Default
+		Metadata:            make(map[string]string),                   // Always initialize
+		AddressType:         v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE, // Explicit default
+		Address:             "unknown",                                 // Default
+		HostIdentifier:      "unknown",                                 // Default
 	}
 
 	// Extract address and port
@@ -113,18 +116,33 @@ func (p *Parser) convertHostToEndpoint(host *admin.HostStatus) *v1alpha1.Endpoin
 		endpoint.Address = addr.Address
 		endpoint.Port = addr.GetPortValue()
 		endpoint.HostIdentifier = net.JoinHostPort(endpoint.Address, strconv.Itoa(int(endpoint.Port)))
+
+		// Check if the socket address is actually a pipe/unix socket path
+		if strings.HasPrefix(addr.Address, "./") || strings.HasPrefix(addr.Address, "/") || strings.Contains(addr.Address, "/socket") {
+			endpoint.AddressType = v1alpha1.AddressType_PIPE_ADDRESS
+			endpoint.HostIdentifier = endpoint.Address
+		} else {
+			endpoint.AddressType = v1alpha1.AddressType_SOCKET_ADDRESS
+		}
 	} else if pipe := host.Address.GetPipe(); pipe != nil {
 		endpoint.Address = "unix://" + pipe.Path
 		endpoint.HostIdentifier = endpoint.Address
+		endpoint.AddressType = v1alpha1.AddressType_PIPE_ADDRESS
 	} else if internal := host.Address.GetEnvoyInternalAddress(); internal != nil {
+		endpoint.AddressType = v1alpha1.AddressType_ENVOY_INTERNAL_ADDRESS
 		switch an := internal.GetAddressNameSpecifier().(type) {
 		case *core.EnvoyInternalAddress_ServerListenerName:
 			endpoint.Address = fmt.Sprintf("envoy://%s/%s", an.ServerListenerName, internal.EndpointId)
 			endpoint.HostIdentifier = endpoint.Address
+		default:
+			// Fallback for other address name specifier types
+			endpoint.Address = internal.EndpointId
+			endpoint.HostIdentifier = internal.EndpointId
 		}
 	} else {
 		endpoint.Address = "unknown"
 		endpoint.HostIdentifier = "unknown"
+		endpoint.AddressType = v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE
 	}
 
 	// Note: Priority, weight, and load balancing weight are not directly available

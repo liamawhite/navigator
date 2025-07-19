@@ -39,5 +39,9 @@ export type v1alpha1ProxyConfig = {
      * routes contains the route configuration summaries.
      */
     routes?: Array<v1alpha1RouteConfigSummary>;
+    /**
+     * raw_clusters is the original raw clusters output from /clusters?format=json endpoint.
+     */
+    rawClusters?: string;
 };
 

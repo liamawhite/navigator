@@ -88,6 +88,18 @@ enum ClusterDirection {
   OUTBOUND = 2;
 }
 
+// AddressType represents the type of endpoint address
+enum AddressType {
+  // UNKNOWN_ADDRESS_TYPE indicates an unknown or unspecified address type
+  UNKNOWN_ADDRESS_TYPE = 0;
+  // SOCKET_ADDRESS indicates a standard network socket address (IP:port)
+  SOCKET_ADDRESS = 1;
+  // ENVOY_INTERNAL_ADDRESS indicates an internal Envoy address for listener routing
+  ENVOY_INTERNAL_ADDRESS = 2;
+  // PIPE_ADDRESS indicates a Unix domain socket address
+  PIPE_ADDRESS = 3;
+}
+
 // ProxyConfig represents the configuration of a proxy sidecar (e.g., Envoy).
 message ProxyConfig {
   // version is the version of the proxy software.
@@ -110,6 +122,9 @@ message ProxyConfig {
 
   // routes contains the route configuration summaries.
   repeated RouteConfigSummary routes = 7;
+
+  // raw_clusters is the original raw clusters output from /clusters?format=json endpoint.
+  string raw_clusters = 8;
 }
 
 // BootstrapSummary contains essential bootstrap configuration information
@@ -210,6 +225,7 @@ message EndpointInfo {
   string host_identifier = 6;
   map<string, string> metadata = 7;
   uint32 load_balancing_weight = 8;
+  AddressType address_type = 9;
 }
 
 // RouteConfigSummary contains route configuration summary

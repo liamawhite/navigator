@@ -45,6 +45,11 @@ service ServiceRegistryService {
   rpc GetProxyConfig(GetProxyConfigRequest) returns (GetProxyConfigResponse) {
     option (google.api.http) = {get: "/api/v1alpha1/services/{service_id}/instances/{instance_id}/proxy-config"};
   }
+
+  // ListClusters returns sync state information for all connected clusters.
+  rpc ListClusters(ListClustersRequest) returns (ListClustersResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/clusters"};
+  }
 }
 
 // ListServicesRequest specifies which namespace to list services from.
@@ -211,4 +216,41 @@ message GetProxyConfigRequest {
 message GetProxyConfigResponse {
   // proxy_config contains the complete Envoy proxy configuration.
   navigator.types.v1alpha1.ProxyConfig proxy_config = 1;
+}
+
+// ListClustersRequest for retrieving cluster sync information.
+message ListClustersRequest {
+  // Currently no filters needed, but structured for future extensibility.
+}
+
+// ListClustersResponse contains sync state for all connected clusters.
+message ListClustersResponse {
+  // clusters is the list of connected clusters with their sync state.
+  repeated ClusterSyncInfo clusters = 1;
+}
+
+// ClusterSyncInfo represents the sync state of a connected edge cluster.
+message ClusterSyncInfo {
+  // cluster_id is the unique identifier for the edge cluster.
+  string cluster_id = 1;
+  
+  // connected_at is when the connection was established (RFC3339 format).
+  string connected_at = 2;
+  
+  // last_update is when the last sync occurred (RFC3339 format).
+  string last_update = 3;
+  
+  // service_count is the number of services currently synced from this cluster.
+  int32 service_count = 4;
+  
+  // sync_status indicates the health of the sync based on last_update timing.
+  SyncStatus sync_status = 5;
+}
+
+// SyncStatus represents the health of cluster synchronization.
+enum SyncStatus {
+  SYNC_STATUS_UNSPECIFIED = 0;
+  SYNC_STATUS_HEALTHY = 1;    // Recent updates within expected timeframe
+  SYNC_STATUS_STALE = 2;      // No recent updates, potentially problematic
+  SYNC_STATUS_DISCONNECTED = 3; // Connection lost
 }

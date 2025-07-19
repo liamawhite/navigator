@@ -12,7 +12,10 @@
       "Bash(mkdir:*)",
       "Bash(mv:*)",
       "Bash(go build:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(npx shadcn@latest add input:*)",
+      "Bash(curl:*)",
+      "Bash(go run:*)"
     ],
     "deny": []
   }

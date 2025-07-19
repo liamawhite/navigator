@@ -170,41 +170,6 @@ go test -tags=test -v ./...
 go test -short ./...
 ```
 
-### Integration Testing
-Integration tests use Kind (Kubernetes in Docker) to test against a real Kubernetes cluster. These tests require Docker to be running and `kind` and `kubectl` to be installed.
-
-```bash
-# Prerequisites: Install kind and kubectl
-# macOS: brew install kind kubectl
-# Linux: See https://kind.sigs.k8s.io/docs/user/quick-start/
-
-# Run integration tests (requires Docker, kind, kubectl)
-go test -v ./testing/integration/local/
-
-# Run all integration tests
-go test -v -run TestLocalServiceRegistry ./testing/integration/local/
-
-# Run specific test categories
-go test -v -run TestLocalBasic ./testing/integration/local/
-go test -v -run TestLocalAdvanced ./testing/integration/local/
-go test -v -run TestLocalIsolation ./testing/integration/local/
-
-# Run individual test scenarios
-go test -v -run TestLocalSingle/basic_service_discovery ./testing/integration/local/
-go test -v -run TestLocalSingle/microservice_topology ./testing/integration/local/
-go test -v -run TestLocalSingle/mixed_service_types ./testing/integration/local/
-
-# Run integration tests with longer timeout
-go test -v -timeout 15m ./testing/integration/local/
-
-# Run integration tests and keep clusters on failure for debugging
-CLEANUP_ON_FAILURE=false go test -v ./testing/integration/local/
-
-# Clean up any leftover test clusters
-kind delete cluster --name navigator-integration-test
-kind delete cluster --name navigator-basic-test
-kind delete cluster --name navigator-multi-test
-```
 
 ### Protocol Buffer Generation
 ```bash
@@ -255,13 +220,6 @@ nix develop
 # - golangci-lint (Go linting)
 ```
 
-### Air Hot Reloading
-Air configuration (`.air.toml`) provides Go hot reloading:
-- Builds to `./tmp/navigator`
-- Serves on port 8080 with arguments: `serve -p 8080`
-- Excludes UI, testing, and generated code directories
-- Watches `.go`, `.tpl`, `.tmpl`, `.html` files
-- Automatically restarts on file changes
 
 ## Key Directory Structure
 
@@ -421,4 +379,5 @@ Navigator uses GitHub Actions for automated quality assurance:
 
 ### Test Workflow (`.github/workflows/test.yml`)
 - **Unit Tests**: Runs `make test-unit` with build tags for all Go packages
+- **Release Build Test**: Tests GoReleaser snapshot builds
 - Uses Nix development environment for consistent tooling

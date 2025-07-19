@@ -25,6 +25,7 @@
     - [WeightedClusterInfo](#navigator-types-v1alpha1-WeightedClusterInfo)
     - [WeightedClusterInfo.MetadataMatchEntry](#navigator-types-v1alpha1-WeightedClusterInfo-MetadataMatchEntry)
   
+    - [AddressType](#navigator-types-v1alpha1-AddressType)
     - [ClusterDirection](#navigator-types-v1alpha1-ClusterDirection)
     - [ClusterType](#navigator-types-v1alpha1-ClusterType)
     - [ListenerType](#navigator-types-v1alpha1-ListenerType)
@@ -160,6 +161,7 @@ EndpointInfo contains individual endpoint information
 | host_identifier | [string](#string) |  |  |
 | metadata | [EndpointInfo.MetadataEntry](#navigator-types-v1alpha1-EndpointInfo-MetadataEntry) | repeated |  |
 | load_balancing_weight | [uint32](#uint32) |  |  |
+| address_type | [AddressType](#navigator-types-v1alpha1-AddressType) |  |  |
 
 
 
@@ -289,6 +291,7 @@ ProxyConfig represents the configuration of a proxy sidecar (e.g., Envoy).
 | clusters | [ClusterSummary](#navigator-types-v1alpha1-ClusterSummary) | repeated | clusters contains the cluster configuration summaries. |
 | endpoints | [EndpointSummary](#navigator-types-v1alpha1-EndpointSummary) | repeated | endpoints contains the endpoint configuration summaries. |
 | routes | [RouteConfigSummary](#navigator-types-v1alpha1-RouteConfigSummary) | repeated | routes contains the route configuration summaries. |
+| raw_clusters | [string](#string) |  | raw_clusters is the original raw clusters output from /clusters?format=json endpoint. |
 
 
 
@@ -417,6 +420,20 @@ WeightedClusterInfo contains weighted cluster information
 
 
  
+
+
+<a name="navigator-types-v1alpha1-AddressType"></a>
+
+### AddressType
+AddressType represents the type of endpoint address
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| UNKNOWN_ADDRESS_TYPE | 0 | UNKNOWN_ADDRESS_TYPE indicates an unknown or unspecified address type |
+| SOCKET_ADDRESS | 1 | SOCKET_ADDRESS indicates a standard network socket address (IP:port) |
+| ENVOY_INTERNAL_ADDRESS | 2 | ENVOY_INTERNAL_ADDRESS indicates an internal Envoy address for listener routing |
+| PIPE_ADDRESS | 3 | PIPE_ADDRESS indicates a Unix domain socket address |
+
 
 
 <a name="navigator-types-v1alpha1-ClusterDirection"></a>
