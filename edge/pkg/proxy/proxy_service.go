@@ -23,6 +23,7 @@ import (
 
 	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/envoy/admin"
+	"github.com/liamawhite/navigator/pkg/envoy/clusters"
 	"github.com/liamawhite/navigator/pkg/envoy/configdump"
 )
 
@@ -79,16 +80,22 @@ func (s *ProxyService) GetProxyConfig(ctx context.Context, namespace, podName st
 		return nil, fmt.Errorf("failed to parse config dump for pod %s/%s: %w", namespace, podName, err)
 	}
 
-	// Step 5: Parse and merge live cluster endpoint data if available
+	// Step 5: Parse cluster endpoint data from admin interface (clusters-only approach)
+	var endpoints []*types.EndpointSummary
 	if rawClusters != "" {
-		liveEndpoints, err := admin.ParseClustersOutput(rawClusters)
+		liveEndpoints, err := clusters.ParseClustersAdminOutput(rawClusters)
 		if err != nil {
 			s.logger.Warn("failed to parse clusters output", "namespace", namespace, "pod", podName, "error", err)
+			endpoints = []*types.EndpointSummary{}
 		} else {
-			// Merge live endpoint data with static config
-			summary.Endpoints = admin.MergeClusterEndpointsWithConfig(summary.Endpoints, liveEndpoints)
-			s.logger.Debug("merged live cluster endpoint data", "namespace", namespace, "pod", podName, "live_clusters", len(liveEndpoints))
+			// Use clusters admin interface as the exclusive source for endpoint data
+			endpoints = clusters.ConvertToEndpointSummaries(liveEndpoints)
+			s.logger.Debug("converted cluster endpoint data", "namespace", namespace, "pod", podName, "endpoint_summaries", len(endpoints))
 		}
+	} else {
+		// No clusters data available, use empty endpoints (don't fall back to config dump)
+		endpoints = []*types.EndpointSummary{}
+		s.logger.Warn("no clusters data available, endpoints will be empty", "namespace", namespace, "pod", podName)
 	}
 
 	// Step 6: Build the ProxyConfig response
@@ -98,8 +105,9 @@ func (s *ProxyService) GetProxyConfig(ctx context.Context, namespace, podName st
 		Bootstrap:     summary.Bootstrap,
 		Listeners:     summary.Listeners,
 		Clusters:      summary.Clusters,
-		Endpoints:     summary.Endpoints,
+		Endpoints:     endpoints,
 		Routes:        summary.Routes,
+		RawClusters:   rawClusters,
 	}
 
 	s.logger.Debug("successfully retrieved proxy config",
@@ -108,7 +116,7 @@ func (s *ProxyService) GetProxyConfig(ctx context.Context, namespace, podName st
 		"version", version,
 		"listeners", len(summary.Listeners),
 		"clusters", len(summary.Clusters),
-		"endpoints", len(summary.Endpoints),
+		"endpoints", len(endpoints),
 		"routes", len(summary.Routes))
 
 	return proxyConfig, nil

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/liamawhite/navigator/manager/pkg/connections"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
@@ -33,6 +34,7 @@ type ReadOptimizedConnectionManager interface {
 	ListAggregatedServices(namespace, clusterID string) []*connections.AggregatedService
 	GetAggregatedService(serviceID string) (*connections.AggregatedService, bool)
 	GetAggregatedServiceInstance(instanceID string) (*connections.AggregatedServiceInstance, bool)
+	GetConnectionInfo() map[string]connections.ConnectionInfo
 }
 
 // ProxyConfigProvider defines the interface for retrieving proxy configurations
@@ -162,6 +164,25 @@ func (f *FrontendService) GetProxyConfig(ctx context.Context, req *frontendv1alp
 	}, nil
 }
 
+// ListClusters returns sync state information for all connected clusters
+func (f *FrontendService) ListClusters(ctx context.Context, req *frontendv1alpha1.ListClustersRequest) (*frontendv1alpha1.ListClustersResponse, error) {
+	f.logger.Debug("listing clusters")
+
+	connectionInfos := f.connectionManager.GetConnectionInfo()
+	clusters := make([]*frontendv1alpha1.ClusterSyncInfo, 0, len(connectionInfos))
+
+	for _, connInfo := range connectionInfos {
+		cluster := f.convertConnectionInfoToClusterSyncInfo(connInfo)
+		clusters = append(clusters, cluster)
+	}
+
+	f.logger.Debug("listed clusters", "count", len(clusters))
+
+	return &frontendv1alpha1.ListClustersResponse{
+		Clusters: clusters,
+	}, nil
+}
+
 // convertAggregatedService converts an AggregatedService to the frontend API format
 func (f *FrontendService) convertAggregatedService(aggService *connections.AggregatedService) *frontendv1alpha1.Service {
 	instances := make([]*frontendv1alpha1.ServiceInstance, 0, len(aggService.Instances))
@@ -252,4 +273,39 @@ func extractServiceNameFromInstanceID(instanceID string) string {
 	// For now, return pod name as service identifier
 	// In a more complete implementation, this would require a service lookup
 	return podName
+}
+
+// convertConnectionInfoToClusterSyncInfo converts a ConnectionInfo to the frontend API format
+func (f *FrontendService) convertConnectionInfoToClusterSyncInfo(connInfo connections.ConnectionInfo) *frontendv1alpha1.ClusterSyncInfo {
+	// Safe conversion from int to int32 to avoid overflow
+	var serviceCount int32
+	if connInfo.ServiceCount > 2147483647 { // max int32
+		serviceCount = 2147483647
+	} else if connInfo.ServiceCount < -2147483648 { // min int32
+		serviceCount = -2147483648
+	} else {
+		serviceCount = int32(connInfo.ServiceCount) // #nosec G115 - bounds checked above
+	}
+
+	return &frontendv1alpha1.ClusterSyncInfo{
+		ClusterId:    connInfo.ClusterID,
+		ConnectedAt:  connInfo.ConnectedAt.Format(time.RFC3339),
+		LastUpdate:   connInfo.LastUpdate.Format(time.RFC3339),
+		ServiceCount: serviceCount,
+		SyncStatus:   f.computeSyncStatus(connInfo.LastUpdate),
+	}
+}
+
+// computeSyncStatus determines the sync health based on last update time
+func (f *FrontendService) computeSyncStatus(lastUpdate time.Time) frontendv1alpha1.SyncStatus {
+	timeSince := time.Since(lastUpdate)
+
+	switch {
+	case timeSince < 30*time.Second:
+		return frontendv1alpha1.SyncStatus_SYNC_STATUS_HEALTHY
+	case timeSince < 5*time.Minute:
+		return frontendv1alpha1.SyncStatus_SYNC_STATUS_STALE
+	default:
+		return frontendv1alpha1.SyncStatus_SYNC_STATUS_DISCONNECTED
+	}
 }

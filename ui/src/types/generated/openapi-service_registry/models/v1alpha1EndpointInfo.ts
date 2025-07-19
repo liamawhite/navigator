@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { v1alpha1AddressType } from './v1alpha1AddressType';
 export type v1alpha1EndpointInfo = {
     address?: string;
     port?: number;
@@ -11,5 +12,6 @@ export type v1alpha1EndpointInfo = {
     hostIdentifier?: string;
     metadata?: Record<string, string>;
     loadBalancingWeight?: number;
+    addressType?: v1alpha1AddressType;
 };
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Eye, X } from 'lucide-react';
 import * as yaml from 'js-yaml';
 import { Button } from '@/components/ui/button';
@@ -20,12 +20,14 @@ import {
     Dialog,
     DialogClose,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
 import CodeMirror from '@uiw/react-codemirror';
 import { langs } from '@uiw/codemirror-extensions-langs';
+// Remove direct @codemirror imports to avoid conflicts with react-codemirror
 
 interface RawConfigDialogProps {
     name: string;
@@ -39,6 +41,7 @@ export const RawConfigDialog: React.FC<RawConfigDialogProps> = ({
     configType = 'Configuration',
 }) => {
     const [format, setFormat] = useState<'yaml' | 'json'>('json');
+    const editorRef = useRef<HTMLElement | null>(null);
 
     // Check if dark mode is enabled
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -132,9 +135,14 @@ export const RawConfigDialog: React.FC<RawConfigDialogProps> = ({
                             </DialogClose>
                         </div>
                     </div>
+                    <DialogDescription className="sr-only">
+                        View and search through the raw configuration data for{' '}
+                        {configType.toLowerCase()}: {name}
+                    </DialogDescription>
                 </DialogHeader>
                 <div className="flex-1 overflow-auto">
                     <CodeMirror
+                        ref={editorRef}
                         value={formattedConfig}
                         extensions={extensions}
                         theme={isDarkMode ? 'dark' : 'light'}
@@ -142,8 +150,8 @@ export const RawConfigDialog: React.FC<RawConfigDialogProps> = ({
                         basicSetup={{
                             lineNumbers: true,
                             foldGutter: true,
-                            searchKeymap: false,
-                            highlightSelectionMatches: false,
+                            searchKeymap: true,
+                            highlightSelectionMatches: true,
                         }}
                         height="100%"
                     />

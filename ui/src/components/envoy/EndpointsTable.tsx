@@ -13,7 +13,14 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+    ChevronUp,
+    ChevronDown,
+    ChevronRight,
+    Globe,
+    Router,
+    Link,
+} from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -25,7 +32,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ConfigActions } from '@/components/envoy/ConfigActions';
 import type { v1alpha1EndpointSummary } from '@/types/generated/openapi-service_registry';
-import { v1alpha1ClusterType } from '@/types/generated/openapi-service_registry';
+import {
+    v1alpha1ClusterType,
+    v1alpha1AddressType,
+} from '@/types/generated/openapi-service_registry';
 
 interface EndpointsTableProps {
     endpoints: v1alpha1EndpointSummary[];
@@ -35,6 +45,24 @@ type SortConfig = {
     key: string;
     direction: 'asc' | 'desc';
 } | null;
+
+// Helper function to get address type icon and label
+const getAddressTypeInfo = (addressType?: v1alpha1AddressType) => {
+    switch (addressType) {
+        case v1alpha1AddressType.SOCKET_ADDRESS:
+            return { icon: Globe, label: 'Socket', color: 'text-blue-600' };
+        case v1alpha1AddressType.ENVOY_INTERNAL_ADDRESS:
+            return {
+                icon: Router,
+                label: 'Internal',
+                color: 'text-purple-600',
+            };
+        case v1alpha1AddressType.PIPE_ADDRESS:
+            return { icon: Link, label: 'Pipe', color: 'text-orange-600' };
+        default:
+            return { icon: Globe, label: 'Unknown', color: 'text-gray-600' };
+    }
+};
 
 // Helper function to group endpoint summaries by cluster type
 const groupEndpointsByClusterType = (endpoints: v1alpha1EndpointSummary[]) => {
@@ -259,20 +287,23 @@ const EndpointsGroup: React.FC<{
                                     <TableRow className="bg-muted/10 border-b">
                                         <TableCell className="w-8"></TableCell>
                                         <TableCell colSpan={4}>
-                                            <div className="grid grid-cols-5 gap-4 px-6">
-                                                <span className="text-xs font-medium text-muted-foreground">
+                                            <div className="grid grid-cols-12 gap-4 px-6">
+                                                <span className="text-xs font-medium text-muted-foreground col-span-5">
                                                     Host Identifier
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground">
+                                                <span className="text-xs font-medium text-muted-foreground col-span-2">
+                                                    Type
+                                                </span>
+                                                <span className="text-xs font-medium text-muted-foreground col-span-2">
                                                     Health
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground">
+                                                <span className="text-xs font-medium text-muted-foreground col-span-1">
                                                     Priority
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground">
+                                                <span className="text-xs font-medium text-muted-foreground col-span-1">
                                                     Weight
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground">
+                                                <span className="text-xs font-medium text-muted-foreground col-span-1">
                                                     Actions
                                                 </span>
                                             </div>
@@ -283,67 +314,91 @@ const EndpointsGroup: React.FC<{
                                 {/* Expanded endpoint rows */}
                                 {isExpanded &&
                                     cluster.endpoints?.map(
-                                        (endpoint, index) => (
-                                            <TableRow
-                                                key={`${cluster.clusterName}-${index}`}
-                                                className="bg-muted/25"
-                                            >
-                                                <TableCell className="w-8"></TableCell>
-                                                <TableCell colSpan={4}>
-                                                    <div className="grid grid-cols-5 gap-4 px-6 items-center">
-                                                        <span className="font-mono text-xs text-muted-foreground">
-                                                            {endpoint.hostIdentifier ||
-                                                                'N/A'}
-                                                        </span>
-                                                        <Badge
-                                                            variant={
-                                                                endpoint.health ===
-                                                                'HEALTHY'
-                                                                    ? 'default'
-                                                                    : endpoint.health ===
-                                                                        'UNHEALTHY'
-                                                                      ? 'destructive'
-                                                                      : 'secondary'
-                                                            }
-                                                            className={
-                                                                endpoint.health ===
-                                                                'HEALTHY'
-                                                                    ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30'
-                                                                    : endpoint.health ===
-                                                                        'UNHEALTHY'
-                                                                      ? 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30'
-                                                                      : ''
-                                                            }
-                                                        >
-                                                            {endpoint.health ||
-                                                                'UNKNOWN'}
-                                                        </Badge>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {endpoint.priority ||
-                                                                0}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {endpoint.weight ||
-                                                                endpoint.loadBalancingWeight ||
-                                                                'N/A'}
-                                                        </span>
-                                                        <ConfigActions
-                                                            name={
-                                                                endpoint.hostIdentifier ||
-                                                                'Unknown'
-                                                            }
-                                                            rawConfig={JSON.stringify(
-                                                                endpoint,
-                                                                null,
-                                                                2
-                                                            )}
-                                                            configType="Endpoint"
-                                                            copyId={`endpoint-${cluster.clusterName}-${index}`}
-                                                        />
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        )
+                                        (endpoint, index) => {
+                                            const addressTypeInfo =
+                                                getAddressTypeInfo(
+                                                    endpoint.addressType
+                                                );
+                                            const Icon = addressTypeInfo.icon;
+
+                                            return (
+                                                <TableRow
+                                                    key={`${cluster.clusterName}-${index}`}
+                                                    className="bg-muted/25"
+                                                >
+                                                    <TableCell className="w-8"></TableCell>
+                                                    <TableCell colSpan={4}>
+                                                        <div className="grid grid-cols-12 gap-4 px-6 items-center">
+                                                            <span className="font-mono text-xs text-muted-foreground col-span-5 break-all">
+                                                                {endpoint.hostIdentifier ||
+                                                                    'N/A'}
+                                                            </span>
+                                                            <div className="flex items-center gap-1 col-span-2">
+                                                                <Icon
+                                                                    className={`w-3 h-3 ${addressTypeInfo.color}`}
+                                                                />
+                                                                <span
+                                                                    className={`text-xs ${addressTypeInfo.color}`}
+                                                                >
+                                                                    {
+                                                                        addressTypeInfo.label
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                            <div className="col-span-2">
+                                                                <Badge
+                                                                    variant={
+                                                                        endpoint.health ===
+                                                                        'HEALTHY'
+                                                                            ? 'default'
+                                                                            : endpoint.health ===
+                                                                                'UNHEALTHY'
+                                                                              ? 'destructive'
+                                                                              : 'secondary'
+                                                                    }
+                                                                    className={
+                                                                        endpoint.health ===
+                                                                        'HEALTHY'
+                                                                            ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30'
+                                                                            : endpoint.health ===
+                                                                                'UNHEALTHY'
+                                                                              ? 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30'
+                                                                              : ''
+                                                                    }
+                                                                >
+                                                                    {endpoint.health ||
+                                                                        'UNKNOWN'}
+                                                                </Badge>
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground col-span-1">
+                                                                {endpoint.priority ||
+                                                                    0}
+                                                            </span>
+                                                            <span className="text-xs text-muted-foreground col-span-1">
+                                                                {endpoint.weight ||
+                                                                    endpoint.loadBalancingWeight ||
+                                                                    'N/A'}
+                                                            </span>
+                                                            <div className="col-span-1">
+                                                                <ConfigActions
+                                                                    name={
+                                                                        endpoint.hostIdentifier ||
+                                                                        'Unknown'
+                                                                    }
+                                                                    rawConfig={JSON.stringify(
+                                                                        endpoint,
+                                                                        null,
+                                                                        2
+                                                                    )}
+                                                                    configType="Endpoint"
+                                                                    copyId={`endpoint-${cluster.clusterName}-${index}`}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        }
                                     )}
                             </>
                         );

@@ -23,7 +23,6 @@ import (
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
 	bootstrapv3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	listenerv3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	exprpb "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
@@ -51,13 +50,11 @@ type ParsedConfig struct {
 	Bootstrap *bootstrapv3.Bootstrap
 	Listeners []*listenerv3.Listener
 	Clusters  []*clusterv3.Cluster
-	Endpoints []*endpointv3.ClusterLoadAssignment
 	Routes    []*routev3.RouteConfiguration
 
 	// Raw configurations from the original config dump
 	RawListeners map[string]string // listener name -> raw JSON config
 	RawClusters  map[string]string // cluster name -> raw JSON config
-	RawEndpoints map[string]string // endpoint name -> raw JSON config
 	RawRoutes    map[string]string // route name -> raw JSON config
 
 	// Track which routes came from static configs
@@ -72,7 +69,6 @@ type ParsedSummary struct {
 	Bootstrap *v1alpha1.BootstrapSummary
 	Listeners []*v1alpha1.ListenerSummary
 	Clusters  []*v1alpha1.ClusterSummary
-	Endpoints []*v1alpha1.EndpointSummary
 	Routes    []*v1alpha1.RouteConfigSummary
 }
 
@@ -353,10 +349,8 @@ func (p *Parser) ParseJSONToSummary(rawConfigDump string) (*ParsedSummary, error
 		summary.Clusters = append(summary.Clusters, p.summarizeCluster(cluster, parsed))
 	}
 
-	// Convert endpoints
-	for _, endpoint := range parsed.Endpoints {
-		summary.Endpoints = append(summary.Endpoints, p.summarizeEndpoint(endpoint))
-	}
+	// Skip endpoints - they come exclusively from clusters admin interface
+	// Endpoints are handled separately via clusters.ParseClustersAdminOutput() and clusters.ConvertToEndpointSummaries()
 
 	// Convert routes
 	for _, route := range parsed.Routes {
@@ -371,7 +365,6 @@ func (p *Parser) parseFromConfigDump(configDump *admin.ConfigDump) (*ParsedConfi
 	parsed := &ParsedConfig{
 		RawListeners:        make(map[string]string),
 		RawClusters:         make(map[string]string),
-		RawEndpoints:        make(map[string]string),
 		RawRoutes:           make(map[string]string),
 		RouteConfigToRawKey: make(map[*routev3.RouteConfiguration]string),
 	}
@@ -398,10 +391,8 @@ func (p *Parser) parseFromConfigDump(configDump *admin.ConfigDump) (*ParsedConfi
 			}
 
 		case "type.googleapis.com/envoy.admin.v3.EndpointsConfigDump":
-			if err := p.parseEndpointsFromAny(config, parsed); err != nil {
-				// Log error but continue with other configs
-				continue
-			}
+			// Skip endpoints - they come exclusively from clusters admin interface
+			continue
 
 		case "type.googleapis.com/envoy.admin.v3.RoutesConfigDump":
 			if err := p.parseRoutesFromAny(config, parsed); err != nil {

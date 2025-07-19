@@ -6,11 +6,24 @@ import type { rpcStatus } from '../models/rpcStatus';
 import type { v1alpha1GetProxyConfigResponse } from '../models/v1alpha1GetProxyConfigResponse';
 import type { v1alpha1GetServiceInstanceResponse } from '../models/v1alpha1GetServiceInstanceResponse';
 import type { v1alpha1GetServiceResponse } from '../models/v1alpha1GetServiceResponse';
+import type { v1alpha1ListClustersResponse } from '../models/v1alpha1ListClustersResponse';
 import type { v1alpha1ListServicesResponse } from '../models/v1alpha1ListServicesResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class ServiceRegistryServiceService {
+    /**
+     * ListClusters returns sync state information for all connected clusters.
+     * @returns v1alpha1ListClustersResponse A successful response.
+     * @returns rpcStatus An unexpected error response.
+     * @throws ApiError
+     */
+    public static serviceRegistryServiceListClusters(): CancelablePromise<v1alpha1ListClustersResponse | rpcStatus> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1alpha1/clusters',
+        });
+    }
     /**
      * ListServices returns all services in the specified namespace, or all namespaces if not specified.
      * Services are aggregated across all connected clusters.

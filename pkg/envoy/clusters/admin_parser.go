@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package admin
+package clusters
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -42,16 +44,17 @@ type ClusterStatus struct {
 
 // HostStatus represents a single host/endpoint in a cluster
 type HostStatus struct {
-	Address      SocketAddress `json:"address"`
-	HealthStatus HealthStatus  `json:"health_status"`
-	Weight       uint32        `json:"weight"`
-	Locality     Locality      `json:"locality"`
+	Address      AdminAddress `json:"address"`
+	HealthStatus HealthStatus `json:"health_status"`
+	Weight       uint32       `json:"weight"`
+	Locality     Locality     `json:"locality"`
 }
 
-// SocketAddress represents the network address of an endpoint
-type SocketAddress struct {
-	SocketAddress *SocketAddressDetail `json:"socket_address"`
-	Pipe          *PipeAddress         `json:"pipe"`
+// AdminAddress represents the network address of an endpoint from admin interface
+type AdminAddress struct {
+	SocketAddress        *SocketAddressDetail        `json:"socket_address"`
+	Pipe                 *PipeAddress                `json:"pipe"`
+	EnvoyInternalAddress *EnvoyInternalAddressDetail `json:"envoy_internal_address"`
 }
 
 // SocketAddressDetail contains the actual IP and port
@@ -65,6 +68,12 @@ type PipeAddress struct {
 	Path string `json:"path"`
 }
 
+// EnvoyInternalAddressDetail represents an Envoy internal address (ambient mode)
+type EnvoyInternalAddressDetail struct {
+	ServerListenerName string `json:"server_listener_name"`
+	EndpointId         string `json:"endpoint_id"`
+}
+
 // HealthStatus represents the health status of an endpoint
 type HealthStatus struct {
 	EDSHealthStatus string `json:"eds_health_status"`
@@ -76,9 +85,9 @@ type Locality struct {
 	Zone   string `json:"zone"`
 }
 
-// ParseClustersOutput parses the output from Envoy's /clusters admin endpoint
+// ParseClustersAdminOutput parses the output from Envoy's /clusters admin endpoint
 // This extracts live endpoint information with health status and connection data
-func ParseClustersOutput(clustersOutput string) ([]*ClusterEndpointInfo, error) {
+func ParseClustersAdminOutput(clustersOutput string) ([]*ClusterEndpointInfo, error) {
 	if clustersOutput == "" {
 		return nil, nil
 	}
@@ -104,54 +113,110 @@ func ParseClustersOutput(clustersOutput string) ([]*ClusterEndpointInfo, error) 
 
 		// Process each endpoint in the cluster
 		for _, host := range cluster.HostStatuses {
-			var address string
-			var port uint32
-			var hostIdentifier string
-
-			if host.Address.SocketAddress != nil {
-				// TCP socket address
-				address = host.Address.SocketAddress.Address
-				port = host.Address.SocketAddress.PortValue
-				hostIdentifier = address + ":" + strconv.Itoa(int(port))
-			} else if host.Address.Pipe != nil {
-				// Unix domain socket
-				address = host.Address.Pipe.Path
-				port = 0 // Pipes don't have ports
-				hostIdentifier = "unix://" + address
-			} else {
-				// Skip endpoints with unknown address types
-				continue
+			endpointInfo := convertAdminHostToEndpoint(host)
+			if endpointInfo != nil {
+				clusterInfo.Endpoints = append(clusterInfo.Endpoints, endpointInfo)
 			}
-
-			endpointInfo := &v1alpha1.EndpointInfo{
-				Address:             address,
-				Port:                port,
-				HostIdentifier:      hostIdentifier,
-				Health:              host.HealthStatus.EDSHealthStatus,
-				Weight:              host.Weight,
-				LoadBalancingWeight: host.Weight,
-				Metadata:            make(map[string]string),
-			}
-
-			// Add locality information if available
-			if host.Locality.Region != "" {
-				endpointInfo.Metadata["region"] = host.Locality.Region
-			}
-			if host.Locality.Zone != "" {
-				endpointInfo.Metadata["zone"] = host.Locality.Zone
-			}
-
-			clusterInfo.Endpoints = append(clusterInfo.Endpoints, endpointInfo)
 		}
 
-		clusterEndpoints = append(clusterEndpoints, clusterInfo)
+		if len(clusterInfo.Endpoints) > 0 {
+			clusterEndpoints = append(clusterEndpoints, clusterInfo)
+		}
 	}
 
 	return clusterEndpoints, nil
 }
 
-// MergeClusterEndpointsWithConfig merges live cluster endpoint data with static endpoint configuration
-func MergeClusterEndpointsWithConfig(staticEndpoints []*v1alpha1.EndpointSummary, liveEndpoints []*ClusterEndpointInfo) []*v1alpha1.EndpointSummary {
+// ConvertToEndpointSummaries converts ClusterEndpointInfo directly to EndpointSummary format
+// This bypasses the need for merging with config dump data and provides clusters-only endpoint information
+func ConvertToEndpointSummaries(clusterEndpoints []*ClusterEndpointInfo) []*v1alpha1.EndpointSummary {
+	var summaries []*v1alpha1.EndpointSummary
+
+	for _, clusterInfo := range clusterEndpoints {
+		if len(clusterInfo.Endpoints) == 0 {
+			continue // Skip clusters with no endpoints
+		}
+
+		// Parse cluster name components for Istio format
+		direction, port, subset, serviceFqdn := parseClusterNameComponents(clusterInfo.ClusterName)
+
+		summary := &v1alpha1.EndpointSummary{
+			ClusterName: clusterInfo.ClusterName,
+			ClusterType: inferClusterTypeFromName(clusterInfo.ClusterName),
+			Direction:   direction,
+			Port:        port,
+			Subset:      subset,
+			ServiceFqdn: serviceFqdn,
+			Endpoints:   clusterInfo.Endpoints,
+		}
+
+		summaries = append(summaries, summary)
+	}
+
+	return summaries
+}
+
+// convertAdminHostToEndpoint converts an admin HostStatus to our EndpointInfo with proper address type detection
+func convertAdminHostToEndpoint(host HostStatus) *v1alpha1.EndpointInfo {
+	endpointInfo := &v1alpha1.EndpointInfo{
+		Health:              host.HealthStatus.EDSHealthStatus,
+		Weight:              host.Weight,
+		LoadBalancingWeight: host.Weight,
+		Metadata:            make(map[string]string),
+		AddressType:         v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE, // Default
+		Address:             "unknown",                                 // Default
+		HostIdentifier:      "unknown",                                 // Default
+	}
+
+	// Handle different address types
+	if host.Address.SocketAddress != nil {
+		// TCP socket address
+		addr := host.Address.SocketAddress
+		endpointInfo.Address = addr.Address
+		endpointInfo.Port = addr.PortValue
+		endpointInfo.HostIdentifier = net.JoinHostPort(endpointInfo.Address, strconv.Itoa(int(endpointInfo.Port)))
+
+		// Check if the socket address is actually a pipe/unix socket path
+		if strings.HasPrefix(addr.Address, "./") || strings.HasPrefix(addr.Address, "/") || strings.Contains(addr.Address, "/socket") {
+			endpointInfo.AddressType = v1alpha1.AddressType_PIPE_ADDRESS
+			endpointInfo.HostIdentifier = endpointInfo.Address
+		} else {
+			endpointInfo.AddressType = v1alpha1.AddressType_SOCKET_ADDRESS
+		}
+	} else if host.Address.Pipe != nil {
+		// Unix domain socket
+		endpointInfo.Address = "unix://" + host.Address.Pipe.Path
+		endpointInfo.Port = 0 // Pipes don't have ports
+		endpointInfo.HostIdentifier = endpointInfo.Address
+		endpointInfo.AddressType = v1alpha1.AddressType_PIPE_ADDRESS
+	} else if host.Address.EnvoyInternalAddress != nil {
+		// Envoy internal address (ambient mode)
+		internal := host.Address.EnvoyInternalAddress
+		endpointInfo.Address = internal.EndpointId
+		endpointInfo.Port = 0 // Internal addresses don't have traditional ports
+		endpointInfo.HostIdentifier = fmt.Sprintf("envoy://%s/%s", internal.ServerListenerName, internal.EndpointId)
+		endpointInfo.AddressType = v1alpha1.AddressType_ENVOY_INTERNAL_ADDRESS
+	} else {
+		// Unknown address type
+		endpointInfo.Address = "unknown"
+		endpointInfo.HostIdentifier = "unknown"
+		endpointInfo.AddressType = v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE
+		return nil // Skip endpoints with unknown address types
+	}
+
+	// Add locality information if available
+	if host.Locality.Region != "" {
+		endpointInfo.Metadata["region"] = host.Locality.Region
+	}
+	if host.Locality.Zone != "" {
+		endpointInfo.Metadata["zone"] = host.Locality.Zone
+	}
+
+	return endpointInfo
+}
+
+// MergeWithStaticConfig merges live cluster endpoint data with static endpoint configuration
+func MergeWithStaticConfig(staticEndpoints []*v1alpha1.EndpointSummary, liveEndpoints []*ClusterEndpointInfo) []*v1alpha1.EndpointSummary {
 	if len(liveEndpoints) == 0 {
 		return staticEndpoints
 	}
@@ -176,7 +241,7 @@ func MergeClusterEndpointsWithConfig(staticEndpoints []*v1alpha1.EndpointSummary
 			serviceFqdn := staticEndpoint.ServiceFqdn
 
 			if direction == v1alpha1.ClusterDirection_UNSPECIFIED || port == 0 || serviceFqdn == "" {
-				parsedDirection, parsedPort, parsedSubset, parsedServiceFqdn := parseClusterName(staticEndpoint.ClusterName)
+				parsedDirection, parsedPort, parsedSubset, parsedServiceFqdn := parseClusterNameComponents(staticEndpoint.ClusterName)
 				if direction == v1alpha1.ClusterDirection_UNSPECIFIED {
 					direction = parsedDirection
 				}
@@ -207,7 +272,7 @@ func MergeClusterEndpointsWithConfig(staticEndpoints []*v1alpha1.EndpointSummary
 			// Keep static endpoint as-is if no live data available, but parse cluster name if needed
 			endpoint := staticEndpoint
 			if staticEndpoint.Direction == v1alpha1.ClusterDirection_UNSPECIFIED || staticEndpoint.Port == 0 || staticEndpoint.ServiceFqdn == "" {
-				direction, port, subset, serviceFqdn := parseClusterName(staticEndpoint.ClusterName)
+				direction, port, subset, serviceFqdn := parseClusterNameComponents(staticEndpoint.ClusterName)
 				endpoint = &v1alpha1.EndpointSummary{
 					ClusterName: staticEndpoint.ClusterName,
 					ClusterType: staticEndpoint.ClusterType,
@@ -226,12 +291,12 @@ func MergeClusterEndpointsWithConfig(staticEndpoints []*v1alpha1.EndpointSummary
 	for clusterName, liveEndpoint := range liveEndpointMap {
 		if !processedClusters[clusterName] {
 			// Parse cluster name for Istio format
-			direction, port, subset, serviceFqdn := parseClusterName(clusterName)
+			direction, port, subset, serviceFqdn := parseClusterNameComponents(clusterName)
 
 			newEndpoint := &v1alpha1.EndpointSummary{
 				ClusterName: clusterName,
 				Endpoints:   liveEndpoint.Endpoints,
-				ClusterType: inferClusterType(clusterName),
+				ClusterType: inferClusterTypeFromName(clusterName),
 				Direction:   direction,
 				Port:        port,
 				Subset:      subset,
@@ -244,8 +309,8 @@ func MergeClusterEndpointsWithConfig(staticEndpoints []*v1alpha1.EndpointSummary
 	return mergedEndpoints
 }
 
-// inferClusterType attempts to determine cluster type from cluster name
-func inferClusterType(clusterName string) v1alpha1.ClusterType {
+// inferClusterTypeFromName attempts to determine cluster type from cluster name
+func inferClusterTypeFromName(clusterName string) v1alpha1.ClusterType {
 	clusterName = strings.ToLower(clusterName)
 
 	if strings.Contains(clusterName, "outbound") || strings.Contains(clusterName, "inbound") {
@@ -259,12 +324,12 @@ func inferClusterType(clusterName string) v1alpha1.ClusterType {
 	return v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE
 }
 
-// parseClusterName parses Istio cluster names in the format: direction|port|subset|serviceFQDN
+// parseClusterNameComponents parses Istio cluster names in the format: direction|port|subset|serviceFQDN
 // Examples:
 //   - "outbound|8080||backend.demo.svc.cluster.local"
 //   - "inbound|8080||"
 //   - "outbound|443|v1|api.example.com"
-func parseClusterName(clusterName string) (direction v1alpha1.ClusterDirection, port uint32, subset string, serviceFqdn string) {
+func parseClusterNameComponents(clusterName string) (direction v1alpha1.ClusterDirection, port uint32, subset string, serviceFqdn string) {
 	parts := strings.Split(clusterName, "|")
 
 	// Default values

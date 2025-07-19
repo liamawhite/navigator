@@ -89,6 +89,11 @@ func (m *MockConnectionManager) GetAggregatedServiceInstance(instanceID string) 
 	return args.Get(0).(*connections.AggregatedServiceInstance), args.Bool(1)
 }
 
+func (m *MockConnectionManager) GetConnectionInfo() map[string]connections.ConnectionInfo {
+	args := m.Called()
+	return args.Get(0).(map[string]connections.ConnectionInfo)
+}
+
 // MockProxyService for testing
 type MockProxyService struct {
 	mock.Mock

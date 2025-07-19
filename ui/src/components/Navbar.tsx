@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { ModeToggle } from './mode-toggle';
+import { ClusterSyncStatus } from './ClusterSyncStatus';
 
 export const Navbar: React.FC = () => {
     return (
@@ -35,7 +36,10 @@ export const Navbar: React.FC = () => {
                         </div>
                     </div>
 
-                    <ModeToggle />
+                    <div className="flex items-center gap-3">
+                        <ClusterSyncStatus />
+                        <ModeToggle />
+                    </div>
                 </div>
             </div>
         </nav>

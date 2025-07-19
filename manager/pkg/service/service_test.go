@@ -127,6 +127,11 @@ func (m *mockConnectionManager) GetAggregatedServiceInstance(instanceID string) 
 	return nil, false
 }
 
+func (m *mockConnectionManager) GetConnectionInfo() map[string]connections.ConnectionInfo {
+	// Simple mock implementation - return empty map
+	return make(map[string]connections.ConnectionInfo)
+}
+
 func TestManagerService_processClusterIdentification(t *testing.T) {
 	logger := logging.For("test")
 	config := &mockConfig{port: 8080, maxMessageSize: 10485760}
