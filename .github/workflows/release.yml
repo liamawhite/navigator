@@ -22,9 +22,6 @@ jobs:
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup development environment
-        run: nix develop --command echo "Environment ready"
-
       - name: Run GoReleaser
         run: nix develop --command goreleaser release --clean
         env:

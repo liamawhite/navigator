@@ -214,7 +214,7 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                     <TableBody>
                         {sortedServices.map((service) => {
                             const proxiedInstances = service.instances.filter(
-                                (i) => i.isEnvoyPresent
+                                (i) => i.envoyPresent
                             ).length;
 
                             const uniqueClusters = new Set(

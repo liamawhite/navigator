@@ -1,13 +1,15 @@
 version: v2
+inputs:
+  - directory: .
+    paths:
+      - backend/
+      - frontend/
+      - types/
 plugins:
+  # Go code generation for ALL APIs (backend + frontend + types)
   - remote: buf.build/protocolbuffers/go:v1.34.2
     out: ../pkg/api
     opt: paths=source_relative
   - remote: buf.build/grpc/go:v1.3.0
     out: ../pkg/api
     opt: paths=source_relative
-  - remote: buf.build/grpc-ecosystem/gateway:v2.20.0
-    out: ../pkg/api
-    opt: paths=source_relative
-  - remote: buf.build/grpc-ecosystem/openapiv2:v2.20.0
-    out: ../ui/src/types/openapi

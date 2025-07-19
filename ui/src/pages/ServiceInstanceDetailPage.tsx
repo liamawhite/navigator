@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useServiceInstance, useProxyConfig } from '../hooks/useServices';
 import { Navbar } from '../components/Navbar';
 import {
@@ -66,7 +66,7 @@ import {
     BootstrapConfig,
     ConfigActions,
 } from '../components/envoy';
-import { v1alpha1ProxyMode } from '@/types/generated/openapi-troubleshooting';
+import { v1alpha1ProxyMode } from '@/types/generated/openapi-service_registry/index';
 
 const formatProxyMode = (proxyMode: v1alpha1ProxyMode | undefined): string => {
     switch (proxyMode) {
@@ -104,6 +104,22 @@ export const ServiceInstanceDetailPage: React.FC = () => {
         instanceId: string;
     }>();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const availableTabs = [
+        'listeners',
+        'routes',
+        'clusters',
+        'endpoints',
+        'bootstrap',
+    ] as const;
+    const currentTab = searchParams.get('proxy_config') || 'listeners';
+    const validTab = availableTabs.includes(
+        currentTab as (typeof availableTabs)[number]
+    )
+        ? currentTab
+        : 'listeners';
+
     const {
         data: instance,
         isLoading,
@@ -209,7 +225,7 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
-                            <BreadcrumbPage>{instance.pod}</BreadcrumbPage>
+                            <BreadcrumbPage>{instance.podName}</BreadcrumbPage>
                         </BreadcrumbItem>
                     </BreadcrumbList>
                 </Breadcrumb>
@@ -221,7 +237,7 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                             <div>
                                 <CardTitle className="text-3xl font-bold text-foreground flex items-center gap-3">
                                     <Database className="w-8 h-8 text-blue-500" />
-                                    {instance.pod}
+                                    {instance.podName}
                                 </CardTitle>
                                 <div className="flex flex-wrap items-center gap-4 mt-3">
                                     <div className="flex items-center gap-2">
@@ -395,46 +411,48 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {instance.containers.map((container, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>
-                                            <span className="font-mono text-sm">
-                                                {container.name}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="font-mono text-sm">
-                                                {container.image}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    container.status ===
-                                                    'Running'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {container.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Circle
-                                                className={`w-3 h-3 fill-current ${
-                                                    container.ready
-                                                        ? 'text-green-500'
-                                                        : 'text-red-500'
-                                                }`}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="font-mono">
-                                                {container.restartCount}
-                                            </span>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {(instance.containers || []).map(
+                                    (container, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell>
+                                                <span className="font-mono text-sm">
+                                                    {container.name}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="font-mono text-sm">
+                                                    {container.image}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant={
+                                                        container.status ===
+                                                        'Running'
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {container.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Circle
+                                                    className={`w-3 h-3 fill-current ${
+                                                        container.ready
+                                                            ? 'text-green-500'
+                                                            : 'text-red-500'
+                                                    }`}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="font-mono">
+                                                    {container.restartCount}
+                                                </span>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -509,7 +527,18 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                     </div>
 
                                     <Tabs
-                                        defaultValue="listeners"
+                                        value={validTab}
+                                        onValueChange={(tab) => {
+                                            setSearchParams((prev) => {
+                                                const newParams =
+                                                    new URLSearchParams(prev);
+                                                newParams.set(
+                                                    'proxy_config',
+                                                    tab
+                                                );
+                                                return newParams;
+                                            });
+                                        }}
                                         className="w-full"
                                     >
                                         <TabsList className="grid w-full grid-cols-5">

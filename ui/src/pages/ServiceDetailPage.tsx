@@ -159,7 +159,7 @@ export const ServiceDetailPage: React.FC = () => {
         );
     }
 
-    const proxiedInstances = service.instances.filter((i) => i.isEnvoyPresent);
+    const proxiedInstances = service.instances.filter((i) => i.envoyPresent);
     const serviceMeshEnabled = proxiedInstances.length > 0;
 
     const uniqueClusters = [
@@ -356,7 +356,7 @@ export const ServiceDetailPage: React.FC = () => {
                                         (instance, index) => (
                                             <TableRow
                                                 key={index}
-                                                className="cursor-pointer hover:bg-muted/50"
+                                                className="hover:bg-muted/50 cursor-pointer"
                                                 onClick={() =>
                                                     navigate(
                                                         `/services/${service.id}/instances/${instance.instanceId}`
@@ -373,7 +373,8 @@ export const ServiceDetailPage: React.FC = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <span className="font-mono text-sm">
-                                                        {instance.pod || 'N/A'}
+                                                        {instance.podName ||
+                                                            'N/A'}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell>
@@ -387,7 +388,7 @@ export const ServiceDetailPage: React.FC = () => {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {instance.isEnvoyPresent ? (
+                                                    {instance.envoyPresent ? (
                                                         <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
                                                             <Hexagon className="w-3 h-3 mr-1 fill-current" />
                                                             Present

@@ -21,7 +21,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import type { v1alpha1BootstrapSummary } from '@/types/generated/openapi-troubleshooting';
+import type { v1alpha1BootstrapSummary } from '@/types/generated/openapi-service_registry';
 
 interface BootstrapConfigProps {
     bootstrap: v1alpha1BootstrapSummary | null;

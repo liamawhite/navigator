@@ -31,7 +31,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"istio.io/istio/pkg/util/protomarshal"
 )
 

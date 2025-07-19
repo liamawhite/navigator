@@ -23,7 +23,7 @@ import (
 	endpointv3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // parseEndpointsFromAny extracts endpoint configurations from protobuf Any

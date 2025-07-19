@@ -17,7 +17,7 @@ package localenv
 import (
 	"context"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 )
 
 // LocalEnvironment provides an interface for managing local development environments

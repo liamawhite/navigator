@@ -1,0 +1,259 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package navigator.types.v1alpha1;
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/types/v1alpha1";
+
+// ProxyMode indicates the type of proxy (extracted from node ID)
+enum ProxyMode {
+  // UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode
+  UNKNOWN_PROXY_MODE = 0;
+  // SIDECAR indicates a sidecar proxy (most common in Istio)
+  SIDECAR = 1;
+  // GATEWAY indicates a gateway proxy (ingress/egress gateways)
+  GATEWAY = 2;
+  // ROUTER indicates a router proxy
+  ROUTER = 3;
+}
+
+// ListenerType indicates the type/direction of a listener
+enum ListenerType {
+  // VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)
+  VIRTUAL_INBOUND = 0;
+  // VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)
+  VIRTUAL_OUTBOUND = 1;
+  // SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)
+  SERVICE_OUTBOUND = 2;
+  // PORT_OUTBOUND listeners for generic port traffic outbound (e.g., "80", "443")
+  PORT_OUTBOUND = 3;
+  // PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)
+  PROXY_METRICS = 4;
+  // PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)
+  PROXY_HEALTHCHECK = 5;
+  // ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)
+  ADMIN_XDS = 6;
+  // ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)
+  ADMIN_WEBHOOK = 7;
+  // ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)
+  ADMIN_DEBUG = 8;
+}
+
+// RouteType indicates the type/category of a route configuration
+enum RouteType {
+  // PORT_BASED routes are routes with just port numbers (e.g., "80", "443", "15010")
+  PORT_BASED = 0;
+  // SERVICE_SPECIFIC routes are routes with service hostnames and ports (e.g., "backend.demo.svc.cluster.local:8080", external domains from ServiceEntries)
+  SERVICE_SPECIFIC = 1;
+  // STATIC routes are Istio/Envoy internal routing patterns (e.g., "InboundPassthroughCluster", "inbound|8080||")
+  STATIC = 2;
+}
+
+// ClusterType represents the discovery type of a cluster
+enum ClusterType {
+  // UNKNOWN_CLUSTER_TYPE indicates an unknown or unspecified cluster type
+  UNKNOWN_CLUSTER_TYPE = 0;
+  // CLUSTER_EDS indicates Endpoint Discovery Service clusters (dynamic service discovery)
+  CLUSTER_EDS = 1;
+  // CLUSTER_STATIC indicates static clusters with predefined endpoints
+  CLUSTER_STATIC = 2;
+  // CLUSTER_STRICT_DNS indicates clusters using strict DNS resolution
+  CLUSTER_STRICT_DNS = 3;
+  // CLUSTER_LOGICAL_DNS indicates clusters using logical DNS resolution
+  CLUSTER_LOGICAL_DNS = 4;
+  // CLUSTER_ORIGINAL_DST indicates clusters using original destination routing
+  CLUSTER_ORIGINAL_DST = 5;
+}
+
+// ClusterDirection represents the traffic direction for a cluster
+enum ClusterDirection {
+  // UNSPECIFIED indicates the direction is not specified or unknown
+  UNSPECIFIED = 0;
+  // INBOUND indicates traffic flowing into the service
+  INBOUND = 1;
+  // OUTBOUND indicates traffic flowing out of the service
+  OUTBOUND = 2;
+}
+
+// ProxyConfig represents the configuration of a proxy sidecar (e.g., Envoy).
+message ProxyConfig {
+  // version is the version of the proxy software.
+  string version = 1;
+
+  // raw_config_dump is the original raw configuration dump for debugging.
+  string raw_config_dump = 2;
+
+  // bootstrap contains the bootstrap configuration summary.
+  BootstrapSummary bootstrap = 3;
+
+  // listeners contains the listener configuration summaries.
+  repeated ListenerSummary listeners = 4;
+
+  // clusters contains the cluster configuration summaries.
+  repeated ClusterSummary clusters = 5;
+
+  // endpoints contains the endpoint configuration summaries.
+  repeated EndpointSummary endpoints = 6;
+
+  // routes contains the route configuration summaries.
+  repeated RouteConfigSummary routes = 7;
+}
+
+// BootstrapSummary contains essential bootstrap configuration information
+message BootstrapSummary {
+  NodeSummary node = 1;
+  string static_resources_version = 2;
+  DynamicConfigInfo dynamic_resources_config = 3;
+  uint32 admin_port = 4;
+  string admin_address = 5;
+  ClusterManagerInfo cluster_manager = 6;
+}
+
+// NodeSummary contains information about the Envoy node
+message NodeSummary {
+  string id = 1;
+  string cluster = 2;
+  map<string, string> metadata = 3;
+  LocalityInfo locality = 4;
+  ProxyMode proxy_mode = 5;
+}
+
+// LocalityInfo contains locality information
+message LocalityInfo {
+  string region = 1;
+  string zone = 2;
+}
+
+// DynamicConfigInfo contains information about dynamic resource configuration
+message DynamicConfigInfo {
+  ConfigSourceInfo ads_config = 1;
+  ConfigSourceInfo lds_config = 2;
+  ConfigSourceInfo cds_config = 3;
+  ConfigSourceInfo eds_config = 4;
+  ConfigSourceInfo rds_config = 5;
+  ConfigSourceInfo sds_config = 6;
+  string initial_fetch_timeout = 7;
+}
+
+// ConfigSourceInfo contains information about a configuration source
+message ConfigSourceInfo {
+  string config_source_specifier = 1;
+  string transport_api_version = 2;
+  string api_type = 3;
+}
+
+// ClusterManagerInfo contains cluster manager configuration
+message ClusterManagerInfo {
+  string local_cluster_name = 1;
+  bool outlier_detection = 2;
+  bool upstream_bind_config = 3;
+  bool load_stats_config = 4;
+  string connect_timeout = 5;
+  uint32 per_connection_buffer_limit_bytes = 6;
+}
+
+// ListenerSummary contains essential listener configuration information
+message ListenerSummary {
+  string name = 1;
+  string address = 2;
+  uint32 port = 3;
+  ListenerType type = 4;
+  bool use_original_dst = 5;
+  string raw_config = 6;
+}
+
+// ClusterSummary contains essential cluster configuration information
+message ClusterSummary {
+  string name = 1;
+  string type = 2;
+  string connect_timeout = 3;
+  string load_balancing_policy = 4;
+  string alt_stat_name = 5;
+  ClusterDirection direction = 6;
+  uint32 port = 7;
+  string subset = 8;
+  string service_fqdn = 9;
+  string raw_config = 10;
+}
+
+// EndpointSummary contains endpoint configuration information
+message EndpointSummary {
+  string cluster_name = 1;
+  repeated EndpointInfo endpoints = 2;
+  ClusterType cluster_type = 3;
+  ClusterDirection direction = 4;
+  uint32 port = 5;
+  string subset = 6;
+  string service_fqdn = 7;
+}
+
+// EndpointInfo contains individual endpoint information
+message EndpointInfo {
+  string address = 1;
+  uint32 port = 2;
+  string health = 3;
+  uint32 weight = 4;
+  uint32 priority = 5;
+  string host_identifier = 6;
+  map<string, string> metadata = 7;
+  uint32 load_balancing_weight = 8;
+}
+
+// RouteConfigSummary contains route configuration summary
+message RouteConfigSummary {
+  string name = 1;
+  repeated VirtualHostInfo virtual_hosts = 2;
+  repeated string internal_only_headers = 3;
+  bool validate_clusters = 4;
+  string raw_config = 5;
+  RouteType type = 6;
+}
+
+// VirtualHostInfo contains virtual host information
+message VirtualHostInfo {
+  string name = 1;
+  repeated string domains = 2;
+  repeated RouteInfo routes = 3;
+}
+
+// RouteInfo contains route information
+message RouteInfo {
+  string name = 1;
+  RouteMatchInfo match = 2;
+  RouteActionInfo action = 3;
+}
+
+// RouteMatchInfo contains route matching information
+message RouteMatchInfo {
+  string path_specifier = 1;
+  string path = 2;
+  bool case_sensitive = 3;
+}
+
+// RouteActionInfo contains route action information
+message RouteActionInfo {
+  string action_type = 1;
+  string cluster = 2;
+  repeated WeightedClusterInfo weighted_clusters = 3;
+  string timeout = 4;
+}
+
+// WeightedClusterInfo contains weighted cluster information
+message WeightedClusterInfo {
+  string name = 1;
+  uint32 weight = 2;
+  map<string, string> metadata_match = 3;
+}

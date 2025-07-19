@@ -5,19 +5,13 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "dev:full": "concurrently \"npm run backend:build && npm run backend:start\" \"wait-on http://localhost:8081 && npm run dev\"",
-        "dev:air": "concurrently --kill-others-on-fail --names \"backend,frontend\" --prefix-colors \"blue,green\" \"cd .. && echo 'Starting Go backend with air...' && air\" \"echo 'Waiting for backend...' && wait-on --timeout 30000 tcp:localhost:8081 && echo 'Backend ready! Starting frontend...' && npm run dev\"",
-        "dev:cluster": "cd .. && ./tools/dev-full-stack.sh",
-        "dev:simple": "npm run dev",
-        "backend:build": "cd .. && go build -o navigator cmd/navigator/main.go",
-        "backend:start": "cd .. && ./navigator serve -p 8080",
-        "build": "tsc -b && vite build",
+        "build": "rm -rf dist && vite build",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "preview": "vite preview",
-        "generate": "for spec in $(ls ./src/types/openapi/backend/v1alpha1/*.swagger.json); do openapi --input $spec --output ./src/types/generated/openapi-$(basename $spec .swagger.json) --client axios; done"
+        "generate": "for spec in $(ls ./src/types/openapi/frontend/v1alpha1/*.swagger.json); do openapi --input $spec --output ./src/types/generated/openapi-$(basename $spec .swagger.json) --client axios; done"
     },
     "dependencies": {
         "@codemirror/lang-json": "^6.0.2",

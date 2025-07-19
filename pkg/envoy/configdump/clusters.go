@@ -23,7 +23,7 @@ import (
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // parseClustersFromAny extracts cluster configurations from protobuf Any
@@ -91,88 +91,12 @@ func (p *Parser) summarizeCluster(cluster *clusterv3.Cluster, parsed *ParsedConf
 		summary.ConnectTimeout = cluster.ConnectTimeout.String()
 	}
 
-	// Extract load assignment
-	if cluster.LoadAssignment != nil {
-		summary.LoadAssignment = &v1alpha1.EndpointConfigInfo{
-			ClusterName: cluster.LoadAssignment.ClusterName,
-		}
+	// Load assignment details are processed separately in endpoints.go
+	// This keeps cluster and endpoint concerns properly separated
 
-		// Extract endpoints
-		for _, endpoint := range cluster.LoadAssignment.Endpoints {
-			localityInfo := &v1alpha1.LocalityLbEndpointsInfo{
-				LoadBalancingWeight: endpoint.LoadBalancingWeight.GetValue(),
-				Priority:            endpoint.Priority,
-				Proximity:           endpoint.Proximity.GetValue(),
-			}
-
-			if endpoint.Locality != nil {
-				localityInfo.Locality = &v1alpha1.LocalityInfo{
-					Region: endpoint.Locality.Region,
-					Zone:   endpoint.Locality.Zone,
-				}
-			}
-
-			// Extract lb endpoints
-			for _, lbEndpoint := range endpoint.LbEndpoints {
-				lbInfo := &v1alpha1.LbEndpointInfo{
-					HealthStatus:        lbEndpoint.HealthStatus.String(),
-					LoadBalancingWeight: lbEndpoint.LoadBalancingWeight.GetValue(),
-				}
-
-				if lbEndpoint.GetEndpoint() != nil && lbEndpoint.GetEndpoint().Address != nil {
-					if sockAddr := lbEndpoint.GetEndpoint().Address.GetSocketAddress(); sockAddr != nil {
-						lbInfo.Endpoint = &v1alpha1.EndpointDetailsInfo{
-							Address: sockAddr.Address,
-							Port:    sockAddr.GetPortValue(),
-						}
-					}
-				}
-
-				localityInfo.LbEndpoints = append(localityInfo.LbEndpoints, lbInfo)
-			}
-
-			summary.LoadAssignment.Endpoints = append(summary.LoadAssignment.Endpoints, localityInfo)
-		}
-	}
-
-	// Extract health checks (simplified)
-	for _, hc := range cluster.HealthChecks {
-		hcInfo := &v1alpha1.HealthCheckInfo{
-			UnhealthyThreshold: hc.UnhealthyThreshold.GetValue(),
-			HealthyThreshold:   hc.HealthyThreshold.GetValue(),
-		}
-
-		if hc.Timeout != nil {
-			hcInfo.Timeout = hc.Timeout.String()
-		}
-		if hc.Interval != nil {
-			hcInfo.Interval = hc.Interval.String()
-		}
-
-		summary.HealthChecks = append(summary.HealthChecks, hcInfo)
-	}
-
-	// Extract circuit breakers (simplified)
-	if cluster.CircuitBreakers != nil {
-		summary.CircuitBreakers = &v1alpha1.CircuitBreakersInfo{}
-		for _, threshold := range cluster.CircuitBreakers.Thresholds {
-			thInfo := &v1alpha1.ThresholdInfo{
-				Priority:           threshold.Priority.String(),
-				MaxConnections:     threshold.MaxConnections.GetValue(),
-				MaxPendingRequests: threshold.MaxPendingRequests.GetValue(),
-				MaxRequests:        threshold.MaxRequests.GetValue(),
-				MaxRetries:         threshold.MaxRetries.GetValue(),
-				MaxConnectionPools: threshold.MaxConnectionPools.GetValue(),
-			}
-			summary.CircuitBreakers.Thresholds = append(summary.CircuitBreakers.Thresholds, thInfo)
-		}
-	}
-
-	// Extract EDS config (simplified)
-	if cluster.EdsClusterConfig != nil {
-		summary.EdsClusterConfig = &v1alpha1.EdsClusterConfigInfo{
-			ServiceName: cluster.EdsClusterConfig.ServiceName,
-		}
+	// Store raw config for debugging
+	if cluster != nil {
+		summary.RawConfig = cluster.String()
 	}
 
 	// Use the raw JSON config that was extracted directly from the original config dump

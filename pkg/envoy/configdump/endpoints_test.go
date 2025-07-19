@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 func TestParser_summarizeEndpoint(t *testing.T) {

@@ -12,9 +12,9 @@ export type v1alpha1ServiceInstance = {
      */
     ip?: string;
     /**
-     * pod is the name of the Kubernetes pod backing this instance.
+     * pod_name is the name of the Kubernetes pod backing this instance.
      */
-    pod?: string;
+    podName?: string;
     /**
      * namespace is the Kubernetes namespace containing the pod.
      */
@@ -24,8 +24,8 @@ export type v1alpha1ServiceInstance = {
      */
     clusterName?: string;
     /**
-     * is_envoy_present indicates whether this instance has an Envoy proxy sidecar.
+     * envoy_present indicates whether this instance has an Envoy proxy sidecar.
      */
-    isEnvoyPresent?: boolean;
+    envoyPresent?: boolean;
 };
 

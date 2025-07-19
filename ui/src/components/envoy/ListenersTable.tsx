@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ConfigActions } from '@/components/envoy/ConfigActions';
-import type { v1alpha1ListenerSummary } from '@/types/generated/openapi-troubleshooting';
+import type { v1alpha1ListenerSummary } from '@/types/generated/openapi-service_registry';
 
 interface ListenersTableProps {
     listeners: v1alpha1ListenerSummary[];

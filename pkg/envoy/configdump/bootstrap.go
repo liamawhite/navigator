@@ -22,7 +22,7 @@ import (
 	bootstrapv3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // parseBootstrapFromAny extracts bootstrap configuration from protobuf Any

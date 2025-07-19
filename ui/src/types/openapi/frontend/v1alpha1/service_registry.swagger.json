@@ -1,0 +1,896 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "frontend/v1alpha1/service_registry.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "ServiceRegistryService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1alpha1/services": {
+      "get": {
+        "summary": "ListServices returns all services in the specified namespace, or all namespaces if not specified.\nServices are aggregated across all connected clusters.",
+        "operationId": "ServiceRegistryService_ListServices",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ListServicesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespace",
+            "description": "namespace is the Kubernetes namespace to list services from.\nIf not specified, services from all namespaces are returned.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "clusterId",
+            "description": "cluster_id filters services to only those from the specified cluster.\nIf not specified, services from all connected clusters are returned.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    },
+    "/api/v1alpha1/services/{id}": {
+      "get": {
+        "summary": "GetService returns detailed information about a specific service.\nThe service may have instances across multiple clusters.",
+        "operationId": "ServiceRegistryService_GetService",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetServiceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "description": "id is the unique identifier of the service to retrieve.\nFormat: namespace:service-name (e.g., \"default:nginx-service\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    },
+    "/api/v1alpha1/services/{serviceId}/instances/{instanceId}": {
+      "get": {
+        "summary": "GetServiceInstance returns detailed information about a specific service instance.",
+        "operationId": "ServiceRegistryService_GetServiceInstance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetServiceInstanceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "serviceId",
+            "description": "service_id is the unique identifier of the service.\nFormat: namespace:service-name (e.g., \"default:nginx-service\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "instanceId",
+            "description": "instance_id is the unique identifier of the specific service instance.\nFormat: cluster_name:namespace:pod_name (e.g., \"prod-west:default:nginx-abc123\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    },
+    "/api/v1alpha1/services/{serviceId}/instances/{instanceId}/proxy-config": {
+      "get": {
+        "summary": "GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance.",
+        "operationId": "ServiceRegistryService_GetProxyConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetProxyConfigResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "serviceId",
+            "description": "service_id is the unique identifier of the service.\nFormat: namespace:service-name (e.g., \"default:nginx-service\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "instanceId",
+            "description": "instance_id is the unique identifier of the service instance.\nFormat: cluster_id:namespace:pod_name (e.g., \"cluster1:default:nginx-pod-123\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1alpha1BootstrapSummary": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "$ref": "#/definitions/v1alpha1NodeSummary"
+        },
+        "staticResourcesVersion": {
+          "type": "string"
+        },
+        "dynamicResourcesConfig": {
+          "$ref": "#/definitions/v1alpha1DynamicConfigInfo"
+        },
+        "adminPort": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "adminAddress": {
+          "type": "string"
+        },
+        "clusterManager": {
+          "$ref": "#/definitions/v1alpha1ClusterManagerInfo"
+        }
+      },
+      "title": "BootstrapSummary contains essential bootstrap configuration information"
+    },
+    "v1alpha1ClusterDirection": {
+      "type": "string",
+      "enum": [
+        "UNSPECIFIED",
+        "INBOUND",
+        "OUTBOUND"
+      ],
+      "default": "UNSPECIFIED",
+      "description": "- UNSPECIFIED: UNSPECIFIED indicates the direction is not specified or unknown\n - INBOUND: INBOUND indicates traffic flowing into the service\n - OUTBOUND: OUTBOUND indicates traffic flowing out of the service",
+      "title": "ClusterDirection represents the traffic direction for a cluster"
+    },
+    "v1alpha1ClusterManagerInfo": {
+      "type": "object",
+      "properties": {
+        "localClusterName": {
+          "type": "string"
+        },
+        "outlierDetection": {
+          "type": "boolean"
+        },
+        "upstreamBindConfig": {
+          "type": "boolean"
+        },
+        "loadStatsConfig": {
+          "type": "boolean"
+        },
+        "connectTimeout": {
+          "type": "string"
+        },
+        "perConnectionBufferLimitBytes": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "title": "ClusterManagerInfo contains cluster manager configuration"
+    },
+    "v1alpha1ClusterSummary": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "connectTimeout": {
+          "type": "string"
+        },
+        "loadBalancingPolicy": {
+          "type": "string"
+        },
+        "altStatName": {
+          "type": "string"
+        },
+        "direction": {
+          "$ref": "#/definitions/v1alpha1ClusterDirection"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "subset": {
+          "type": "string"
+        },
+        "serviceFqdn": {
+          "type": "string"
+        },
+        "rawConfig": {
+          "type": "string"
+        }
+      },
+      "title": "ClusterSummary contains essential cluster configuration information"
+    },
+    "v1alpha1ClusterType": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN_CLUSTER_TYPE",
+        "CLUSTER_EDS",
+        "CLUSTER_STATIC",
+        "CLUSTER_STRICT_DNS",
+        "CLUSTER_LOGICAL_DNS",
+        "CLUSTER_ORIGINAL_DST"
+      ],
+      "default": "UNKNOWN_CLUSTER_TYPE",
+      "description": "- UNKNOWN_CLUSTER_TYPE: UNKNOWN_CLUSTER_TYPE indicates an unknown or unspecified cluster type\n - CLUSTER_EDS: CLUSTER_EDS indicates Endpoint Discovery Service clusters (dynamic service discovery)\n - CLUSTER_STATIC: CLUSTER_STATIC indicates static clusters with predefined endpoints\n - CLUSTER_STRICT_DNS: CLUSTER_STRICT_DNS indicates clusters using strict DNS resolution\n - CLUSTER_LOGICAL_DNS: CLUSTER_LOGICAL_DNS indicates clusters using logical DNS resolution\n - CLUSTER_ORIGINAL_DST: CLUSTER_ORIGINAL_DST indicates clusters using original destination routing",
+      "title": "ClusterType represents the discovery type of a cluster"
+    },
+    "v1alpha1ConfigSourceInfo": {
+      "type": "object",
+      "properties": {
+        "configSourceSpecifier": {
+          "type": "string"
+        },
+        "transportApiVersion": {
+          "type": "string"
+        },
+        "apiType": {
+          "type": "string"
+        }
+      },
+      "title": "ConfigSourceInfo contains information about a configuration source"
+    },
+    "v1alpha1Container": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the container."
+        },
+        "image": {
+          "type": "string",
+          "description": "image is the container image."
+        },
+        "status": {
+          "type": "string",
+          "description": "status is the current status of the container (e.g., \"Running\", \"Waiting\", \"Terminated\")."
+        },
+        "ready": {
+          "type": "boolean",
+          "description": "ready indicates whether the container is ready to serve requests."
+        },
+        "restartCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "restart_count is the number of times the container has been restarted."
+        }
+      },
+      "description": "Container represents a container running in a pod."
+    },
+    "v1alpha1DynamicConfigInfo": {
+      "type": "object",
+      "properties": {
+        "adsConfig": {
+          "$ref": "#/definitions/v1alpha1ConfigSourceInfo"
+        },
+        "ldsConfig": {
+          "$ref": "#/definitions/v1alpha1ConfigSourceInfo"
+        },
+        "cdsConfig": {
+          "$ref": "#/definitions/v1alpha1ConfigSourceInfo"
+        },
+        "edsConfig": {
+          "$ref": "#/definitions/v1alpha1ConfigSourceInfo"
+        },
+        "rdsConfig": {
+          "$ref": "#/definitions/v1alpha1ConfigSourceInfo"
+        },
+        "sdsConfig": {
+          "$ref": "#/definitions/v1alpha1ConfigSourceInfo"
+        },
+        "initialFetchTimeout": {
+          "type": "string"
+        }
+      },
+      "title": "DynamicConfigInfo contains information about dynamic resource configuration"
+    },
+    "v1alpha1EndpointInfo": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "health": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "priority": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "hostIdentifier": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "loadBalancingWeight": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "title": "EndpointInfo contains individual endpoint information"
+    },
+    "v1alpha1EndpointSummary": {
+      "type": "object",
+      "properties": {
+        "clusterName": {
+          "type": "string"
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1EndpointInfo"
+          }
+        },
+        "clusterType": {
+          "$ref": "#/definitions/v1alpha1ClusterType"
+        },
+        "direction": {
+          "$ref": "#/definitions/v1alpha1ClusterDirection"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "subset": {
+          "type": "string"
+        },
+        "serviceFqdn": {
+          "type": "string"
+        }
+      },
+      "title": "EndpointSummary contains endpoint configuration information"
+    },
+    "v1alpha1GetProxyConfigResponse": {
+      "type": "object",
+      "properties": {
+        "proxyConfig": {
+          "$ref": "#/definitions/v1alpha1ProxyConfig",
+          "description": "proxy_config contains the complete Envoy proxy configuration."
+        }
+      },
+      "description": "GetProxyConfigResponse contains the proxy configuration for the requested pod."
+    },
+    "v1alpha1GetServiceInstanceResponse": {
+      "type": "object",
+      "properties": {
+        "instance": {
+          "$ref": "#/definitions/v1alpha1ServiceInstanceDetail",
+          "description": "instance contains the detailed service instance information."
+        }
+      },
+      "description": "GetServiceInstanceResponse contains the requested service instance details."
+    },
+    "v1alpha1GetServiceResponse": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "$ref": "#/definitions/v1alpha1Service",
+          "description": "service contains the detailed service information."
+        }
+      },
+      "description": "GetServiceResponse contains the requested service details."
+    },
+    "v1alpha1ListServicesResponse": {
+      "type": "object",
+      "properties": {
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Service"
+          },
+          "description": "services is the list of services found in the namespace(s)."
+        }
+      },
+      "description": "ListServicesResponse contains the list of services in the requested namespace(s)."
+    },
+    "v1alpha1ListenerSummary": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "type": {
+          "$ref": "#/definitions/v1alpha1ListenerType"
+        },
+        "useOriginalDst": {
+          "type": "boolean"
+        },
+        "rawConfig": {
+          "type": "string"
+        }
+      },
+      "title": "ListenerSummary contains essential listener configuration information"
+    },
+    "v1alpha1ListenerType": {
+      "type": "string",
+      "enum": [
+        "VIRTUAL_INBOUND",
+        "VIRTUAL_OUTBOUND",
+        "SERVICE_OUTBOUND",
+        "PORT_OUTBOUND",
+        "PROXY_METRICS",
+        "PROXY_HEALTHCHECK",
+        "ADMIN_XDS",
+        "ADMIN_WEBHOOK",
+        "ADMIN_DEBUG"
+      ],
+      "default": "VIRTUAL_INBOUND",
+      "description": "- VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)\n - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)\n - SERVICE_OUTBOUND: SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)\n - PORT_OUTBOUND: PORT_OUTBOUND listeners for generic port traffic outbound (e.g., \"80\", \"443\")\n - PROXY_METRICS: PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)\n - PROXY_HEALTHCHECK: PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)\n - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)\n - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)\n - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)",
+      "title": "ListenerType indicates the type/direction of a listener"
+    },
+    "v1alpha1LocalityInfo": {
+      "type": "object",
+      "properties": {
+        "region": {
+          "type": "string"
+        },
+        "zone": {
+          "type": "string"
+        }
+      },
+      "title": "LocalityInfo contains locality information"
+    },
+    "v1alpha1NodeSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "cluster": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "locality": {
+          "$ref": "#/definitions/v1alpha1LocalityInfo"
+        },
+        "proxyMode": {
+          "$ref": "#/definitions/v1alpha1ProxyMode"
+        }
+      },
+      "title": "NodeSummary contains information about the Envoy node"
+    },
+    "v1alpha1ProxyConfig": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "version is the version of the proxy software."
+        },
+        "rawConfigDump": {
+          "type": "string",
+          "description": "raw_config_dump is the original raw configuration dump for debugging."
+        },
+        "bootstrap": {
+          "$ref": "#/definitions/v1alpha1BootstrapSummary",
+          "description": "bootstrap contains the bootstrap configuration summary."
+        },
+        "listeners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ListenerSummary"
+          },
+          "description": "listeners contains the listener configuration summaries."
+        },
+        "clusters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ClusterSummary"
+          },
+          "description": "clusters contains the cluster configuration summaries."
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1EndpointSummary"
+          },
+          "description": "endpoints contains the endpoint configuration summaries."
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1RouteConfigSummary"
+          },
+          "description": "routes contains the route configuration summaries."
+        }
+      },
+      "description": "ProxyConfig represents the configuration of a proxy sidecar (e.g., Envoy)."
+    },
+    "v1alpha1ProxyMode": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN_PROXY_MODE",
+        "SIDECAR",
+        "GATEWAY",
+        "ROUTER"
+      ],
+      "default": "UNKNOWN_PROXY_MODE",
+      "description": "- UNKNOWN_PROXY_MODE: UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode\n - SIDECAR: SIDECAR indicates a sidecar proxy (most common in Istio)\n - GATEWAY: GATEWAY indicates a gateway proxy (ingress/egress gateways)\n - ROUTER: ROUTER indicates a router proxy",
+      "title": "ProxyMode indicates the type of proxy (extracted from node ID)"
+    },
+    "v1alpha1RouteActionInfo": {
+      "type": "object",
+      "properties": {
+        "actionType": {
+          "type": "string"
+        },
+        "cluster": {
+          "type": "string"
+        },
+        "weightedClusters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1WeightedClusterInfo"
+          }
+        },
+        "timeout": {
+          "type": "string"
+        }
+      },
+      "title": "RouteActionInfo contains route action information"
+    },
+    "v1alpha1RouteConfigSummary": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "virtualHosts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1VirtualHostInfo"
+          }
+        },
+        "internalOnlyHeaders": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "validateClusters": {
+          "type": "boolean"
+        },
+        "rawConfig": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/v1alpha1RouteType"
+        }
+      },
+      "title": "RouteConfigSummary contains route configuration summary"
+    },
+    "v1alpha1RouteInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "match": {
+          "$ref": "#/definitions/v1alpha1RouteMatchInfo"
+        },
+        "action": {
+          "$ref": "#/definitions/v1alpha1RouteActionInfo"
+        }
+      },
+      "title": "RouteInfo contains route information"
+    },
+    "v1alpha1RouteMatchInfo": {
+      "type": "object",
+      "properties": {
+        "pathSpecifier": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "caseSensitive": {
+          "type": "boolean"
+        }
+      },
+      "title": "RouteMatchInfo contains route matching information"
+    },
+    "v1alpha1RouteType": {
+      "type": "string",
+      "enum": [
+        "PORT_BASED",
+        "SERVICE_SPECIFIC",
+        "STATIC"
+      ],
+      "default": "PORT_BASED",
+      "description": "- PORT_BASED: PORT_BASED routes are routes with just port numbers (e.g., \"80\", \"443\", \"15010\")\n - SERVICE_SPECIFIC: SERVICE_SPECIFIC routes are routes with service hostnames and ports (e.g., \"backend.demo.svc.cluster.local:8080\", external domains from ServiceEntries)\n - STATIC: STATIC routes are Istio/Envoy internal routing patterns (e.g., \"InboundPassthroughCluster\", \"inbound|8080||\")",
+      "title": "RouteType indicates the type/category of a route configuration"
+    },
+    "v1alpha1Service": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "id is a unique identifier for the service in format namespace:service-name (e.g., \"default:nginx-service\")."
+        },
+        "name": {
+          "type": "string",
+          "description": "name is the service name."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the Kubernetes namespace containing the service."
+        },
+        "instances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServiceInstance"
+          },
+          "description": "instances are the backend instances (pods) that serve this service across all clusters."
+        }
+      },
+      "description": "Service represents a Kubernetes service with its backing instances.\nServices in different clusters that share the same name and namespace are considered the same service."
+    },
+    "v1alpha1ServiceInstance": {
+      "type": "object",
+      "properties": {
+        "instanceId": {
+          "type": "string",
+          "title": "instance_id is a unique identifier for this instance across all clusters.\nFormat: cluster_name:namespace:pod_name (e.g., \"prod-west:default:nginx-abc123\")"
+        },
+        "ip": {
+          "type": "string",
+          "description": "ip is the IP address of the instance."
+        },
+        "podName": {
+          "type": "string",
+          "description": "pod_name is the name of the Kubernetes pod backing this instance."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the Kubernetes namespace containing the pod."
+        },
+        "clusterName": {
+          "type": "string",
+          "description": "cluster_name is the name of the Kubernetes cluster this instance belongs to."
+        },
+        "envoyPresent": {
+          "type": "boolean",
+          "description": "envoy_present indicates whether this instance has an Envoy proxy sidecar."
+        }
+      },
+      "description": "ServiceInstance represents a single backend instance serving a service."
+    },
+    "v1alpha1ServiceInstanceDetail": {
+      "type": "object",
+      "properties": {
+        "instanceId": {
+          "type": "string",
+          "title": "instance_id is a unique identifier for this instance across all clusters.\nFormat: cluster_name:namespace:pod_name (e.g., \"prod-west:default:nginx-abc123\")"
+        },
+        "ip": {
+          "type": "string",
+          "description": "ip is the IP address of the instance."
+        },
+        "podName": {
+          "type": "string",
+          "description": "pod_name is the name of the Kubernetes pod backing this instance."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the Kubernetes namespace containing the pod."
+        },
+        "clusterName": {
+          "type": "string",
+          "description": "cluster_name is the name of the Kubernetes cluster this instance belongs to."
+        },
+        "envoyPresent": {
+          "type": "boolean",
+          "description": "envoy_present indicates whether this instance has an Envoy proxy sidecar."
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "service_name is the name of the service this instance belongs to."
+        },
+        "containers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Container"
+          },
+          "description": "containers is the list of containers running in this pod."
+        },
+        "podStatus": {
+          "type": "string",
+          "description": "pod_status is the current status of the pod (e.g., \"Running\", \"Pending\")."
+        },
+        "nodeName": {
+          "type": "string",
+          "description": "node_name is the name of the Kubernetes node hosting this pod."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "created_at is the timestamp when the pod was created."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "labels are the Kubernetes labels assigned to the pod."
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "annotations are the Kubernetes annotations assigned to the pod."
+        },
+        "isEnvoyPresent": {
+          "type": "boolean",
+          "description": "is_envoy_present indicates whether this instance has an Envoy proxy sidecar."
+        }
+      },
+      "description": "ServiceInstanceDetail represents detailed information about a specific service instance."
+    },
+    "v1alpha1VirtualHostInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1RouteInfo"
+          }
+        }
+      },
+      "title": "VirtualHostInfo contains virtual host information"
+    },
+    "v1alpha1WeightedClusterInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "metadataMatch": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "WeightedClusterInfo contains weighted cluster information"
+    }
+  }
+}

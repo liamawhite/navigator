@@ -21,7 +21,7 @@ export type v1alpha1Service = {
      */
     namespace?: string;
     /**
-     * instances are the backend instances (pods) that serve this service.
+     * instances are the backend instances (pods) that serve this service across all clusters.
      */
     instances?: Array<v1alpha1ServiceInstance>;
 };

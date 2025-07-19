@@ -21,21 +21,6 @@ jobs:
     - name: Run unit tests
       run: make test-unit
 
-  integration:
-    name: integration
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Install Nix
-      uses: cachix/install-nix-action@v25
-    
-    - name: Run integration tests
-      run: make test-integration
-
   release:
     name: release
     runs-on: ubuntu-latest

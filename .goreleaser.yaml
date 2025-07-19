@@ -14,9 +14,9 @@ before:
     - sh -c 'cd ui && npm ci && npm run build'
 
 builds:
-  - id: navigator
-    main: ./cmd/navigator/main.go
-    binary: navigator
+  - id: navctl
+    main: ./navctl/main.go
+    binary: navctl
     env:
       - CGO_ENABLED=0
     goos:
@@ -33,8 +33,8 @@ builds:
       - -X github.com/liamawhite/navigator/pkg/version.date={{.Date}}
 
 archives:
-  - id: navigator
-    ids: [navigator]
+  - id: navctl
+    ids: [navctl]
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -74,46 +74,41 @@ release:
     #### Linux (x86_64)
     ```bash
     curl -L https://github.com/liamawhite/navigator/releases/download/{{ .Tag }}/navigator_Linux_x86_64.tar.gz | tar xz
-    chmod +x navigator
-    sudo mv navigator /usr/local/bin/
+    chmod +x navctl
+    sudo mv navctl /usr/local/bin/
     ```
 
     #### Linux (ARM64)
     ```bash
     curl -L https://github.com/liamawhite/navigator/releases/download/{{ .Tag }}/navigator_Linux_arm64.tar.gz | tar xz
-    chmod +x navigator
-    sudo mv navigator /usr/local/bin/
+    chmod +x navctl
+    sudo mv navctl /usr/local/bin/
     ```
 
     #### macOS (Intel)
     ```bash
     curl -L https://github.com/liamawhite/navigator/releases/download/{{ .Tag }}/navigator_Darwin_x86_64.tar.gz | tar xz
-    chmod +x navigator
-    sudo mv navigator /usr/local/bin/
+    chmod +x navctl
+    sudo mv navctl /usr/local/bin/
     ```
 
     #### macOS (Apple Silicon)
     ```bash
     curl -L https://github.com/liamawhite/navigator/releases/download/{{ .Tag }}/navigator_Darwin_arm64.tar.gz | tar xz
-    chmod +x navigator
-    sudo mv navigator /usr/local/bin/
+    chmod +x navctl
+    sudo mv navctl /usr/local/bin/
     ```
 
     #### Windows (PowerShell)
     ```powershell
     Invoke-WebRequest -Uri "https://github.com/liamawhite/navigator/releases/download/{{ .Tag }}/navigator_Windows_x86_64.zip" -OutFile "navigator.zip"
     Expand-Archive -Path "navigator.zip" -DestinationPath "."
-    # Move navigator.exe to a directory in your PATH
+    # Move navctl.exe to a directory in your PATH
     ```
 
     ### Verify Installation
     ```bash
-    navigator version
-    ```
-
-    ### Using Go
-    ```bash
-    go install github.com/liamawhite/navigator/cmd/navigator@{{ .Tag }}
+    navctl version
     ```
 
     ### Verification with Checksums
@@ -123,7 +118,7 @@ release:
     sha256sum -c checksums.txt
 
     # Windows
-    certutil -hashfile navigator.exe SHA256
+    certutil -hashfile navctl.exe SHA256
     ```
 
     ---

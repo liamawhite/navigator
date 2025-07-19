@@ -4,41 +4,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture Overview
 
-Navigator is a gRPC-based service registry that provides Kubernetes service discovery through both gRPC and HTTP APIs.
+Navigator is an edge computing platform that provides Kubernetes service discovery and proxy configuration analysis through a distributed architecture of manager, edge, and CLI components.
 
 ### Core Components
 
+**Manager (`manager/`)**
+- Central coordination point for edge connections
+- Maintains bidirectional streaming gRPC connections with edges
+- Aggregates high-level state from multiple clusters
+- Handles frontend API requests through gRPC and HTTP gateway
+- Serves on port N (gRPC) and N+1 (HTTP gateway)
+
+**Edge (`edge/`)**
+- Connects to Kubernetes API servers and Envoy proxies
+- Streams cluster state (services, pods, endpoints) to manager
+- Provides on-demand proxy configuration analysis via Envoy admin API
+- Can run in-cluster or externally with kubeconfig access
+- Handles proxy information retrieval for detailed sidecar analysis
+
+**Navctl (`navctl/`)**
+- CLI tool for local development and orchestration
+- `navctl local` command starts manager + edge + UI in coordinated fashion
+- Automatically opens browser and manages graceful shutdown
+- Supports single kubeconfig operation for development scenarios
+
 **API Definitions (`api/`)**
-- Protocol buffer definitions with HTTP annotations
-- Generates Go code, gRPC stubs, and OpenAPI specs
+- Frontend APIs in `api/frontend/v1alpha1/` for service registry
+- Backend APIs in `api/backend/v1alpha1/` for manager-edge communication
+- Protocol buffer definitions with HTTP annotations for REST gateway
 - Uses buf for code generation and linting
 
-**CLI Layer (`internal/cli/`)**
-- Cobra-based command structure with root command and serve subcommand
-- Handles server configuration (port, kubeconfig path)
-- Manages graceful shutdown on SIGINT/SIGTERM
-
-**Datastore Pattern (`pkg/datastore/`)**
-- Abstract ServiceDatastore interface
-- Kubeconfig implementation uses Kubernetes client-go
-- Mock implementation for testing
-
-**gRPC Server (`internal/grpc/`)**
-- Dual-protocol server: gRPC (port N) + HTTP gateway (port N+1)
-- Uses grpc-gateway for automatic HTTP API generation
-- Implements ServiceRegistryService with reflection enabled
-
-**Service Registry (`internal/grpc/service_registry.go`)**
-- Core business logic for service discovery
-- Implements ListServices and GetService RPCs
-- Delegates to datastore abstraction
+**UI (`ui/`)**
+- React TypeScript application for service visualization
+- Service list and detail views with proxy sidecar detection
+- Real-time updates via TanStack Query
+- Embedded into navctl binary for local development
 
 ### Data Flow
-1. CLI starts gRPC server with kubeconfig-based datastore
-2. gRPC server registers ServiceRegistryService
-3. HTTP gateway proxies REST calls to gRPC
-4. Service calls query Kubernetes API via client-go
-5. Kubernetes Services and Endpoints are transformed to proto messages
+1. Edge connects to manager via bidirectional gRPC stream
+2. Edge syncs cluster state (services, pods, endpoints) to manager
+3. Manager aggregates state from multiple edges and serves frontend APIs
+4. UI queries manager's HTTP gateway for service information
+5. On-demand proxy analysis: Manager requests detailed config from specific edges
 
 ## Development Commands
 
@@ -47,23 +54,24 @@ Navigator is a gRPC-based service registry that provides Kubernetes service disc
 # Enter development environment
 nix develop
 
-# Start full-stack development (recommended - opens browser automatically)
-make dev
+# Build and start all services locally (one command)
+make local
 
-# Frontend only development
-make dev-ui
-
-# Backend only development  
-make dev-backend
+# Or manually build then run
+make build
+./bin/navctl local
 ```
 
 ### Build Commands
 ```bash
-# Build backend binary
+# Build all binaries and UI assets
 make build
 
-# Build frontend for production
-make build-ui
+# Build individual components
+make build-manager    # Build manager binary
+make build-edge      # Build edge binary  
+make build-navctl    # Build navctl binary (includes embedded UI)
+make build-ui        # Build UI assets only
 ```
 
 ### Code Quality Commands
@@ -83,8 +91,12 @@ make clean
 
 ### Logging Configuration
 ```bash
-# Start with debug logging in JSON format
-./navigator serve --log-level debug --log-format json
+# Start all services with debug logging
+./bin/navctl local --log-level debug --log-format json
+
+# Individual components with custom logging  
+./bin/manager --log-level debug --log-format json
+./bin/edge --log-level info --log-format text
 
 # Available log levels: debug, info, warn, error
 # Available formats: text, json
@@ -92,27 +104,41 @@ make clean
 
 ### Manual Development Setup
 
-#### Backend Only
+#### Local Development with Navctl (Recommended)
 ```bash
-# Build the navigator binary
-go build -o navigator cmd/navigator/main.go
+# Build navctl binary first
+make build-navctl
 
-# Run the server (gRPC on port 8080, HTTP gateway on port 8081)
-./navigator serve -p 8080 -k ~/.kube/config
+# Start all services locally
+./bin/navctl local --kube-config ~/.kube/config
 
-# Run with custom kubeconfig
-./navigator serve --kubeconfig /path/to/kubeconfig --port 9090
+# Custom ports and options
+./bin/navctl local --manager-port 9090 --ui-port 3000 --no-browser
 
-# Run with hot reloading
-air
+# With debug logging
+./bin/navctl local --log-level debug --log-format json
 ```
 
-#### UI Development (Manual)
+#### Individual Component Development
 ```bash
-# Frontend only (connects to existing backend)
+# Manager only
+make build-manager
+./bin/manager --port 8080
+
+# Edge only (requires running manager)
+make build-edge  
+./bin/edge --manager-endpoint localhost:8080 --kubeconfig ~/.kube/config
+
+# UI development only
+cd ui && npm run dev  # Uses Vite proxy to localhost:8081
+```
+
+#### UI Development
+```bash
+# Frontend only (connects to existing backend via proxy)
 cd ui && npm run dev
 
-# Full stack with one command (builds and starts backend + frontend)
+# Full stack with backend build
 cd ui && npm run dev:full
 
 # Full stack with Go hot reloading
@@ -126,18 +152,19 @@ cd ui && npm run dev:air
 
 ### Testing
 ```bash
-# Run all tests (unit tests only)
-go test ./...
+# Run unit tests (default make target)
+make test-unit
 
 # Run tests with verbose output
 go test -v ./...
 
-# Run tests for specific package
-go test ./internal/grpc/
-go test ./pkg/datastore/kubeconfig/
+# Run tests for specific packages
+go test ./manager/pkg/...
+go test ./edge/pkg/...
+go test ./pkg/...
 
-# Run single test
-go test -run TestServiceRegistryServer_ListServices ./internal/grpc/
+# Run tests with build tags
+go test -tags=test -v ./...
 
 # Run unit tests only (skip integration tests)
 go test -short ./...
@@ -181,8 +208,12 @@ kind delete cluster --name navigator-multi-test
 
 ### Protocol Buffer Generation
 ```bash
-# Generate Go code from proto files
-cd api && buf generate
+# Generate all protobuf code (included in make generate)
+make generate
+
+# Manual generation
+cd api && buf generate  # Backend APIs
+cd api && buf generate --template buf.gen.frontend.yaml  # Frontend APIs
 
 # Lint proto files
 cd api && buf lint
@@ -235,40 +266,45 @@ Air configuration (`.air.toml`) provides Go hot reloading:
 ## Key Directory Structure
 
 ```
-cmd/navigator/           # Application entry point
-internal/cli/           # CLI command implementations
-internal/grpc/          # gRPC server and service logic
-pkg/api/               # Generated protobuf code (do not edit)
-pkg/datastore/         # Datastore interfaces and implementations
-  kubeconfig/          # Kubernetes client implementation
-  mock/                # Mock datastore for testing
-pkg/logging/           # Structured logging with slog
-  logger.go            # Centralized logger configuration
-  interceptors.go      # gRPC request logging interceptors
-  http.go              # HTTP middleware for request logging
-  request.go           # Request context and correlation IDs
-api/                   # Protocol buffer definitions
-  backend/v1alpha1/    # Service registry API definitions
-  buf.yaml             # Buf configuration
-  buf.gen.yaml         # Code generation configuration
-ui/                    # React frontend application
-  src/                 # TypeScript React source code
-  package.json         # UI dependencies and scripts
-  vite.config.ts       # Vite dev server with proxy configuration
-  .prettierrc          # Code formatting configuration
-  eslint.config.js     # Linting configuration
-testing/integration/   # Integration tests
-  environment.go       # Abstract test environment interface
-  test_cases.go        # Table-driven test case definitions
-  service_registry_test.go  # Shared test suite (environment-agnostic)
-  local/               # Kind-based integration tests
-    kind.go            # Kind cluster management
-    fixtures.go        # Kubernetes test fixtures
-    environment.go     # Local environment implementation
-    local_test.go      # Local-specific test runner
-.github/workflows/     # GitHub Actions CI/CD
-  hygiene.yml          # Code formatting and generation checks
-  lint.yml             # Code quality and linting checks
+manager/               # Manager service (central coordination)
+  main.go             # Manager entry point
+  pkg/config/         # Manager configuration
+  pkg/connections/    # Connection management for edges
+  pkg/service/        # Manager service implementation
+edge/                 # Edge service (cluster connector)
+  main.go            # Edge entry point  
+  pkg/config/        # Edge configuration
+  pkg/kubernetes/    # Kubernetes client wrapper
+  pkg/proxy/         # Proxy configuration analysis
+  pkg/service/       # Edge service implementation
+navctl/               # CLI tool for orchestration
+  main.go           # CLI entry point
+  cmd/              # Cobra command implementations
+  pkg/ui/           # Embedded UI server
+api/                  # Protocol buffer definitions
+  backend/v1alpha1/   # Manager-edge communication APIs
+  frontend/v1alpha1/  # Frontend service registry APIs
+  buf.yaml           # Buf configuration
+  buf.gen.yaml       # Backend code generation
+  buf.gen.frontend.yaml # Frontend code generation
+pkg/api/             # Generated protobuf code (do not edit)
+  backend/           # Generated backend APIs
+  frontend/          # Generated frontend APIs
+pkg/envoy/           # Envoy proxy analysis utilities
+  admin/             # Envoy admin API clients
+  configdump/        # Configuration dump parsing
+pkg/logging/         # Structured logging with slog
+  logger.go         # Centralized logger configuration
+  interceptors.go   # gRPC request logging interceptors
+  http.go           # HTTP middleware for request logging
+  request.go        # Request context and correlation IDs
+ui/                  # React frontend application
+  src/              # TypeScript React source code
+  components/ui/    # shadcn/ui components (do not edit directly)
+  package.json      # UI dependencies and scripts
+  vite.config.ts    # Vite dev server with proxy configuration
+docs/               # Documentation (Docusaurus)
+  development-docs/ # Architecture and development guides
 ```
 
 ## UI Frontend
@@ -328,94 +364,61 @@ All HTTP and gRPC requests automatically receive:
 - **Request timing** and response codes
 - **Error context** with full details
 
-## Service IDs
-
-Services are identified by `namespace:name` format (e.g., `default:nginx-service`). This convention is used throughout the API and datastore implementations.
-
 ## Testing Patterns
 
 ### Unit Tests
 - Use `testify` for assertions and test structure
-- Kubeconfig datastore tests use `fake.NewSimpleClientset()`
-- gRPC service tests use mock datastore
+- Manager tests use connection mocks
+- Edge tests use fake Kubernetes clients with `fake.NewSimpleClientset()`
 - Test files follow Go conventions: `*_test.go`
-- Tests cover happy path, error cases, and edge cases (namespace isolation, etc.)
+- Tests use build tags: `go test -tags=test`
 
-### Integration Tests
-- **Table-Driven Tests**: All test scenarios defined in `testing/integration/test_cases.go`
-- **Shared Test Suite**: Located in `testing/integration/service_registry_test.go`
-- **Environment Abstraction**: `TestEnvironment` interface allows tests to run against different backends
-- **Local Implementation**: `testing/integration/local/` provides Kind-based testing
-- Use Kind (Kubernetes in Docker) for real cluster testing
-- Automatically create and destroy test clusters
-- Test against actual Kubernetes API and Navigator gRPC server
-- Use `testing.Short()` check to skip in unit test runs
-- Use `ghcr.io/liamawhite/microservice:latest` image for realistic HTTP services
-- Test service discovery with actual working microservices
-- Microservice image provides HTTP proxy capabilities for testing service topologies
-- **Extensible**: Easy to add new environments (remote clusters, different K8s distributions, etc.)
-- **Maintainable**: New test scenarios can be added by simply updating the test cases table
+### Component Architecture
+- **Manager**: Handles edge connections and aggregates cluster state
+- **Edge**: Streams Kubernetes state to manager, provides proxy analysis
+- **Navctl**: Orchestrates local development environments
+- **UI**: Embedded React application served by navctl
 
-#### Adding New Test Environments
-To add a new test environment (e.g., for EKS, GKE, or other K8s distributions):
+### Development Patterns
 
-1. Create a new package under `testing/integration/` (e.g., `testing/integration/eks/`)
-2. Implement the `TestEnvironment` interface
-3. Create test runner files that call the shared test functions
-4. The same test suite will run against your new environment
+**Code Generation**
+- All protobuf code is generated, never edit files in `pkg/api/`
+- Frontend APIs generate both Go code and OpenAPI specs for TypeScript client generation
+- Use `make generate` to regenerate all protobuf and OpenAPI code
 
-#### Adding New Test Cases
-To add a new test scenario:
+**Configuration Management**
+- Each component (manager, edge, navctl) has its own config package
+- Flag parsing is centralized in config packages
+- Environment-specific configuration through command-line flags
 
-1. Add a new `TestCase` struct to the `GetTestCases()` function in `testing/integration/test_cases.go`
-2. Define the service setup, timeout, and assertions
-3. The test will automatically run against all environments
-4. Use the flexible assertion system with different `AssertionType` and `TargetType` combinations
+**Logging Architecture**
+- Structured logging with Go's `slog` package throughout all components
+- Component-scoped loggers via `logging.For("component-name")`
+- Request correlation IDs for distributed tracing
+- Configurable log levels and formats (text/json)
 
-## Demo Environment Management
+**Error Handling**
+- Standard Go error patterns with context propagation
+- gRPC status codes for API errors
+- Graceful shutdown handling in all services
 
-Navigator includes a comprehensive demo system for local development and testing:
-
-### Demo Commands
-```bash
-# List available scenarios  
-./navigator demo --list
-
-# Set up basic demo environment
-./navigator demo --scenario basic
-
-# Set up microservice topology with Istio
-./navigator demo --scenario istio-demo
-
-# Clean up demo environment
-./navigator demo --teardown
-```
-
-### Available Scenarios
-- **basic**: Single web service for basic testing
-- **microservice-topology**: Chain of three interconnected services  
-- **istio-demo**: Full Istio service mesh demonstration with proxy analysis
-- **mixed-service-types**: Various service configurations for comprehensive testing
-
-### Kind Cluster Configuration
-Demo environments use Kind with custom configuration supporting:
-- Control plane and worker nodes
-- Port mappings for ingress (80, 443)
-- Istio-compatible networking setup
-- Cluster name: `navigator-demo`
-- Kubeconfig stored at `/tmp/navigator-demo-kubeconfig`
+### Proxy Configuration Analysis
+Navigator includes comprehensive Envoy proxy analysis capabilities:
+- **Admin API Access**: Multiple client types (kubectl port-forward, pilot-agent)
+- **Configuration Parsing**: Bootstrap, clusters, listeners, routes, endpoints
+- **Sidecar Detection**: Automatic Istio/Envoy proxy identification
+- **Config Dump Processing**: Structured parsing of Envoy configuration dumps
 
 ## Continuous Integration
 
 Navigator uses GitHub Actions for automated quality assurance:
 
 ### Hygiene Workflow (`.github/workflows/hygiene.yml`)
-- Code formatting checks (Go + TypeScript)
-- Linting with golangci-lint (excludes generated code)
-- Protocol buffer generation verification
-- Git cleanliness validation
+- **Format Check**: Runs `make format` to verify Go and TypeScript formatting
+- **Lint Check**: Runs `make lint` with golangci-lint and ESLint
+- **Generation Check**: Runs `make generate` to verify protobuf generation is up-to-date
+- **Git Cleanliness**: Ensures no untracked changes after generation/formatting
 
 ### Test Workflow (`.github/workflows/test.yml`)
-- Unit test execution across Go packages
-- Integration tests with Kind clusters
-- 20-minute timeout for complex test scenarios
+- **Unit Tests**: Runs `make test-unit` with build tags for all Go packages
+- Uses Nix development environment for consistent tooling

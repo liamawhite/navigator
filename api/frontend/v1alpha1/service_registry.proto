@@ -1,0 +1,214 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package navigator.frontend.v1alpha1;
+
+import "google/api/annotations.proto";
+import "types/v1alpha1/proxy_types.proto";
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1";
+
+// ServiceRegistryService provides APIs for service discovery and management.
+// It enables listing and retrieving services from multiple Kubernetes clusters via the manager's aggregated view.
+service ServiceRegistryService {
+  // ListServices returns all services in the specified namespace, or all namespaces if not specified.
+  // Services are aggregated across all connected clusters.
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/services"};
+  }
+
+  // GetService returns detailed information about a specific service.
+  // The service may have instances across multiple clusters.
+  rpc GetService(GetServiceRequest) returns (GetServiceResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/services/{id}"};
+  }
+
+  // GetServiceInstance returns detailed information about a specific service instance.
+  rpc GetServiceInstance(GetServiceInstanceRequest) returns (GetServiceInstanceResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/services/{service_id}/instances/{instance_id}"};
+  }
+
+  // GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance.
+  rpc GetProxyConfig(GetProxyConfigRequest) returns (GetProxyConfigResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/services/{service_id}/instances/{instance_id}/proxy-config"};
+  }
+}
+
+// ListServicesRequest specifies which namespace to list services from.
+message ListServicesRequest {
+  // namespace is the Kubernetes namespace to list services from.
+  // If not specified, services from all namespaces are returned.
+  optional string namespace = 1;
+  
+  // cluster_id filters services to only those from the specified cluster.
+  // If not specified, services from all connected clusters are returned.
+  optional string cluster_id = 2;
+}
+
+// ListServicesResponse contains the list of services in the requested namespace(s).
+message ListServicesResponse {
+  // services is the list of services found in the namespace(s).
+  repeated Service services = 1;
+}
+
+// GetServiceRequest specifies which service to retrieve.
+message GetServiceRequest {
+  // id is the unique identifier of the service to retrieve.
+  // Format: namespace:service-name (e.g., "default:nginx-service")
+  string id = 1;
+}
+
+// GetServiceResponse contains the requested service details.
+message GetServiceResponse {
+  // service contains the detailed service information.
+  Service service = 1;
+}
+
+// GetServiceInstanceRequest specifies which service instance to retrieve.
+message GetServiceInstanceRequest {
+  // service_id is the unique identifier of the service.
+  // Format: namespace:service-name (e.g., "default:nginx-service")
+  string service_id = 1;
+
+  // instance_id is the unique identifier of the specific service instance.
+  // Format: cluster_name:namespace:pod_name (e.g., "prod-west:default:nginx-abc123")
+  string instance_id = 2;
+}
+
+// GetServiceInstanceResponse contains the requested service instance details.
+message GetServiceInstanceResponse {
+  // instance contains the detailed service instance information.
+  ServiceInstanceDetail instance = 1;
+}
+
+// Service represents a Kubernetes service with its backing instances.
+// Services in different clusters that share the same name and namespace are considered the same service.
+message Service {
+  // id is a unique identifier for the service in format namespace:service-name (e.g., "default:nginx-service").
+  string id = 1;
+
+  // name is the service name.
+  string name = 2;
+
+  // namespace is the Kubernetes namespace containing the service.
+  string namespace = 3;
+
+  // instances are the backend instances (pods) that serve this service across all clusters.
+  repeated ServiceInstance instances = 4;
+}
+
+// ServiceInstance represents a single backend instance serving a service.
+message ServiceInstance {
+  // instance_id is a unique identifier for this instance across all clusters.
+  // Format: cluster_name:namespace:pod_name (e.g., "prod-west:default:nginx-abc123")
+  string instance_id = 1;
+
+  // ip is the IP address of the instance.
+  string ip = 2;
+
+  // pod_name is the name of the Kubernetes pod backing this instance.
+  string pod_name = 3;
+
+  // namespace is the Kubernetes namespace containing the pod.
+  string namespace = 4;
+
+  // cluster_name is the name of the Kubernetes cluster this instance belongs to.
+  string cluster_name = 5;
+
+  // envoy_present indicates whether this instance has an Envoy proxy sidecar.
+  bool envoy_present = 6;
+}
+
+// Container represents a container running in a pod.
+message Container {
+  // name is the name of the container.
+  string name = 1;
+
+  // image is the container image.
+  string image = 2;
+
+  // status is the current status of the container (e.g., "Running", "Waiting", "Terminated").
+  string status = 3;
+
+  // ready indicates whether the container is ready to serve requests.
+  bool ready = 4;
+
+  // restart_count is the number of times the container has been restarted.
+  int32 restart_count = 5;
+}
+
+// ServiceInstanceDetail represents detailed information about a specific service instance.
+message ServiceInstanceDetail {
+  // instance_id is a unique identifier for this instance across all clusters.
+  // Format: cluster_name:namespace:pod_name (e.g., "prod-west:default:nginx-abc123")
+  string instance_id = 1;
+
+  // ip is the IP address of the instance.
+  string ip = 2;
+
+  // pod_name is the name of the Kubernetes pod backing this instance.
+  string pod_name = 3;
+
+  // namespace is the Kubernetes namespace containing the pod.
+  string namespace = 4;
+
+  // cluster_name is the name of the Kubernetes cluster this instance belongs to.
+  string cluster_name = 5;
+
+  // envoy_present indicates whether this instance has an Envoy proxy sidecar.
+  bool envoy_present = 6;
+
+  // service_name is the name of the service this instance belongs to.
+  string service_name = 7;
+
+  // containers is the list of containers running in this pod.
+  repeated Container containers = 8;
+
+  // pod_status is the current status of the pod (e.g., "Running", "Pending").
+  string pod_status = 9;
+
+  // node_name is the name of the Kubernetes node hosting this pod.
+  string node_name = 10;
+
+  // created_at is the timestamp when the pod was created.
+  string created_at = 11;
+
+  // labels are the Kubernetes labels assigned to the pod.
+  map<string, string> labels = 12;
+
+  // annotations are the Kubernetes annotations assigned to the pod.
+  map<string, string> annotations = 13;
+
+  // is_envoy_present indicates whether this instance has an Envoy proxy sidecar.
+  bool is_envoy_present = 14;
+}
+
+// GetProxyConfigRequest specifies which service instance's proxy configuration to retrieve.
+message GetProxyConfigRequest {
+  // service_id is the unique identifier of the service.
+  // Format: namespace:service-name (e.g., "default:nginx-service")
+  string service_id = 1;
+  
+  // instance_id is the unique identifier of the service instance.
+  // Format: cluster_id:namespace:pod_name (e.g., "cluster1:default:nginx-pod-123")
+  string instance_id = 2;
+}
+
+// GetProxyConfigResponse contains the proxy configuration for the requested pod.
+message GetProxyConfigResponse {
+  // proxy_config contains the complete Envoy proxy configuration.
+  navigator.types.v1alpha1.ProxyConfig proxy_config = 1;
+}
