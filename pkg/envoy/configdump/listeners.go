@@ -92,15 +92,6 @@ func (p *Parser) summarizeListener(listener *listenerv3.Listener, parsed *Parsed
 	return summary
 }
 
-// getFilterChains returns all filter chains for a listener
-func (p *Parser) getFilterChains(l *listenerv3.Listener) []*listenerv3.FilterChain {
-	res := l.FilterChains
-	if l.DefaultFilterChain != nil {
-		res = append(res, l.DefaultFilterChain)
-	}
-	return res
-}
-
 // determineListenerType determines the listener type based on name, address, port, and use_original_dst
 func (p *Parser) determineListenerType(name, address string, port uint32, useOriginalDst bool) v1alpha1.ListenerType {
 	// First: Check for virtual listeners by name (most reliable)

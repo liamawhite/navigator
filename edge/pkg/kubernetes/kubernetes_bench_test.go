@@ -54,19 +54,19 @@ func benchmarkGetClusterState(b *testing.B, numServices, numPods int) {
 	// Create services
 	services := generateServices(numServices)
 	for _, svc := range services {
-		clientset.CoreV1().Services(svc.Namespace).Create(context.TODO(), &svc, metav1.CreateOptions{})
+		_, _ = clientset.CoreV1().Services(svc.Namespace).Create(context.TODO(), &svc, metav1.CreateOptions{})
 	}
 
 	// Create endpoint slices
 	endpointSlices := generateEndpointSlices(numServices, numPods)
 	for _, eps := range endpointSlices {
-		clientset.DiscoveryV1().EndpointSlices(eps.Namespace).Create(context.TODO(), &eps, metav1.CreateOptions{})
+		_, _ = clientset.DiscoveryV1().EndpointSlices(eps.Namespace).Create(context.TODO(), &eps, metav1.CreateOptions{})
 	}
 
 	// Create pods
 	pods := generatePods(numPods)
 	for _, pod := range pods {
-		clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+		_, _ = clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
 	}
 
 	// Create kubernetes client

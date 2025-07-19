@@ -285,4 +285,3 @@ func TestParseClusterName(t *testing.T) {
 		})
 	}
 }
-

@@ -297,7 +297,7 @@ func (e *EdgeService) reconnect() error {
 
 	// Close existing connection
 	if e.conn != nil {
-		e.conn.Close()
+		_ = e.conn.Close()
 	}
 
 	// Exponential backoff for reconnection

@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
@@ -184,10 +185,10 @@ func (m *ManagerService) Stop() error {
 
 	// Close listeners
 	if m.listener != nil {
-		m.listener.Close()
+		_ = m.listener.Close()
 	}
 	if m.httpListener != nil {
-		m.httpListener.Close()
+		_ = m.httpListener.Close()
 	}
 
 	m.running = false
@@ -223,7 +224,8 @@ func (m *ManagerService) setupHTTPGateway() error {
 
 	// Create HTTP server
 	m.httpServer = &http.Server{
-		Handler: mux,
+		Handler:           mux,
+		ReadHeaderTimeout: 30 * time.Second,
 	}
 
 	return nil

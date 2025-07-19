@@ -259,7 +259,6 @@ func inferClusterType(clusterName string) v1alpha1.ClusterType {
 	return v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE
 }
 
-
 // parseClusterName parses Istio cluster names in the format: direction|port|subset|serviceFQDN
 // Examples:
 //   - "outbound|8080||backend.demo.svc.cluster.local"

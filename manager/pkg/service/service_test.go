@@ -231,7 +231,7 @@ func TestManagerService_processClusterStateUpdate(t *testing.T) {
 	}
 
 	// Register a connection first
-	connectionManager.RegisterConnection("test-cluster", nil)
+	_ = connectionManager.RegisterConnection("test-cluster", nil)
 
 	tests := []struct {
 		name        string

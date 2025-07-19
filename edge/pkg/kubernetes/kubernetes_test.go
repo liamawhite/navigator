@@ -368,7 +368,7 @@ func TestClient_convertEndpointSlicesToInstancesWithMaps(t *testing.T) {
 
 			// Add pods to fake clientset
 			for _, pod := range tt.pods {
-				clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+				_, _ = clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
 			}
 
 			k8sClient := &Client{
@@ -494,13 +494,13 @@ func TestClient_GetClusterState(t *testing.T) {
 
 			// Add objects to fake clientset
 			for _, svc := range tt.services {
-				clientset.CoreV1().Services(svc.Namespace).Create(context.TODO(), &svc, metav1.CreateOptions{})
+				_, _ = clientset.CoreV1().Services(svc.Namespace).Create(context.TODO(), &svc, metav1.CreateOptions{})
 			}
 			for _, eps := range tt.endpointSlices {
-				clientset.DiscoveryV1().EndpointSlices(eps.Namespace).Create(context.TODO(), &eps, metav1.CreateOptions{})
+				_, _ = clientset.DiscoveryV1().EndpointSlices(eps.Namespace).Create(context.TODO(), &eps, metav1.CreateOptions{})
 			}
 			for _, pod := range tt.pods {
-				clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+				_, _ = clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
 			}
 
 			k8sClient := &Client{
