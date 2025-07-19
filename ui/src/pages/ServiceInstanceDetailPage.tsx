@@ -114,7 +114,9 @@ export const ServiceInstanceDetailPage: React.FC = () => {
         'bootstrap',
     ] as const;
     const currentTab = searchParams.get('proxy_config') || 'listeners';
-    const validTab = availableTabs.includes(currentTab as any)
+    const validTab = availableTabs.includes(
+        currentTab as (typeof availableTabs)[number]
+    )
         ? currentTab
         : 'listeners';
 
