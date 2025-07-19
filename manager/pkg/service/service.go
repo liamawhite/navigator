@@ -111,8 +111,15 @@ func (m *ManagerService) Start() error {
 
 	m.listener = grpcListener
 
-	// Create HTTP listener (gRPC port + 1)
-	httpPort := m.config.GetPort() + 1
+	// Create HTTP listener (actual gRPC port + 1, or 0 if configured port was 0)
+	var httpPort int
+	if m.config.GetPort() == 0 {
+		// If configured with port 0, use port 0 for HTTP listener too (system will assign)
+		httpPort = 0
+	} else {
+		// Otherwise use configured port + 1
+		httpPort = m.config.GetPort() + 1
+	}
 	httpListener, err := net.Listen("tcp", fmt.Sprintf(":%d", httpPort))
 	if err != nil {
 		return fmt.Errorf("failed to listen on HTTP port %d: %w", httpPort, err)
