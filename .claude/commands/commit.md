@@ -117,7 +117,53 @@ After successful PR creation, provide the user with:
 - The PR URL for easy access
 - Brief summary of what was accomplished
 
-### 9. Important Notes
+### 9. Update Existing PR (Alternative Workflow)
+
+**If there's already an open PR for the current branch and you have new changes:**
+
+**Check for existing PR:**
+```bash
+gh pr view --json url,title 2>/dev/null || echo "No PR found"
+```
+
+**If PR exists and there are unstaged/untracked changes:**
+
+1. **Run quality checks first**:
+   ```bash
+   make check
+   ```
+   - Attempt to fix issues automatically
+   - Re-run if fixes were applied
+
+2. **Handle unstaged/untracked changes** (after quality checks):
+   - Ask: "I found unstaged/untracked changes. Would you like me to add them to update the existing PR?"
+   - If yes, add them with `git add .` or selectively
+
+3. **Analyze the new changes**:
+   ```bash
+   git diff --cached
+   ```
+   - Understand what functionality was added/modified
+   - Generate appropriate commit message for these additional changes
+
+4. **Create additional commit**:
+   - Generate commit message based on the new changes
+   - Use conventional commit format for the incremental changes
+
+   ```bash
+   git commit -m "[commit message for additional changes]"
+   ```
+
+5. **Push to update PR**:
+   ```bash
+   git push
+   ```
+
+6. **Confirm completion**:
+   - Show the updated PR URL
+   - Summarize what changes were added to the existing PR
+
+### 10. Important Notes
 
 **Always confirm with user before:**
 - Adding unstaged/untracked files

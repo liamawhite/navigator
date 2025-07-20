@@ -15,7 +15,9 @@
       "Bash(make:*)",
       "Bash(npx shadcn@latest add input:*)",
       "Bash(curl:*)",
-      "Bash(go run:*)"
+      "Bash(go run:*)",
+      "Bash(gh pr view:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
