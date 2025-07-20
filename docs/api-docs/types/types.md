@@ -160,8 +160,8 @@ EndpointInfo contains individual endpoint information
 | priority | [uint32](#uint32) |  |  |
 | host_identifier | [string](#string) |  |  |
 | metadata | [EndpointInfo.MetadataEntry](#navigator-types-v1alpha1-EndpointInfo-MetadataEntry) | repeated |  |
-| load_balancing_weight | [uint32](#uint32) |  |  |
 | address_type | [AddressType](#navigator-types-v1alpha1-AddressType) |  |  |
+| locality | [LocalityInfo](#navigator-types-v1alpha1-LocalityInfo) |  |  |
 
 
 

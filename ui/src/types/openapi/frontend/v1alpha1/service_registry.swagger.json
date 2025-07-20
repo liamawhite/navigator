@@ -468,12 +468,11 @@
             "type": "string"
           }
         },
-        "loadBalancingWeight": {
-          "type": "integer",
-          "format": "int64"
-        },
         "addressType": {
           "$ref": "#/definitions/v1alpha1AddressType"
+        },
+        "locality": {
+          "$ref": "#/definitions/v1alpha1LocalityInfo"
         }
       },
       "title": "EndpointInfo contains individual endpoint information"

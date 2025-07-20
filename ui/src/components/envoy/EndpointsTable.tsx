@@ -20,6 +20,7 @@ import {
     Globe,
     Router,
     Link,
+    MapPin,
 } from 'lucide-react';
 import {
     Table,
@@ -62,6 +63,31 @@ const getAddressTypeInfo = (addressType?: v1alpha1AddressType) => {
         default:
             return { icon: Globe, label: 'Unknown', color: 'text-gray-600' };
     }
+};
+
+// Helper function to get health status circle
+const getHealthIndicator = (health?: string) => {
+    switch (health) {
+        case 'HEALTHY':
+            return <div className="w-2 h-2 rounded-full bg-green-500" />;
+        case 'UNHEALTHY':
+            return <div className="w-2 h-2 rounded-full bg-red-500" />;
+        case 'DRAINING':
+            return <div className="w-2 h-2 rounded-full bg-yellow-500" />;
+        default:
+            return <div className="w-2 h-2 rounded-full bg-gray-400" />;
+    }
+};
+
+// Helper function to format locality
+const formatLocality = (locality?: { region?: string; zone?: string }) => {
+    if (!locality) return 'N/A';
+    if (locality.region && locality.zone) {
+        return `${locality.region}/${locality.zone}`;
+    }
+    if (locality.region) return locality.region;
+    if (locality.zone) return locality.zone;
+    return 'N/A';
 };
 
 // Helper function to group endpoint summaries by cluster type
@@ -287,23 +313,26 @@ const EndpointsGroup: React.FC<{
                                     <TableRow className="bg-muted/10 border-b">
                                         <TableCell className="w-8"></TableCell>
                                         <TableCell colSpan={4}>
-                                            <div className="grid grid-cols-12 gap-4 px-6">
-                                                <span className="text-xs font-medium text-muted-foreground col-span-5">
+                                            <div className="flex items-center gap-2 sm:gap-4 px-2">
+                                                <span className="text-xs font-medium text-muted-foreground w-4 flex-shrink-0">
+                                                    {/* Health indicator */}
+                                                </span>
+                                                <span className="text-xs font-medium text-muted-foreground flex-1 min-w-0">
                                                     Host Identifier
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground col-span-2">
+                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden sm:block">
                                                     Type
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground col-span-2">
-                                                    Health
+                                                <span className="text-xs font-medium text-muted-foreground w-16 sm:w-24 flex-shrink-0 hidden md:block">
+                                                    Locality
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground col-span-1">
+                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden lg:block">
                                                     Priority
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground col-span-1">
+                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0">
                                                     Weight
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground col-span-1">
+                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0">
                                                     Actions
                                                 </span>
                                             </div>
@@ -328,58 +357,45 @@ const EndpointsGroup: React.FC<{
                                                 >
                                                     <TableCell className="w-8"></TableCell>
                                                     <TableCell colSpan={4}>
-                                                        <div className="grid grid-cols-12 gap-4 px-6 items-center">
-                                                            <span className="font-mono text-xs text-muted-foreground col-span-5 break-all">
+                                                        <div className="flex items-center gap-2 sm:gap-4 px-2">
+                                                            <div className="w-4 flex items-center justify-start flex-shrink-0">
+                                                                {getHealthIndicator(
+                                                                    endpoint.health
+                                                                )}
+                                                            </div>
+                                                            <span className="font-mono text-xs text-muted-foreground flex-1 min-w-0 break-all">
                                                                 {endpoint.hostIdentifier ||
                                                                     'N/A'}
                                                             </span>
-                                                            <div className="flex items-center gap-1 col-span-2">
+                                                            <div className="flex items-center gap-1 w-12 sm:w-16 flex-shrink-0 hidden sm:flex">
                                                                 <Icon
                                                                     className={`w-3 h-3 ${addressTypeInfo.color}`}
                                                                 />
                                                                 <span
-                                                                    className={`text-xs ${addressTypeInfo.color}`}
+                                                                    className={`text-xs ${addressTypeInfo.color} hidden sm:inline`}
                                                                 >
                                                                     {
                                                                         addressTypeInfo.label
                                                                     }
                                                                 </span>
                                                             </div>
-                                                            <div className="col-span-2">
-                                                                <Badge
-                                                                    variant={
-                                                                        endpoint.health ===
-                                                                        'HEALTHY'
-                                                                            ? 'default'
-                                                                            : endpoint.health ===
-                                                                                'UNHEALTHY'
-                                                                              ? 'destructive'
-                                                                              : 'secondary'
-                                                                    }
-                                                                    className={
-                                                                        endpoint.health ===
-                                                                        'HEALTHY'
-                                                                            ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-900/30'
-                                                                            : endpoint.health ===
-                                                                                'UNHEALTHY'
-                                                                              ? 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30'
-                                                                              : ''
-                                                                    }
-                                                                >
-                                                                    {endpoint.health ||
-                                                                        'UNKNOWN'}
-                                                                </Badge>
+                                                            <div className="flex items-center gap-1 w-16 sm:w-24 flex-shrink-0 hidden md:flex">
+                                                                <MapPin className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                                                <span className="text-xs text-muted-foreground truncate">
+                                                                    {formatLocality(
+                                                                        endpoint.locality
+                                                                    )}
+                                                                </span>
                                                             </div>
-                                                            <span className="text-xs text-muted-foreground col-span-1">
+                                                            <span className="text-xs text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden lg:block text-center">
                                                                 {endpoint.priority ||
                                                                     0}
                                                             </span>
-                                                            <span className="text-xs text-muted-foreground col-span-1">
+                                                            <span className="text-xs text-muted-foreground w-12 sm:w-16 flex-shrink-0 text-center">
                                                                 {endpoint.weight ||
-                                                                    endpoint.loadBalancingWeight ||
                                                                     'N/A'}
                                                             </span>
-                                                            <div className="col-span-1">
+                                                            <div className="w-12 sm:w-16 flex-shrink-0">
                                                                 <ConfigActions
                                                                     name={
                                                                         endpoint.hostIdentifier ||

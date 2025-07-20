@@ -159,13 +159,12 @@ func ConvertToEndpointSummaries(clusterEndpoints []*ClusterEndpointInfo) []*v1al
 // convertAdminHostToEndpoint converts an admin HostStatus to our EndpointInfo with proper address type detection
 func convertAdminHostToEndpoint(host HostStatus) *v1alpha1.EndpointInfo {
 	endpointInfo := &v1alpha1.EndpointInfo{
-		Health:              host.HealthStatus.EDSHealthStatus,
-		Weight:              host.Weight,
-		LoadBalancingWeight: host.Weight,
-		Metadata:            make(map[string]string),
-		AddressType:         v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE, // Default
-		Address:             "unknown",                                 // Default
-		HostIdentifier:      "unknown",                                 // Default
+		Health:         host.HealthStatus.EDSHealthStatus,
+		Weight:         host.Weight,
+		Metadata:       make(map[string]string),
+		AddressType:    v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE, // Default
+		Address:        "unknown",                                 // Default
+		HostIdentifier: "unknown",                                 // Default
 	}
 
 	// Handle different address types

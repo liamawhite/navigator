@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { v1alpha1AddressType } from './v1alpha1AddressType';
+import type { v1alpha1LocalityInfo } from './v1alpha1LocalityInfo';
 export type v1alpha1EndpointInfo = {
     address?: string;
     port?: number;
@@ -11,7 +12,7 @@ export type v1alpha1EndpointInfo = {
     priority?: number;
     hostIdentifier?: string;
     metadata?: Record<string, string>;
-    loadBalancingWeight?: number;
     addressType?: v1alpha1AddressType;
+    locality?: v1alpha1LocalityInfo;
 };
 
