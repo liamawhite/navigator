@@ -234,6 +234,102 @@ func TestParser_ParseJSON(t *testing.T) {
 			},
 		},
 		{
+			name: "cluster with endpoints having different priorities",
+			input: `{
+				"cluster_statuses": [
+					{
+						"name": "outbound|80||service-with-priority.default.svc.cluster.local",
+						"host_statuses": [
+							{
+								"address": {
+									"socket_address": {
+										"address": "10.244.0.20",
+										"port_value": 80
+									}
+								},
+								"stats": [],
+								"health_status": {
+									"eds_health_status": "HEALTHY"
+								},
+								"priority": 0
+							},
+							{
+								"address": {
+									"socket_address": {
+										"address": "10.244.0.21",
+										"port_value": 80
+									}
+								},
+								"stats": [],
+								"health_status": {
+									"eds_health_status": "HEALTHY"
+								},
+								"priority": 1
+							},
+							{
+								"address": {
+									"socket_address": {
+										"address": "10.244.0.22",
+										"port_value": 80
+									}
+								},
+								"stats": [],
+								"health_status": {
+									"eds_health_status": "HEALTHY"
+								},
+								"priority": 2
+							}
+						]
+					}
+				]
+			}`,
+			expected: []*v1alpha1.EndpointSummary{
+				{
+					ClusterName: "outbound|80||service-with-priority.default.svc.cluster.local",
+					ClusterType: v1alpha1.ClusterType_CLUSTER_EDS,
+					Direction:   v1alpha1.ClusterDirection_OUTBOUND,
+					Port:        80,
+					Subset:      "",
+					ServiceFqdn: "service-with-priority.default.svc.cluster.local",
+					Endpoints: []*v1alpha1.EndpointInfo{
+						{
+							Address:             "10.244.0.20",
+							Port:                80,
+							HostIdentifier:      "10.244.0.20:80",
+							Health:              "HEALTHY",
+							Priority:            0,
+							Weight:              0,
+							LoadBalancingWeight: 0,
+							Metadata:            map[string]string{},
+							AddressType:         v1alpha1.AddressType_SOCKET_ADDRESS,
+						},
+						{
+							Address:             "10.244.0.21",
+							Port:                80,
+							HostIdentifier:      "10.244.0.21:80",
+							Health:              "HEALTHY",
+							Priority:            1,
+							Weight:              0,
+							LoadBalancingWeight: 0,
+							Metadata:            map[string]string{},
+							AddressType:         v1alpha1.AddressType_SOCKET_ADDRESS,
+						},
+						{
+							Address:             "10.244.0.22",
+							Port:                80,
+							HostIdentifier:      "10.244.0.22:80",
+							Health:              "HEALTHY",
+							Priority:            2,
+							Weight:              0,
+							LoadBalancingWeight: 0,
+							Metadata:            map[string]string{},
+							AddressType:         v1alpha1.AddressType_SOCKET_ADDRESS,
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "empty clusters response",
 			input: `{
 				"cluster_statuses": []
@@ -411,6 +507,35 @@ func TestParser_convertHostToEndpoint(t *testing.T) {
 				HostIdentifier:      "127.0.0.1:9000",
 				Health:              "UNKNOWN",
 				Priority:            0,
+				Weight:              0,
+				LoadBalancingWeight: 0,
+				Metadata:            map[string]string{},
+			},
+		},
+		{
+			name: "endpoint with priority 2",
+			host: &admin.HostStatus{
+				Address: &core.Address{
+					Address: &core.Address_SocketAddress{
+						SocketAddress: &core.SocketAddress{
+							Address: "10.0.0.100",
+							PortSpecifier: &core.SocketAddress_PortValue{
+								PortValue: 8080,
+							},
+						},
+					},
+				},
+				HealthStatus: &admin.HostHealthStatus{
+					EdsHealthStatus: core.HealthStatus_HEALTHY,
+				},
+				Priority: 2,
+			},
+			expected: &v1alpha1.EndpointInfo{
+				Address:             "10.0.0.100",
+				Port:                8080,
+				HostIdentifier:      "10.0.0.100:8080",
+				Health:              "HEALTHY",
+				Priority:            2,
 				Weight:              0,
 				LoadBalancingWeight: 0,
 				Metadata:            map[string]string{},
