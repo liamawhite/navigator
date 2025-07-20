@@ -102,7 +102,7 @@ func (p *Parser) convertHostToEndpoint(host *admin.HostStatus) *v1alpha1.Endpoin
 
 	endpoint := &v1alpha1.EndpointInfo{
 		Health:              p.getHealthStatus(host),
-		Priority:            0,                                         // Default
+		Priority:            host.Priority,                             // Extract from HostStatus
 		Weight:              0,                                         // Default
 		LoadBalancingWeight: 0,                                         // Default
 		Metadata:            make(map[string]string),                   // Always initialize
@@ -145,8 +145,8 @@ func (p *Parser) convertHostToEndpoint(host *admin.HostStatus) *v1alpha1.Endpoin
 		endpoint.AddressType = v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE
 	}
 
-	// Note: Priority, weight, and load balancing weight are not directly available
-	// from clusters API. These would need to come from EDS config dump.
+	// Note: Priority is available from clusters API HostStatus.
+	// Weight and load balancing weight are not directly available and would need to come from EDS config dump.
 
 	return endpoint
 }
