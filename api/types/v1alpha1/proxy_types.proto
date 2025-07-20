@@ -224,8 +224,8 @@ message EndpointInfo {
   uint32 priority = 5;
   string host_identifier = 6;
   map<string, string> metadata = 7;
-  uint32 load_balancing_weight = 8;
-  AddressType address_type = 9;
+  AddressType address_type = 8;
+  LocalityInfo locality = 9;
 }
 
 // RouteConfigSummary contains route configuration summary

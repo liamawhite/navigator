@@ -101,14 +101,14 @@ func (p *Parser) convertHostToEndpoint(host *admin.HostStatus) *v1alpha1.Endpoin
 	}
 
 	endpoint := &v1alpha1.EndpointInfo{
-		Health:              p.getHealthStatus(host),
-		Priority:            host.Priority,                             // Extract from HostStatus
-		Weight:              0,                                         // Default
-		LoadBalancingWeight: 0,                                         // Default
-		Metadata:            make(map[string]string),                   // Always initialize
-		AddressType:         v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE, // Explicit default
-		Address:             "unknown",                                 // Default
-		HostIdentifier:      "unknown",                                 // Default
+		Health:         p.getHealthStatus(host),
+		Priority:       p.getPriority(host),                       // Extract actual priority
+		Weight:         p.getWeight(host),                         // Extract actual weight
+		Metadata:       make(map[string]string),                   // Always initialize
+		AddressType:    v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE, // Explicit default
+		Address:        "unknown",                                 // Default
+		HostIdentifier: "unknown",                                 // Default
+		Locality:       p.getLocality(host),                       // Extract locality information
 	}
 
 	// Extract address and port
@@ -145,8 +145,7 @@ func (p *Parser) convertHostToEndpoint(host *admin.HostStatus) *v1alpha1.Endpoin
 		endpoint.AddressType = v1alpha1.AddressType_UNKNOWN_ADDRESS_TYPE
 	}
 
-	// Note: Priority is available from clusters API HostStatus.
-	// Weight and load balancing weight are not directly available and would need to come from EDS config dump.
+	// Note: Priority and weight are extracted from clusters API HostStatus.
 
 	return endpoint
 }
@@ -167,6 +166,43 @@ func (p *Parser) GetOutlierCheckStatus(host *admin.HostStatus) bool {
 		return false
 	}
 	return host.HealthStatus.GetFailedOutlierCheck()
+}
+
+// getWeight extracts the weight from HostStatus
+func (p *Parser) getWeight(host *admin.HostStatus) uint32 {
+	if host == nil {
+		return 1 // Default weight is 1 according to Envoy docs
+	}
+	weight := host.GetWeight()
+	if weight == 0 {
+		return 1 // Default weight is 1 when not explicitly set (JSON unmarshaling sets 0 for unset fields)
+	}
+	return weight
+}
+
+// getPriority extracts the priority from HostStatus
+func (p *Parser) getPriority(host *admin.HostStatus) uint32 {
+	if host == nil {
+		return 0 // Default priority is 0 according to Envoy docs
+	}
+	return host.GetPriority()
+}
+
+// getLocality extracts locality information from HostStatus
+func (p *Parser) getLocality(host *admin.HostStatus) *v1alpha1.LocalityInfo {
+	if host == nil {
+		return nil
+	}
+
+	envoyLocality := host.GetLocality()
+	if envoyLocality == nil {
+		return nil
+	}
+
+	return &v1alpha1.LocalityInfo{
+		Region: envoyLocality.Region,
+		Zone:   envoyLocality.Zone,
+	}
 }
 
 // inferClusterType infers the cluster type from cluster name patterns
