@@ -1,0 +1,8 @@
+{
+  "cluster_statuses": [
+    {
+      "name": "empty_cluster",
+      "host_statuses": []
+    }
+  ]
+}

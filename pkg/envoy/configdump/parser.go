@@ -77,7 +77,7 @@ type configDumpWrapper struct {
 	*admin.ConfigDump
 }
 
-// resolver provides flexible type resolution like istioctl
+// resolver provides flexible type resolution for protobuf messages
 type resolver struct {
 	*protoregistry.Types
 }
@@ -112,7 +112,7 @@ func NewParser() *Parser {
 
 // ParseJSON parses a raw Envoy config dump JSON string into structured protobuf types
 func (p *Parser) ParseJSON(rawConfigDump string) (*ParsedConfig, error) {
-	// Use istioctl-style parsing with custom unmarshaler
+	// Use protobuf parsing with custom unmarshaler
 	wrapper := &configDumpWrapper{}
 	if err := wrapper.UnmarshalJSON([]byte(rawConfigDump)); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config dump: %w", err)
@@ -360,7 +360,7 @@ func (p *Parser) ParseJSONToSummary(rawConfigDump string) (*ParsedSummary, error
 	return summary, nil
 }
 
-// parseFromConfigDump parses using istioctl-style protobuf unmarshaling
+// parseFromConfigDump parses using protobuf unmarshaling
 func (p *Parser) parseFromConfigDump(configDump *admin.ConfigDump) (*ParsedConfig, error) {
 	parsed := &ParsedConfig{
 		RawListeners:        make(map[string]string),

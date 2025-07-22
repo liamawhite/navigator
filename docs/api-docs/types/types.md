@@ -431,8 +431,7 @@ AddressType represents the type of endpoint address
 | ---- | ------ | ----------- |
 | UNKNOWN_ADDRESS_TYPE | 0 | UNKNOWN_ADDRESS_TYPE indicates an unknown or unspecified address type |
 | SOCKET_ADDRESS | 1 | SOCKET_ADDRESS indicates a standard network socket address (IP:port) |
-| ENVOY_INTERNAL_ADDRESS | 2 | ENVOY_INTERNAL_ADDRESS indicates an internal Envoy address for listener routing |
-| PIPE_ADDRESS | 3 | PIPE_ADDRESS indicates a Unix domain socket address |
+| PIPE_ADDRESS | 2 | PIPE_ADDRESS indicates a Unix domain socket address |
 
 
 

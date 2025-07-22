@@ -22,20 +22,21 @@ import (
 	"log/slog"
 
 	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
-	"github.com/liamawhite/navigator/pkg/envoy/admin"
 	"github.com/liamawhite/navigator/pkg/envoy/clusters"
 	"github.com/liamawhite/navigator/pkg/envoy/configdump"
+	"github.com/liamawhite/navigator/pkg/istio/proxy/client"
+	"github.com/liamawhite/navigator/pkg/istio/proxy/enrich"
 )
 
 // ProxyService provides access to Envoy proxy configuration via pilot-agent
 type ProxyService struct {
-	adminClient admin.AdminClient
+	adminClient client.AdminClient
 	parser      *configdump.Parser
 	logger      *slog.Logger
 }
 
 // NewProxyService creates a new proxy service
-func NewProxyService(adminClient admin.AdminClient, logger *slog.Logger) *ProxyService {
+func NewProxyService(adminClient client.AdminClient, logger *slog.Logger) *ProxyService {
 	return &ProxyService{
 		adminClient: adminClient,
 		parser:      configdump.NewParser(),
@@ -80,20 +81,28 @@ func (s *ProxyService) GetProxyConfig(ctx context.Context, namespace, podName st
 		return nil, fmt.Errorf("failed to parse config dump for pod %s/%s: %w", namespace, podName, err)
 	}
 
-	// Step 5: Parse cluster endpoint data from admin interface (clusters-only approach)
+	// Step 4.5: Enrich with Istio-specific information
+	if err := enrich.ProxyConfigSummary(summary); err != nil {
+		s.logger.Warn("failed to enrich proxy config with Istio data", "error", err)
+	}
+
+	// Step 5: Parse cluster endpoint data using unified clusters parser
 	var endpoints []*types.EndpointSummary
 	if rawClusters != "" {
-		liveEndpoints, err := clusters.ParseClustersAdminOutput(rawClusters)
+		clustersParser := clusters.NewParser()
+		endpoints, err = clustersParser.ParseJSON(rawClusters)
 		if err != nil {
 			s.logger.Warn("failed to parse clusters output", "namespace", namespace, "pod", podName, "error", err)
 			endpoints = []*types.EndpointSummary{}
 		} else {
-			// Use clusters admin interface as the exclusive source for endpoint data
-			endpoints = clusters.ConvertToEndpointSummaries(liveEndpoints)
-			s.logger.Debug("converted cluster endpoint data", "namespace", namespace, "pod", podName, "endpoint_summaries", len(endpoints))
+			// Enrich with Istio-specific information
+			if err := enrich.EndpointSummaries(endpoints); err != nil {
+				s.logger.Warn("failed to enrich endpoints with Istio data", "error", err)
+			}
+			s.logger.Debug("parsed and enriched cluster endpoint data", "namespace", namespace, "pod", podName, "endpoint_summaries", len(endpoints))
 		}
 	} else {
-		// No clusters data available, use empty endpoints (don't fall back to config dump)
+		// No clusters data available, use empty endpoints
 		endpoints = []*types.EndpointSummary{}
 		s.logger.Warn("no clusters data available, endpoints will be empty", "namespace", namespace, "pod", podName)
 	}

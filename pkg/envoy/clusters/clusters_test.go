@@ -15,6 +15,8 @@
 package clusters
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
@@ -25,78 +27,41 @@ import (
 	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
+// loadTestData reads test data from the testdata directory
+func loadTestData(t *testing.T, filename string) string {
+	t.Helper()
+	// Only allow basic filenames to prevent path traversal
+	if filepath.Base(filename) != filename {
+		t.Fatalf("invalid filename: %s", filename)
+	}
+	data, err := os.ReadFile(filepath.Join("testdata", filename)) // #nosec G304 - filename is validated above
+	require.NoError(t, err, "failed to read test data file: %s", filename)
+	return string(data)
+}
+
 func TestParser_ParseJSON(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected []*v1alpha1.EndpointSummary
-		wantErr  bool
+		name         string
+		testDataFile string
+		expected     []*v1alpha1.EndpointSummary
+		wantErr      bool
 	}{
 		{
-			name: "valid clusters response with endpoints",
-			input: `{
-				"cluster_statuses": [
-					{
-						"name": "outbound|80||httpbin.default.svc.cluster.local",
-						"host_statuses": [
-							{
-								"address": {
-									"socket_address": {
-										"address": "10.244.0.10",
-										"port_value": 80
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "HEALTHY"
-								}
-							},
-							{
-								"address": {
-									"socket_address": {
-										"address": "10.244.0.11", 
-										"port_value": 80
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "UNHEALTHY"
-								}
-							}
-						]
-					},
-					{
-						"name": "outbound|443||api.external.com",
-						"host_statuses": [
-							{
-								"address": {
-									"socket_address": {
-										"address": "203.0.113.1",
-										"port_value": 443
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "HEALTHY"
-								}
-							}
-						]
-					}
-				]
-			}`,
+			name:         "valid clusters response with endpoints",
+			testDataFile: "generic_clusters_with_endpoints.json",
 			expected: []*v1alpha1.EndpointSummary{
 				{
-					ClusterName: "outbound|80||httpbin.default.svc.cluster.local",
-					ClusterType: v1alpha1.ClusterType_CLUSTER_EDS,
-					Direction:   v1alpha1.ClusterDirection_OUTBOUND,
-					Port:        80,
+					ClusterName: "example_service_cluster",
+					ClusterType: v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE,
+					Direction:   v1alpha1.ClusterDirection_UNSPECIFIED,
+					Port:        0,
 					Subset:      "",
-					ServiceFqdn: "httpbin.default.svc.cluster.local",
+					ServiceFqdn: "example_service_cluster", // Uses cluster name as-is
 					Endpoints: []*v1alpha1.EndpointInfo{
 						{
-							Address:        "10.244.0.10",
-							Port:           80,
-							HostIdentifier: "10.244.0.10:80",
+							Address:        "192.168.1.10",
+							Port:           8080,
+							HostIdentifier: "192.168.1.10:8080",
 							Health:         "HEALTHY",
 							Priority:       0,
 							Weight:         1,
@@ -105,9 +70,9 @@ func TestParser_ParseJSON(t *testing.T) {
 							Locality:       nil,
 						},
 						{
-							Address:        "10.244.0.11",
-							Port:           80,
-							HostIdentifier: "10.244.0.11:80",
+							Address:        "192.168.1.11",
+							Port:           8080,
+							HostIdentifier: "192.168.1.11:8080",
 							Health:         "UNHEALTHY",
 							Priority:       0,
 							Weight:         1,
@@ -118,12 +83,12 @@ func TestParser_ParseJSON(t *testing.T) {
 					},
 				},
 				{
-					ClusterName: "outbound|443||api.external.com",
-					ClusterType: v1alpha1.ClusterType_CLUSTER_STRICT_DNS,
-					Direction:   v1alpha1.ClusterDirection_OUTBOUND,
-					Port:        443,
+					ClusterName: "api_service",
+					ClusterType: v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE,
+					Direction:   v1alpha1.ClusterDirection_UNSPECIFIED,
+					Port:        0,
 					Subset:      "",
-					ServiceFqdn: "api.external.com",
+					ServiceFqdn: "api_service",
 					Endpoints: []*v1alpha1.EndpointInfo{
 						{
 							Address:        "203.0.113.1",
@@ -141,35 +106,16 @@ func TestParser_ParseJSON(t *testing.T) {
 			},
 		},
 		{
-			name: "cluster with unix socket address",
-			input: `{
-				"cluster_statuses": [
-					{
-						"name": "uds_cluster",
-						"host_statuses": [
-							{
-								"address": {
-									"pipe": {
-										"path": "/tmp/socket"
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "HEALTHY"
-								}
-							}
-						]
-					}
-				]
-			}`,
+			name:         "cluster with unix socket address",
+			testDataFile: "unix_socket_cluster.json",
 			expected: []*v1alpha1.EndpointSummary{
 				{
 					ClusterName: "uds_cluster",
-					ClusterType: v1alpha1.ClusterType_CLUSTER_EDS,
+					ClusterType: v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE,
 					Direction:   v1alpha1.ClusterDirection_UNSPECIFIED,
 					Port:        0,
 					Subset:      "",
-					ServiceFqdn: "",
+					ServiceFqdn: "uds_cluster", // Uses cluster name as-is
 					Endpoints: []*v1alpha1.EndpointInfo{
 						{
 							Address:        "unix:///tmp/socket",
@@ -187,110 +133,16 @@ func TestParser_ParseJSON(t *testing.T) {
 			},
 		},
 		{
-			name: "cluster with envoy internal address",
-			input: `{
-				"cluster_statuses": [
-					{
-						"name": "internal_cluster",
-						"host_statuses": [
-							{
-								"address": {
-									"envoy_internal_address": {
-										"server_listener_name": "internal_listener",
-										"endpoint_id": "endpoint_1"
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "HEALTHY"
-								}
-							}
-						]
-					}
-				]
-			}`,
+			name:         "cluster with endpoints having different priorities",
+			testDataFile: "cluster_with_priorities.json",
 			expected: []*v1alpha1.EndpointSummary{
 				{
-					ClusterName: "internal_cluster",
-					ClusterType: v1alpha1.ClusterType_CLUSTER_EDS,
+					ClusterName: "priority_service_cluster",
+					ClusterType: v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE,
 					Direction:   v1alpha1.ClusterDirection_UNSPECIFIED,
 					Port:        0,
 					Subset:      "",
-					ServiceFqdn: "",
-					Endpoints: []*v1alpha1.EndpointInfo{
-						{
-							Address:        "envoy://internal_listener/endpoint_1",
-							Port:           0,
-							HostIdentifier: "envoy://internal_listener/endpoint_1",
-							Health:         "HEALTHY",
-							Priority:       0,
-							Weight:         1,
-							Metadata:       map[string]string{},
-							AddressType:    v1alpha1.AddressType_ENVOY_INTERNAL_ADDRESS,
-							Locality:       nil,
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "cluster with endpoints having different priorities",
-			input: `{
-				"cluster_statuses": [
-					{
-						"name": "outbound|80||service-with-priority.default.svc.cluster.local",
-						"host_statuses": [
-							{
-								"address": {
-									"socket_address": {
-										"address": "10.244.0.20",
-										"port_value": 80
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "HEALTHY"
-								},
-								"priority": 0
-							},
-							{
-								"address": {
-									"socket_address": {
-										"address": "10.244.0.21",
-										"port_value": 80
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "HEALTHY"
-								},
-								"priority": 1
-							},
-							{
-								"address": {
-									"socket_address": {
-										"address": "10.244.0.22",
-										"port_value": 80
-									}
-								},
-								"stats": [],
-								"health_status": {
-									"eds_health_status": "HEALTHY"
-								},
-								"priority": 2
-							}
-						]
-					}
-				]
-			}`,
-			expected: []*v1alpha1.EndpointSummary{
-				{
-					ClusterName: "outbound|80||service-with-priority.default.svc.cluster.local",
-					ClusterType: v1alpha1.ClusterType_CLUSTER_EDS,
-					Direction:   v1alpha1.ClusterDirection_OUTBOUND,
-					Port:        80,
-					Subset:      "",
-					ServiceFqdn: "service-with-priority.default.svc.cluster.local",
+					ServiceFqdn: "priority_service_cluster",
 					Endpoints: []*v1alpha1.EndpointInfo{
 						{
 							Address:        "10.244.0.20",
@@ -327,28 +179,19 @@ func TestParser_ParseJSON(t *testing.T) {
 			},
 		},
 		{
-			name: "empty clusters response",
-			input: `{
-				"cluster_statuses": []
-			}`,
-			expected: []*v1alpha1.EndpointSummary{},
+			name:         "empty clusters response",
+			testDataFile: "empty_clusters_response.json",
+			expected:     []*v1alpha1.EndpointSummary{},
 		},
 		{
-			name: "cluster with no endpoints",
-			input: `{
-				"cluster_statuses": [
-					{
-						"name": "empty_cluster",
-						"host_statuses": []
-					}
-				]
-			}`,
-			expected: []*v1alpha1.EndpointSummary{},
+			name:         "cluster with no endpoints",
+			testDataFile: "cluster_with_no_endpoints.json",
+			expected:     []*v1alpha1.EndpointSummary{},
 		},
 		{
-			name:    "invalid JSON",
-			input:   `{"invalid": json}`,
-			wantErr: true,
+			name:         "invalid JSON",
+			testDataFile: "invalid_json.json",
+			wantErr:      true,
 		},
 	}
 
@@ -356,7 +199,12 @@ func TestParser_ParseJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := parser.ParseJSON(tt.input)
+			var input string
+			if tt.testDataFile != "" {
+				input = loadTestData(t, tt.testDataFile)
+			}
+
+			result, err := parser.ParseJSON(input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -734,93 +582,14 @@ func TestParser_GetOutlierCheckStatus(t *testing.T) {
 	}
 }
 
-func TestParser_InferClusterType(t *testing.T) {
-	parser := NewParser()
-
-	tests := []struct {
-		name        string
-		clusterName string
-		expected    v1alpha1.ClusterType
-	}{
-		{
-			name:        "outbound kubernetes service",
-			clusterName: "outbound|80||httpbin.default.svc.cluster.local",
-			expected:    v1alpha1.ClusterType_CLUSTER_EDS,
-		},
-		{
-			name:        "inbound kubernetes service",
-			clusterName: "inbound|8080||app.demo.svc.cluster.local",
-			expected:    v1alpha1.ClusterType_CLUSTER_EDS,
-		},
-		{
-			name:        "outbound external service",
-			clusterName: "outbound|443||api.external.com",
-			expected:    v1alpha1.ClusterType_CLUSTER_STRICT_DNS,
-		},
-		{
-			name:        "prometheus stats cluster",
-			clusterName: "prometheus_stats",
-			expected:    v1alpha1.ClusterType_CLUSTER_STATIC,
-		},
-		{
-			name:        "agent cluster",
-			clusterName: "agent",
-			expected:    v1alpha1.ClusterType_CLUSTER_STATIC,
-		},
-		{
-			name:        "xds-grpc cluster",
-			clusterName: "xds-grpc",
-			expected:    v1alpha1.ClusterType_CLUSTER_STATIC,
-		},
-		{
-			name:        "sds-grpc cluster",
-			clusterName: "sds-grpc",
-			expected:    v1alpha1.ClusterType_CLUSTER_STATIC,
-		},
-		{
-			name:        "empty cluster name",
-			clusterName: "",
-			expected:    v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE,
-		},
-		{
-			name:        "unknown cluster pattern",
-			clusterName: "custom-cluster-name",
-			expected:    v1alpha1.ClusterType_CLUSTER_EDS,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parser.inferClusterType(tt.clusterName)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 // Benchmark for performance testing
 func BenchmarkParser_ParseJSON(b *testing.B) {
 	parser := NewParser()
-	input := `{
-		"cluster_statuses": [
-			{
-				"name": "outbound|80||httpbin.default.svc.cluster.local",
-				"host_statuses": [
-					{
-						"address": {
-							"socket_address": {
-								"address": "10.244.0.10",
-								"port_value": 80
-							}
-						},
-						"stats": [],
-						"health_status": {
-							"eds_health_status": "HEALTHY"
-						}
-					}
-				]
-			}
-		]
-	}`
+	data, err := os.ReadFile(filepath.Join("testdata", "benchmark_clusters.json")) // #nosec G304 - static path is safe
+	if err != nil {
+		b.Fatalf("failed to read benchmark test data: %v", err)
+	}
+	input := string(data)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -852,108 +621,5 @@ func BenchmarkParser_convertHostToEndpoint(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parser.convertHostToEndpoint(host)
-	}
-}
-
-func TestParser_ParseClusterName(t *testing.T) {
-	parser := NewParser()
-
-	tests := []struct {
-		name        string
-		clusterName string
-		expected    struct {
-			direction   v1alpha1.ClusterDirection
-			port        uint32
-			subset      string
-			serviceFqdn string
-		}
-	}{
-		{
-			name:        "outbound kubernetes service",
-			clusterName: "outbound|80||httpbin.default.svc.cluster.local",
-			expected: struct {
-				direction   v1alpha1.ClusterDirection
-				port        uint32
-				subset      string
-				serviceFqdn string
-			}{
-				direction:   v1alpha1.ClusterDirection_OUTBOUND,
-				port:        80,
-				subset:      "",
-				serviceFqdn: "httpbin.default.svc.cluster.local",
-			},
-		},
-		{
-			name:        "inbound service with subset",
-			clusterName: "inbound|8080|v1|app.demo.svc.cluster.local",
-			expected: struct {
-				direction   v1alpha1.ClusterDirection
-				port        uint32
-				subset      string
-				serviceFqdn string
-			}{
-				direction:   v1alpha1.ClusterDirection_INBOUND,
-				port:        8080,
-				subset:      "v1",
-				serviceFqdn: "app.demo.svc.cluster.local",
-			},
-		},
-		{
-			name:        "external service",
-			clusterName: "outbound|443||api.external.com",
-			expected: struct {
-				direction   v1alpha1.ClusterDirection
-				port        uint32
-				subset      string
-				serviceFqdn string
-			}{
-				direction:   v1alpha1.ClusterDirection_OUTBOUND,
-				port:        443,
-				subset:      "",
-				serviceFqdn: "api.external.com",
-			},
-		},
-		{
-			name:        "invalid format",
-			clusterName: "prometheus_stats",
-			expected: struct {
-				direction   v1alpha1.ClusterDirection
-				port        uint32
-				subset      string
-				serviceFqdn string
-			}{
-				direction:   v1alpha1.ClusterDirection_UNSPECIFIED,
-				port:        0,
-				subset:      "",
-				serviceFqdn: "",
-			},
-		},
-		{
-			name:        "invalid port",
-			clusterName: "outbound|invalid||service.com",
-			expected: struct {
-				direction   v1alpha1.ClusterDirection
-				port        uint32
-				subset      string
-				serviceFqdn string
-			}{
-				direction:   v1alpha1.ClusterDirection_OUTBOUND,
-				port:        0,
-				subset:      "",
-				serviceFqdn: "service.com",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			summary := &v1alpha1.EndpointSummary{}
-			parser.parseClusterName(tt.clusterName, summary)
-
-			assert.Equal(t, tt.expected.direction, summary.Direction)
-			assert.Equal(t, tt.expected.port, summary.Port)
-			assert.Equal(t, tt.expected.subset, summary.Subset)
-			assert.Equal(t, tt.expected.serviceFqdn, summary.ServiceFqdn)
-		})
 	}
 }

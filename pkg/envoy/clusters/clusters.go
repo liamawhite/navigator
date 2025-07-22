@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package clusters provides utilities for parsing Envoy clusters API responses.
-// This follows the same approach as istioctl's proxy-config endpoints command.
+// This provides generic Envoy cluster parsing without service mesh assumptions.
 package clusters
 
 import (
@@ -73,11 +73,12 @@ func (p *Parser) ParseJSON(rawClustersResponse string) ([]*v1alpha1.EndpointSumm
 
 		summary := &v1alpha1.EndpointSummary{
 			ClusterName: cluster.Name,
-			ClusterType: p.inferClusterType(cluster.Name),
+			ClusterType: v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE,
+			Direction:   v1alpha1.ClusterDirection_UNSPECIFIED,
+			Port:        0,
+			Subset:      "",
+			ServiceFqdn: cluster.Name, // Use cluster name as-is
 		}
-
-		// Parse cluster name components (format: direction|port|subset|servicefqdn)
-		p.parseClusterName(cluster.Name, summary)
 
 		for _, host := range cluster.HostStatuses {
 			endpointInfo := p.convertHostToEndpoint(host)
@@ -128,17 +129,6 @@ func (p *Parser) convertHostToEndpoint(host *admin.HostStatus) *v1alpha1.Endpoin
 		endpoint.Address = "unix://" + pipe.Path
 		endpoint.HostIdentifier = endpoint.Address
 		endpoint.AddressType = v1alpha1.AddressType_PIPE_ADDRESS
-	} else if internal := host.Address.GetEnvoyInternalAddress(); internal != nil {
-		endpoint.AddressType = v1alpha1.AddressType_ENVOY_INTERNAL_ADDRESS
-		switch an := internal.GetAddressNameSpecifier().(type) {
-		case *core.EnvoyInternalAddress_ServerListenerName:
-			endpoint.Address = fmt.Sprintf("envoy://%s/%s", an.ServerListenerName, internal.EndpointId)
-			endpoint.HostIdentifier = endpoint.Address
-		default:
-			// Fallback for other address name specifier types
-			endpoint.Address = internal.EndpointId
-			endpoint.HostIdentifier = internal.EndpointId
-		}
 	} else {
 		endpoint.Address = "unknown"
 		endpoint.HostIdentifier = "unknown"
@@ -203,102 +193,4 @@ func (p *Parser) getLocality(host *admin.HostStatus) *v1alpha1.LocalityInfo {
 		Region: envoyLocality.Region,
 		Zone:   envoyLocality.Zone,
 	}
-}
-
-// inferClusterType infers the cluster type from cluster name patterns
-// This follows similar logic to how istioctl and Envoy classify clusters
-func (p *Parser) inferClusterType(clusterName string) v1alpha1.ClusterType {
-	if clusterName == "" {
-		return v1alpha1.ClusterType_UNKNOWN_CLUSTER_TYPE
-	}
-
-	// Istio cluster name patterns:
-	// - outbound|<port>|<subset>|<service_fqdn> -> EDS (service discovery)
-	// - inbound|<port>|<subset>|<service_fqdn> -> EDS (service discovery)
-	// - Static clusters (prometheus_stats, agent, xds-grpc, sds-grpc, etc.) -> STATIC
-	// - DNS-based external services -> STRICT_DNS or LOGICAL_DNS
-
-	// Check for Istio sidecar patterns (most common)
-	if strings.HasPrefix(clusterName, "outbound|") || strings.HasPrefix(clusterName, "inbound|") {
-		// These are typically EDS clusters for service discovery
-		parts := strings.Split(clusterName, "|")
-		if len(parts) >= 4 {
-			serviceFqdn := parts[3]
-			// If it looks like a Kubernetes service FQDN, it's EDS
-			if strings.Contains(serviceFqdn, ".svc.cluster.local") {
-				return v1alpha1.ClusterType_CLUSTER_EDS
-			}
-			// External services might be DNS-based
-			if strings.Contains(serviceFqdn, ".") && !strings.Contains(serviceFqdn, ".svc.cluster.local") {
-				return v1alpha1.ClusterType_CLUSTER_STRICT_DNS
-			}
-		}
-		return v1alpha1.ClusterType_CLUSTER_EDS // Default for outbound/inbound patterns
-	}
-
-	// Static clusters (common Istio/Envoy internal clusters)
-	staticClusters := []string{
-		"prometheus_stats",
-		"agent",
-		"sds-grpc",
-		"xds-grpc",
-		"zipkin",
-		"jaeger",
-		"envoy_accesslog_service",
-	}
-
-	for _, staticCluster := range staticClusters {
-		if clusterName == staticCluster {
-			return v1alpha1.ClusterType_CLUSTER_STATIC
-		}
-	}
-
-	// If cluster name contains an IP address, it's likely static
-	if strings.Contains(clusterName, ".") && !strings.Contains(clusterName, "svc.cluster.local") {
-		// Simple heuristic: if it looks like an external domain, it's DNS-based
-		if strings.Count(clusterName, ".") >= 2 {
-			return v1alpha1.ClusterType_CLUSTER_STRICT_DNS
-		}
-		return v1alpha1.ClusterType_CLUSTER_STATIC
-	}
-
-	// Default fallback
-	return v1alpha1.ClusterType_CLUSTER_EDS
-}
-
-// parseClusterName parses Istio cluster names in the format: direction|port|subset|servicefqdn
-func (p *Parser) parseClusterName(clusterName string, summary *v1alpha1.EndpointSummary) {
-	// Default values
-	summary.Direction = v1alpha1.ClusterDirection_UNSPECIFIED
-	summary.Port = 0
-	summary.Subset = ""
-	summary.ServiceFqdn = ""
-
-	// Split by pipe character
-	parts := strings.Split(clusterName, "|")
-	if len(parts) != 4 {
-		// Not in expected format, leave defaults
-		return
-	}
-
-	// Parse direction
-	switch strings.ToLower(parts[0]) {
-	case "inbound":
-		summary.Direction = v1alpha1.ClusterDirection_INBOUND
-	case "outbound":
-		summary.Direction = v1alpha1.ClusterDirection_OUTBOUND
-	default:
-		summary.Direction = v1alpha1.ClusterDirection_UNSPECIFIED
-	}
-
-	// Parse port
-	if port, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
-		summary.Port = uint32(port)
-	}
-
-	// Parse subset (may be empty)
-	summary.Subset = parts[2]
-
-	// Parse service FQDN
-	summary.ServiceFqdn = parts[3]
 }

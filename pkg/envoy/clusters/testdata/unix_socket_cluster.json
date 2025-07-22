@@ -1,0 +1,20 @@
+{
+  "cluster_statuses": [
+    {
+      "name": "uds_cluster",
+      "host_statuses": [
+        {
+          "address": {
+            "pipe": {
+              "path": "/tmp/socket"
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "HEALTHY"
+          }
+        }
+      ]
+    }
+  ]
+}

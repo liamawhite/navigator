@@ -1,0 +1,48 @@
+{
+  "cluster_statuses": [
+    {
+      "name": "priority_service_cluster",
+      "host_statuses": [
+        {
+          "address": {
+            "socket_address": {
+              "address": "10.244.0.20",
+              "port_value": 80
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "HEALTHY"
+          },
+          "priority": 0
+        },
+        {
+          "address": {
+            "socket_address": {
+              "address": "10.244.0.21",
+              "port_value": 80
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "HEALTHY"
+          },
+          "priority": 1
+        },
+        {
+          "address": {
+            "socket_address": {
+              "address": "10.244.0.22",
+              "port_value": 80
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "HEALTHY"
+          },
+          "priority": 2
+        }
+      ]
+    }
+  ]
+}

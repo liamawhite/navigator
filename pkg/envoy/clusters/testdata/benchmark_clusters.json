@@ -1,0 +1,21 @@
+{
+  "cluster_statuses": [
+    {
+      "name": "benchmark_test_cluster",
+      "host_statuses": [
+        {
+          "address": {
+            "socket_address": {
+              "address": "10.244.0.10",
+              "port_value": 80
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "HEALTHY"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -29,110 +29,63 @@ func TestDetermineRouteType(t *testing.T) {
 		isFromStaticConfig bool
 		expectedType       v1alpha1.RouteType
 	}{
-		// Port-based routes (dynamic)
+		// Generic Envoy behavior - most non-empty routes are service-specific
 		{
 			name:               "port 80",
 			routeName:          "80",
 			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_PORT_BASED,
+			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
 		},
 		{
 			name:               "port 443",
 			routeName:          "443",
 			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_PORT_BASED,
+			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
 		},
 		{
-			name:               "port 15010",
-			routeName:          "15010",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_PORT_BASED,
-		},
-		{
-			name:               "port 15014",
-			routeName:          "15014",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_PORT_BASED,
-		},
-
-		// Service-specific routes (dynamic)
-		{
-			name:               "backend service",
+			name:               "service route",
 			routeName:          "backend.demo.svc.cluster.local:8080",
 			isFromStaticConfig: false,
 			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
 		},
 		{
-			name:               "database service",
-			routeName:          "database.demo.svc.cluster.local:8080",
+			name:               "complex route pattern",
+			routeName:          "outbound|8080||backend.demo.svc.cluster.local",
 			isFromStaticConfig: false,
 			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
 		},
+		// Static routes from config are always static
 		{
-			name:               "frontend service",
-			routeName:          "frontend.demo.svc.cluster.local:8080",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
-		},
-		{
-			name:               "kube-dns service",
-			routeName:          "kube-dns.kube-system.svc.cluster.local:9153",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
-		},
-		{
-			name:               "istio-ingressgateway service",
-			routeName:          "istio-ingressgateway.istio-system.svc.cluster.local:15021",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
-		},
-
-		// Static routes (from static config array)
-		{
-			name:               "static route with any name",
-			routeName:          "whatever-name",
+			name:               "static config route",
+			routeName:          "static-route-from-config",
 			isFromStaticConfig: true,
 			expectedType:       v1alpha1.RouteType_STATIC,
 		},
 		{
-			name:               "static route empty name",
+			name:               "static config with complex name",
+			routeName:          "outbound|8080||backend.demo.svc.cluster.local",
+			isFromStaticConfig: true,
+			expectedType:       v1alpha1.RouteType_STATIC,
+		},
+		{
+			name:               "static config empty name",
 			routeName:          "",
 			isFromStaticConfig: true,
 			expectedType:       v1alpha1.RouteType_STATIC,
 		},
-
-		// Static routes (dynamic but matching patterns)
+		// Empty route names are static (basic Envoy behavior)
 		{
-			name:               "InboundPassthroughCluster",
-			routeName:          "InboundPassthroughCluster",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_STATIC,
-		},
-		{
-			name:               "inbound route pattern",
-			routeName:          "inbound|8080||",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_STATIC,
-		},
-
-		// Edge cases (dynamic)
-		{
-			name:               "empty route name (dynamic)",
+			name:               "empty route name",
 			routeName:          "",
 			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_STATIC, // empty names are static
+			expectedType:       v1alpha1.RouteType_STATIC,
 		},
-		{
-			name:               "whitespace route name (dynamic)",
-			routeName:          "   ",
-			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_STATIC, // whitespace names are static
-		},
+		// Default behavior for generic Envoy deployments
 		{
 			name:               "unknown pattern",
 			routeName:          "some-unknown-pattern",
 			isFromStaticConfig: false,
-			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC, // default
+			expectedType:       v1alpha1.RouteType_SERVICE_SPECIFIC,
 		},
 	}
 
@@ -140,63 +93,6 @@ func TestDetermineRouteType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := determineRouteType(tt.routeName, tt.isFromStaticConfig)
 			assert.Equal(t, tt.expectedType, result, "Route %q (static=%v) should be categorized as %v, got %v", tt.routeName, tt.isFromStaticConfig, tt.expectedType, result)
-		})
-	}
-}
-
-func TestIsPortOnly(t *testing.T) {
-	tests := []struct {
-		name      string
-		routeName string
-		expected  bool
-	}{
-		{"port 80", "80", true},
-		{"port 443", "443", true},
-		{"port 8080", "8080", true},
-		{"port 15010", "15010", true},
-		{"port 65535", "65535", true},
-		{"port 1", "1", true},
-		{"leading zero not allowed", "080", false},
-		{"zero not allowed", "0", false},
-		{"too large", "65536", false},
-		{"with colon", "80:8080", false},
-		{"service name", "backend.demo.svc.cluster.local:8080", false},
-		{"empty", "", false},
-		{"letters", "abc", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isPortOnly(tt.routeName)
-			assert.Equal(t, tt.expected, result, "isPortOnly(%q) should return %v", tt.routeName, tt.expected)
-		})
-	}
-}
-
-func TestIsStaticRoute(t *testing.T) {
-	tests := []struct {
-		name      string
-		routeName string
-		expected  bool
-	}{
-		{"InboundPassthroughCluster", "InboundPassthroughCluster", true},
-		{"BlackHoleCluster", "BlackHoleCluster", true},
-		{"PassthroughCluster", "PassthroughCluster", true},
-		{"inbound pattern", "inbound|8080||", true},
-		{"inbound pattern with suffix", "inbound|8080||some-suffix", true},
-		{"outbound pattern", "outbound|8080||", true},
-		{"outbound pattern with suffix", "outbound|8080||backend.demo.svc.cluster.local", true},
-		{"port only", "80", false},
-		{"service name", "backend.demo.svc.cluster.local:8080", false},
-		{"unknown pattern", "some-random-name", false},
-		{"empty", "", true},
-		{"whitespace", "   ", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isStaticRoute(tt.routeName)
-			assert.Equal(t, tt.expected, result, "isStaticRoute(%q) should return %v", tt.routeName, tt.expected)
 		})
 	}
 }
