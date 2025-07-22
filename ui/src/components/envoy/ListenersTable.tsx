@@ -181,14 +181,7 @@ const ListenerGroup: React.FC<{
             sortConfig.key as keyof v1alpha1ListenerSummary
         ] as string | number | undefined;
 
-        // Handle special cases
-        if (sortConfig.key === 'filterChains') {
-            aVal = a.filterChains?.length || 0;
-            bVal = b.filterChains?.length || 0;
-        } else if (sortConfig.key === 'listenerFilters') {
-            aVal = a.listenerFilters?.length || 0;
-            bVal = b.listenerFilters?.length || 0;
-        }
+        // Handle special cases - none currently needed
 
         // Convert to string for comparison if needed
         if (typeof aVal === 'string') aVal = aVal.toLowerCase();
@@ -248,24 +241,6 @@ const ListenerGroup: React.FC<{
                                 {getSortIcon('type')}
                             </div>
                         </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-28"
-                            onClick={() => handleSort('filterChains')}
-                        >
-                            <div className="flex items-center">
-                                Filter Chains
-                                {getSortIcon('filterChains')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
-                            onClick={() => handleSort('listenerFilters')}
-                        >
-                            <div className="flex items-center">
-                                Listener Filters
-                                {getSortIcon('listenerFilters')}
-                            </div>
-                        </TableHead>
                         <TableHead className="w-20">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -291,16 +266,6 @@ const ListenerGroup: React.FC<{
                                 <Badge variant={getTypeVariant(listener.type)}>
                                     {formatListenerType(listener.type)}
                                 </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <span className="text-sm">
-                                    {listener.filterChains?.length || 0}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <span className="text-sm">
-                                    {listener.listenerFilters?.length || 0}
-                                </span>
                             </TableCell>
                             <TableCell>
                                 <ConfigActions

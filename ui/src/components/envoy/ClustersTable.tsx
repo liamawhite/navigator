@@ -149,12 +149,11 @@ const ClusterGroup: React.FC<{
             <h4 className="text-sm font-medium text-muted-foreground">
                 {title} ({clusters.length})
             </h4>
-            <Table className="table-fixed w-full">
+            <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead
                             className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '30%' }}
                             onClick={() => handleSort('serviceFqdn')}
                         >
                             <div className="flex items-center">
@@ -163,8 +162,7 @@ const ClusterGroup: React.FC<{
                             </div>
                         </TableHead>
                         <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '10%' }}
+                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
                             onClick={() => handleSort('direction')}
                         >
                             <div className="flex items-center">
@@ -173,8 +171,7 @@ const ClusterGroup: React.FC<{
                             </div>
                         </TableHead>
                         <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '8%' }}
+                            className="cursor-pointer select-none hover:bg-muted/50 w-16"
                             onClick={() => handleSort('port')}
                         >
                             <div className="flex items-center">
@@ -183,8 +180,7 @@ const ClusterGroup: React.FC<{
                             </div>
                         </TableHead>
                         <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '15%' }}
+                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
                             onClick={() => handleSort('subset')}
                         >
                             <div className="flex items-center">
@@ -193,8 +189,7 @@ const ClusterGroup: React.FC<{
                             </div>
                         </TableHead>
                         <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '12%' }}
+                            className="cursor-pointer select-none hover:bg-muted/50 w-24"
                             onClick={() => handleSort('type')}
                         >
                             <div className="flex items-center">
@@ -202,7 +197,7 @@ const ClusterGroup: React.FC<{
                                 {getSortIcon('type')}
                             </div>
                         </TableHead>
-                        <TableHead style={{ width: '15%' }}>Actions</TableHead>
+                        <TableHead className="w-32">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -215,7 +210,7 @@ const ClusterGroup: React.FC<{
                                         'N/A'}
                                 </span>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-20">
                                 <Badge
                                     variant={
                                         cluster.direction === 'INBOUND'
@@ -229,17 +224,17 @@ const ClusterGroup: React.FC<{
                                         'unknown'}
                                 </Badge>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-16">
                                 <span className="font-mono text-sm">
                                     {cluster.port || 'N/A'}
                                 </span>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-20">
                                 <span className="text-sm">
                                     {cluster.subset || '-'}
                                 </span>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-24">
                                 <Badge
                                     variant={getClusterTypeVariant(
                                         cluster.type
@@ -248,7 +243,7 @@ const ClusterGroup: React.FC<{
                                     {formatClusterType(cluster.type)}
                                 </Badge>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-32">
                                 <ConfigActions
                                     name={cluster.name || 'Unknown'}
                                     rawConfig={cluster.rawConfig || ''}
