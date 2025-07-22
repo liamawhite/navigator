@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import CodeMirror from '@uiw/react-codemirror';
 import { langs } from '@uiw/codemirror-extensions-langs';
-// Remove direct @codemirror imports to avoid conflicts with react-codemirror
+import { catppuccinMocha, catppuccinLatte } from '@catppuccin/codemirror';
 
 interface RawConfigDialogProps {
     name: string;
@@ -145,7 +145,7 @@ export const RawConfigDialog: React.FC<RawConfigDialogProps> = ({
                         ref={editorRef}
                         value={formattedConfig}
                         extensions={extensions}
-                        theme={isDarkMode ? 'dark' : 'light'}
+                        theme={isDarkMode ? catppuccinMocha : catppuccinLatte}
                         readOnly={true}
                         basicSetup={{
                             lineNumbers: true,

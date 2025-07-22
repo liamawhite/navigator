@@ -14,6 +14,7 @@
         "generate": "for spec in $(ls ./src/types/openapi/frontend/v1alpha1/*.swagger.json); do openapi --input $spec --output ./src/types/generated/openapi-$(basename $spec .swagger.json) --client axios; done"
     },
     "dependencies": {
+        "@catppuccin/codemirror": "^1.0.1",
         "@codemirror/lang-json": "^6.0.2",
         "@codemirror/lang-yaml": "^6.1.2",
         "@codemirror/theme-one-dark": "^6.1.3",
