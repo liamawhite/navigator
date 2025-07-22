@@ -1,0 +1,50 @@
+{
+  "cluster_statuses": [
+    {
+      "name": "example_service_cluster",
+      "host_statuses": [
+        {
+          "address": {
+            "socket_address": {
+              "address": "192.168.1.10",
+              "port_value": 8080
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "HEALTHY"
+          }
+        },
+        {
+          "address": {
+            "socket_address": {
+              "address": "192.168.1.11", 
+              "port_value": 8080
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "UNHEALTHY"
+          }
+        }
+      ]
+    },
+    {
+      "name": "api_service",
+      "host_statuses": [
+        {
+          "address": {
+            "socket_address": {
+              "address": "203.0.113.1",
+              "port_value": 443
+            }
+          },
+          "stats": [],
+          "health_status": {
+            "eds_health_status": "HEALTHY"
+          }
+        }
+      ]
+    }
+  ]
+}

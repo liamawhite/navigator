@@ -31,7 +31,7 @@ func (p *Parser) parseListenersFromAny(configAny *anypb.Any, parsed *ParsedConfi
 		return fmt.Errorf("failed to unmarshal listeners config dump: %w", err)
 	}
 
-	// Extract dynamic listeners (like istioctl)
+	// Extract dynamic listeners
 	for _, l := range listenerDump.DynamicListeners {
 		// Only process listeners with active state
 		if l.ActiveState != nil && l.ActiveState.Listener != nil {
@@ -76,7 +76,7 @@ func (p *Parser) summarizeListener(listener *listenerv3.Listener, parsed *Parsed
 		}
 	}
 
-	// Determine listener type based on name, address, port, and use_original_dst
+	// For generic Envoy deployments, use basic type classification
 	summary.Type = p.determineListenerType(summary.Name, summary.Address, summary.Port, summary.UseOriginalDst)
 
 	// Store raw config for debugging
@@ -92,65 +92,21 @@ func (p *Parser) summarizeListener(listener *listenerv3.Listener, parsed *Parsed
 	return summary
 }
 
-// determineListenerType determines the listener type based on name, address, port, and use_original_dst
+// determineListenerType determines the listener type for generic Envoy deployments
 func (p *Parser) determineListenerType(name, address string, port uint32, useOriginalDst bool) v1alpha1.ListenerType {
-	// First: Check for virtual listeners by name (most reliable)
-	if name == "virtualInbound" {
-		return v1alpha1.ListenerType_VIRTUAL_INBOUND
-	}
-	if name == "virtualOutbound" {
-		return v1alpha1.ListenerType_VIRTUAL_OUTBOUND
-	}
+	// Basic classification for generic Envoy deployments
+	// Service mesh specific logic should be handled by enrichment layers
 
-	// Second: Check for well-known proxy-specific ports on 0.0.0.0
+	// Check for 0.0.0.0 listeners (typically inbound or catch-all)
 	if address == "0.0.0.0" {
-		switch port {
-		case 15090:
-			// Prometheus metrics endpoint
-			return v1alpha1.ListenerType_PROXY_METRICS
-		case 15021:
-			// Health check endpoint
-			return v1alpha1.ListenerType_PROXY_HEALTHCHECK
-		}
-
-		// Check for virtual listener patterns on 0.0.0.0
-		// Virtual outbound: typically port 15001 with use_original_dst
-		if (port == 15001 || port == 15006) && useOriginalDst {
+		if useOriginalDst {
 			return v1alpha1.ListenerType_VIRTUAL_OUTBOUND
 		}
-
-		// All other 0.0.0.0 listeners are port-based (generic port traffic)
-		// This includes application ports like 80, 8080, etc.
 		return v1alpha1.ListenerType_PORT_OUTBOUND
 	}
 
-	// Third: Specific IP addresses indicate outbound listeners (no inbound listeners in modern Istio)
-	// Distinguish between service-specific and port-based patterns
-
-	// Service-specific listeners: IP addresses that look like service cluster IPs
-	// These typically have full service.namespace.svc.cluster.local resolution
-	// Pattern: specific cluster IP with service port
-	if p.isServiceSpecificListener(name, address, port) {
-		return v1alpha1.ListenerType_SERVICE_OUTBOUND
-	}
-
-	// Port-based listeners: Generic port traffic patterns
-	// These handle broader traffic patterns by port
-	return v1alpha1.ListenerType_PORT_OUTBOUND
-}
-
-// isServiceSpecificListener determines if a listener is service-specific vs port-based
-func (p *Parser) isServiceSpecificListener(name, address string, port uint32) bool {
-	// Port-based listeners: 0.0.0.0 listeners that are not admin/virtual
-	// These handle generic port traffic patterns
-	if address == "0.0.0.0" {
-		// Already handled virtual and admin listeners above, so these are port-based
-		return false
-	}
-
-	// Service-specific listeners: Any specific IP address
-	// These are for outbound connections to specific services
-	return true
+	// Specific IP addresses typically indicate outbound listeners
+	return v1alpha1.ListenerType_SERVICE_OUTBOUND
 }
 
 // Simplified listener processing - detailed filter analysis removed

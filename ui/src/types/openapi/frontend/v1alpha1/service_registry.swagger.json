@@ -223,11 +223,10 @@
       "enum": [
         "UNKNOWN_ADDRESS_TYPE",
         "SOCKET_ADDRESS",
-        "ENVOY_INTERNAL_ADDRESS",
         "PIPE_ADDRESS"
       ],
       "default": "UNKNOWN_ADDRESS_TYPE",
-      "description": "- UNKNOWN_ADDRESS_TYPE: UNKNOWN_ADDRESS_TYPE indicates an unknown or unspecified address type\n - SOCKET_ADDRESS: SOCKET_ADDRESS indicates a standard network socket address (IP:port)\n - ENVOY_INTERNAL_ADDRESS: ENVOY_INTERNAL_ADDRESS indicates an internal Envoy address for listener routing\n - PIPE_ADDRESS: PIPE_ADDRESS indicates a Unix domain socket address",
+      "description": "- UNKNOWN_ADDRESS_TYPE: UNKNOWN_ADDRESS_TYPE indicates an unknown or unspecified address type\n - SOCKET_ADDRESS: SOCKET_ADDRESS indicates a standard network socket address (IP:port)\n - PIPE_ADDRESS: PIPE_ADDRESS indicates a Unix domain socket address",
       "title": "AddressType represents the type of endpoint address"
     },
     "v1alpha1BootstrapSummary": {

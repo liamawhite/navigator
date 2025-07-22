@@ -16,8 +16,6 @@ package configdump
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
 	routev3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -26,7 +24,7 @@ import (
 	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
-// determineRouteType categorizes a route name into one of three types
+// determineRouteType categorizes a route name for generic Envoy deployments
 // isFromStaticConfig indicates if this route came from StaticRouteConfigs
 func determineRouteType(routeName string, isFromStaticConfig bool) v1alpha1.RouteType {
 	// If route came from StaticRouteConfigs, it's always STATIC
@@ -34,71 +32,14 @@ func determineRouteType(routeName string, isFromStaticConfig bool) v1alpha1.Rout
 		return v1alpha1.RouteType_STATIC
 	}
 
-	// PORT_BASED: Routes with just port numbers (e.g., "80", "443", "15010")
-	if isPortOnly(routeName) {
-		return v1alpha1.RouteType_PORT_BASED
-	}
-
-	// STATIC: Istio/Envoy internal routing patterns (for dynamic routes that are actually static)
-	if isStaticRoute(routeName) {
+	// For generic Envoy deployments, use basic classification
+	// Service mesh specific classification should be done by enrichment layers
+	if routeName == "" {
 		return v1alpha1.RouteType_STATIC
 	}
 
-	// SERVICE_SPECIFIC: Routes with service hostnames and ports (default for anything else)
+	// Default to SERVICE_SPECIFIC for non-empty, non-static routes
 	return v1alpha1.RouteType_SERVICE_SPECIFIC
-}
-
-// isPortOnly checks if the route name is just a port number
-func isPortOnly(routeName string) bool {
-	// Match exactly a number between 1 and 65535
-	portRegex := regexp.MustCompile(`^[1-9]\d{0,4}$`)
-	if !portRegex.MatchString(routeName) {
-		return false
-	}
-
-	// Additional validation: check if it's a valid port number (1-65535)
-	if len(routeName) > 5 {
-		return false
-	}
-
-	// Check if the number is actually <= 65535
-	if len(routeName) == 5 && routeName > "65535" {
-		return false
-	}
-
-	return true
-}
-
-// isStaticRoute checks if the route name matches Istio/Envoy internal patterns
-func isStaticRoute(routeName string) bool {
-	// Empty or whitespace-only names are considered static
-	if routeName == "" || strings.TrimSpace(routeName) == "" {
-		return true
-	}
-
-	// Static route patterns commonly seen in Istio/Envoy
-	staticPatterns := []string{
-		"InboundPassthroughCluster",
-		"BlackHoleCluster",
-		"PassthroughCluster",
-	}
-
-	// Check exact matches for known static patterns
-	for _, pattern := range staticPatterns {
-		if routeName == pattern {
-			return true
-		}
-	}
-
-	// Check for inbound route patterns like "inbound|8080||"
-	inboundRegex := regexp.MustCompile(`^inbound\|\d+\|\|.*$`)
-	if inboundRegex.MatchString(routeName) {
-		return true
-	}
-
-	// Check for outbound route patterns like "outbound|8080||"
-	outboundRegex := regexp.MustCompile(`^outbound\|\d+\|\|.*$`)
-	return outboundRegex.MatchString(routeName)
 }
 
 // parseRoutesFromAny extracts route configurations from protobuf Any
@@ -111,7 +52,7 @@ func (p *Parser) parseRoutesFromAny(configAny *anypb.Any, parsed *ParsedConfig) 
 	// Track which routes are from static configs
 	staticRouteNames := make(map[string]bool)
 
-	// Extract dynamic routes (like istioctl)
+	// Extract dynamic routes
 	for i, r := range routeDump.DynamicRouteConfigs {
 		if r.RouteConfig != nil {
 			var route routev3.RouteConfiguration

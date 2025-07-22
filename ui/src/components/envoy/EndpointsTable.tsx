@@ -18,7 +18,6 @@ import {
     ChevronDown,
     ChevronRight,
     Globe,
-    Router,
     Link,
     MapPin,
 } from 'lucide-react';
@@ -52,12 +51,6 @@ const getAddressTypeInfo = (addressType?: v1alpha1AddressType) => {
     switch (addressType) {
         case v1alpha1AddressType.SOCKET_ADDRESS:
             return { icon: Globe, label: 'Socket', color: 'text-blue-600' };
-        case v1alpha1AddressType.ENVOY_INTERNAL_ADDRESS:
-            return {
-                icon: Router,
-                label: 'Internal',
-                color: 'text-purple-600',
-            };
         case v1alpha1AddressType.PIPE_ADDRESS:
             return { icon: Link, label: 'Pipe', color: 'text-orange-600' };
         default:

@@ -25,7 +25,7 @@ import (
 	"github.com/liamawhite/navigator/edge/pkg/kubernetes"
 	"github.com/liamawhite/navigator/edge/pkg/proxy"
 	"github.com/liamawhite/navigator/edge/pkg/service"
-	"github.com/liamawhite/navigator/pkg/envoy/admin"
+	"github.com/liamawhite/navigator/pkg/istio/proxy/client"
 	"github.com/liamawhite/navigator/pkg/logging"
 )
 
@@ -48,7 +48,7 @@ func main() {
 	}
 
 	// Create admin client for Envoy proxy access
-	adminClient := admin.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
+	adminClient := client.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
 
 	// Create proxy service for handling proxy configuration requests
 	proxyService := proxy.NewProxyService(adminClient, logger)

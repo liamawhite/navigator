@@ -16,8 +16,6 @@ package configdump
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	admin "github.com/envoyproxy/go-control-plane/envoy/admin/v3"
 	clusterv3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -33,7 +31,7 @@ func (p *Parser) parseClustersFromAny(configAny *anypb.Any, parsed *ParsedConfig
 		return fmt.Errorf("failed to unmarshal clusters config dump: %w", err)
 	}
 
-	// Extract dynamic clusters (like istioctl)
+	// Extract dynamic clusters
 	for _, c := range clusterDump.DynamicActiveClusters {
 		if c.Cluster != nil {
 			var cluster clusterv3.Cluster
@@ -107,39 +105,15 @@ func (p *Parser) summarizeCluster(cluster *clusterv3.Cluster, parsed *ParsedConf
 	return summary
 }
 
-// parseClusterName parses Istio cluster names in the format: direction|port|subset|servicefqdn
+// parseClusterName provides basic cluster name parsing for generic Envoy deployments
+// This function only extracts basic information without service mesh assumptions
 func (p *Parser) parseClusterName(clusterName string, summary *v1alpha1.ClusterSummary) {
-	// Default values
+	// Initialize with default values - no assumptions about service mesh patterns
 	summary.Direction = v1alpha1.ClusterDirection_UNSPECIFIED
 	summary.Port = 0
 	summary.Subset = ""
-	summary.ServiceFqdn = ""
+	summary.ServiceFqdn = clusterName // Use cluster name as default FQDN
 
-	// Split by pipe character
-	parts := strings.Split(clusterName, "|")
-	if len(parts) != 4 {
-		// Not in expected format, leave defaults
-		return
-	}
-
-	// Parse direction
-	switch strings.ToLower(parts[0]) {
-	case "inbound":
-		summary.Direction = v1alpha1.ClusterDirection_INBOUND
-	case "outbound":
-		summary.Direction = v1alpha1.ClusterDirection_OUTBOUND
-	default:
-		summary.Direction = v1alpha1.ClusterDirection_UNSPECIFIED
-	}
-
-	// Parse port
-	if port, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
-		summary.Port = uint32(port)
-	}
-
-	// Parse subset (may be empty)
-	summary.Subset = parts[2]
-
-	// Parse service FQDN
-	summary.ServiceFqdn = parts[3]
+	// For generic Envoy deployments, we don't parse specific naming patterns
+	// Service mesh specific parsing should be done by dedicated enrichment layers
 }

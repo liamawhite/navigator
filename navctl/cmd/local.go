@@ -38,7 +38,7 @@ import (
 	"github.com/liamawhite/navigator/manager/pkg/connections"
 	managerService "github.com/liamawhite/navigator/manager/pkg/service"
 	"github.com/liamawhite/navigator/navctl/pkg/ui"
-	"github.com/liamawhite/navigator/pkg/envoy/admin"
+	"github.com/liamawhite/navigator/pkg/istio/proxy/client"
 	"github.com/liamawhite/navigator/pkg/logging"
 )
 
@@ -224,7 +224,7 @@ func startEdgeService(ctx context.Context, logger *slog.Logger) (*edgeService.Ed
 	}
 
 	// Create admin client for proxy configuration access
-	adminClient := admin.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
+	adminClient := client.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
 
 	// Create proxy service
 	proxyService := proxy.NewProxyService(adminClient, logging.For("edge-proxy"))
