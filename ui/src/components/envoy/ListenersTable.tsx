@@ -210,7 +210,7 @@ const ListenerGroup: React.FC<{
             <h4 className="text-sm font-medium text-muted-foreground">
                 {title} ({listeners.length})
             </h4>
-            <Table>
+            <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead
@@ -223,21 +223,12 @@ const ListenerGroup: React.FC<{
                             </div>
                         </TableHead>
                         <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-40"
+                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
                             onClick={() => handleSort('address')}
                         >
                             <div className="flex items-center">
-                                Address
+                                Address:Port
                                 {getSortIcon('address')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
-                            onClick={() => handleSort('port')}
-                        >
-                            <div className="flex items-center">
-                                Port
-                                {getSortIcon('port')}
                             </div>
                         </TableHead>
                         <TableHead
@@ -262,12 +253,11 @@ const ListenerGroup: React.FC<{
                             </TableCell>
                             <TableCell>
                                 <span className="font-mono text-sm">
-                                    {listener.address || 'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {listener.port || 'N/A'}
+                                    {listener.address && listener.port
+                                        ? `${listener.address}:${listener.port}`
+                                        : listener.address ||
+                                          listener.port ||
+                                          'N/A'}
                                 </span>
                             </TableCell>
                             <TableCell>

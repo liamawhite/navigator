@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
+ * - UNKNOWN_LISTENER_TYPE: UNKNOWN_LISTENER_TYPE indicates an unknown or unspecified listener type
  * - VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)
  * - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)
  * - SERVICE_OUTBOUND: SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)
@@ -15,6 +16,7 @@
  * - GATEWAY_INBOUND: GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst)
  */
 export enum v1alpha1ListenerType {
+    UNKNOWN_LISTENER_TYPE = 'UNKNOWN_LISTENER_TYPE',
     VIRTUAL_INBOUND = 'VIRTUAL_INBOUND',
     VIRTUAL_OUTBOUND = 'VIRTUAL_OUTBOUND',
     SERVICE_OUTBOUND = 'SERVICE_OUTBOUND',

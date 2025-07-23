@@ -678,3 +678,319 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 		})
 	}
 }
+
+func TestEnrichListenerMatchDestination(t *testing.T) {
+	enrichFunc := enrichListenerMatchDestination()
+
+	tests := []struct {
+		name              string
+		listener          *v1alpha1.ListenerSummary
+		expectedDestCount int
+		expectedDest0Type string
+		expectedDest0FQDN string
+		expectedDest0Port uint32
+		expectedMatchType string
+		expectedPathMatch string
+		description       string
+	}{
+		{
+			name: "enrich HTTP destination with Istio cluster",
+			listener: &v1alpha1.ListenerSummary{
+				Name:    "outbound_0.0.0.0_80",
+				Type:    v1alpha1.ListenerType_PORT_OUTBOUND,
+				Address: "0.0.0.0",
+				Port:    80,
+				Rules: []*v1alpha1.ListenerRule{
+					{
+						Destination: &v1alpha1.ListenerDestination{
+							DestinationType: "cluster",
+							ClusterName:     "outbound|80|v1|myservice.mynamespace.svc.cluster.local",
+						},
+					},
+				},
+			},
+			expectedDestCount: 1,
+			expectedDest0Type: "outbound",
+			expectedDest0FQDN: "myservice.mynamespace.svc.cluster.local",
+			expectedDest0Port: 80,
+			description:       "Should enrich destination with service FQDN from Istio cluster name",
+		},
+		{
+			name: "enrich TCP destination with passthrough cluster",
+			listener: &v1alpha1.ListenerSummary{
+				Name:    "virtualOutbound",
+				Type:    v1alpha1.ListenerType_VIRTUAL_OUTBOUND,
+				Address: "0.0.0.0",
+				Port:    15001,
+				Rules: []*v1alpha1.ListenerRule{
+					{
+						Destination: &v1alpha1.ListenerDestination{
+							DestinationType: "cluster",
+							ClusterName:     "PassthroughCluster",
+						},
+					},
+				},
+			},
+			expectedDestCount: 1,
+			expectedDest0Type: "passthrough",
+			expectedDest0FQDN: "",
+			expectedDest0Port: 0,
+			description:       "Should classify PassthroughCluster as passthrough destination type",
+		},
+		{
+			name: "enrich HTTP route match for inbound listener",
+			listener: &v1alpha1.ListenerSummary{
+				Name:    "virtualInbound",
+				Type:    v1alpha1.ListenerType_VIRTUAL_INBOUND,
+				Address: "0.0.0.0",
+				Port:    15006,
+				Rules: []*v1alpha1.ListenerRule{
+					{
+						Match: &v1alpha1.ListenerMatch{
+							MatchType: &v1alpha1.ListenerMatch_HttpRoute{
+								HttpRoute: &v1alpha1.HttpRouteMatch{
+									PathMatch: &v1alpha1.PathMatchInfo{
+										MatchType: "prefix",
+										Path:      "/health",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedMatchType: "istio_health",
+			expectedPathMatch: "/health",
+			description:       "Should enrich inbound HTTP route match and identify health endpoint",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := enrichFunc(test.listener)
+			require.NoError(t, err, test.description)
+
+			// Check destinations if expected
+			if test.expectedDestCount > 0 {
+				require.Len(t, test.listener.Rules, test.expectedDestCount, "Should have expected number of rules")
+				rule0 := test.listener.Rules[0]
+				require.NotNil(t, rule0.Destination, "First rule should have a destination")
+				dest0 := rule0.Destination
+				assert.Equal(t, test.expectedDest0Type, dest0.DestinationType, test.description)
+				if test.expectedDest0FQDN != "" {
+					assert.Equal(t, test.expectedDest0FQDN, dest0.ServiceFqdn, test.description)
+				}
+				if test.expectedDest0Port > 0 {
+					assert.Equal(t, test.expectedDest0Port, dest0.Port, test.description)
+				}
+			}
+
+			// Check matches if expected
+			if test.expectedMatchType != "" {
+				require.Len(t, test.listener.Rules, 1, "Should have exactly one rule")
+				rule := test.listener.Rules[0]
+				require.NotNil(t, rule.Match, "Rule should have a match")
+				match := rule.Match
+				httpRoute := match.GetHttpRoute()
+				require.NotNil(t, httpRoute, "Should have HTTP route match")
+				require.NotNil(t, httpRoute.PathMatch, "Should have path match")
+				assert.Equal(t, test.expectedMatchType, httpRoute.PathMatch.MatchType, test.description)
+				if test.expectedPathMatch != "" {
+					assert.Equal(t, test.expectedPathMatch, httpRoute.PathMatch.Path, test.description)
+				}
+			}
+		})
+	}
+
+	t.Run("handles nil listener", func(t *testing.T) {
+		err := enrichFunc(nil)
+		assert.NoError(t, err)
+	})
+
+	t.Run("handles empty listener", func(t *testing.T) {
+		listener := &v1alpha1.ListenerSummary{}
+		err := enrichFunc(listener)
+		assert.NoError(t, err)
+	})
+}
+
+func TestEnrichDestinationWithIstioInfo(t *testing.T) {
+	tests := []struct {
+		name         string
+		destination  *v1alpha1.ListenerDestination
+		expectedType string
+		expectedFQDN string
+		expectedPort uint32
+		description  string
+	}{
+		{
+			name: "outbound service cluster",
+			destination: &v1alpha1.ListenerDestination{
+				DestinationType: "cluster",
+				ClusterName:     "outbound|80|v1|httpbin.default.svc.cluster.local",
+			},
+			expectedType: "outbound",
+			expectedFQDN: "httpbin.default.svc.cluster.local",
+			expectedPort: 80,
+			description:  "Should parse Istio outbound cluster name",
+		},
+		{
+			name: "inbound service cluster",
+			destination: &v1alpha1.ListenerDestination{
+				DestinationType: "cluster",
+				ClusterName:     "inbound|8080|http|myapp.mynamespace.svc.cluster.local",
+			},
+			expectedType: "inbound",
+			expectedFQDN: "myapp.mynamespace.svc.cluster.local",
+			expectedPort: 8080,
+			description:  "Should parse Istio inbound cluster name",
+		},
+		{
+			name: "passthrough cluster",
+			destination: &v1alpha1.ListenerDestination{
+				DestinationType: "cluster",
+				ClusterName:     "PassthroughCluster",
+			},
+			expectedType: "passthrough",
+			expectedFQDN: "",
+			expectedPort: 0,
+			description:  "Should classify PassthroughCluster",
+		},
+		{
+			name: "blackhole cluster",
+			destination: &v1alpha1.ListenerDestination{
+				DestinationType: "cluster",
+				ClusterName:     "BlackHoleCluster",
+			},
+			expectedType: "blackhole",
+			expectedFQDN: "",
+			expectedPort: 0,
+			description:  "Should classify BlackHoleCluster",
+		},
+		{
+			name: "inbound passthrough cluster",
+			destination: &v1alpha1.ListenerDestination{
+				DestinationType: "cluster",
+				ClusterName:     "InboundPassthroughCluster",
+			},
+			expectedType: "passthrough",
+			expectedFQDN: "",
+			expectedPort: 0,
+			description:  "Should classify InboundPassthroughCluster",
+		},
+		{
+			name: "outbound service with subset",
+			destination: &v1alpha1.ListenerDestination{
+				DestinationType: "cluster",
+				ClusterName:     "outbound|443|v2|api.production.svc.cluster.local",
+			},
+			expectedType: "outbound",
+			expectedFQDN: "api.production.svc.cluster.local",
+			expectedPort: 443,
+			description:  "Should parse outbound cluster with subset",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			enrichDestinationWithIstioInfo(test.destination)
+
+			assert.Equal(t, test.expectedType, test.destination.DestinationType, test.description)
+			assert.Equal(t, test.expectedFQDN, test.destination.ServiceFqdn, test.description)
+			if test.expectedPort > 0 {
+				assert.Equal(t, test.expectedPort, test.destination.Port, test.description)
+			}
+		})
+	}
+
+	t.Run("handles nil destination", func(t *testing.T) {
+		enrichDestinationWithIstioInfo(nil) // Should not panic
+	})
+
+	t.Run("handles empty cluster name", func(t *testing.T) {
+		dest := &v1alpha1.ListenerDestination{ClusterName: ""}
+		enrichDestinationWithIstioInfo(dest)
+		// Should not modify anything
+	})
+}
+
+func TestEnrichMatchWithIstioInfo(t *testing.T) {
+	t.Run("enriches HTTP route match", func(t *testing.T) {
+		match := &v1alpha1.ListenerMatch{
+			MatchType: &v1alpha1.ListenerMatch_HttpRoute{
+				HttpRoute: &v1alpha1.HttpRouteMatch{
+					PathMatch: &v1alpha1.PathMatchInfo{
+						Path: "/health",
+					},
+					HeaderMatches: []*v1alpha1.HeaderMatchInfo{
+						{
+							Name:  ":authority",
+							Value: "myservice.mynamespace.svc.cluster.local",
+						},
+					},
+				},
+			},
+		}
+		listener := &v1alpha1.ListenerSummary{
+			Type: v1alpha1.ListenerType_VIRTUAL_INBOUND,
+		}
+
+		enrichMatchWithIstioInfo(match, listener)
+
+		httpRoute := match.GetHttpRoute()
+		require.NotNil(t, httpRoute)
+		assert.Equal(t, "istio_health", httpRoute.PathMatch.MatchType)
+		assert.Equal(t, "istio_service_host", httpRoute.HeaderMatches[0].Name)
+	})
+
+	t.Run("enriches filter chain match", func(t *testing.T) {
+		match := &v1alpha1.ListenerMatch{
+			MatchType: &v1alpha1.ListenerMatch_FilterChain{
+				FilterChain: &v1alpha1.FilterChainMatch{
+					ServerNames:       []string{"myservice.mynamespace.svc.cluster.local"},
+					TransportProtocol: "tls",
+				},
+			},
+		}
+		listener := &v1alpha1.ListenerSummary{}
+
+		enrichMatchWithIstioInfo(match, listener)
+
+		filterChain := match.GetFilterChain()
+		require.NotNil(t, filterChain)
+		assert.Equal(t, "istio_service_myservice.mynamespace.svc.cluster.local", filterChain.ServerNames[0])
+	})
+
+	t.Run("enriches TCP proxy match", func(t *testing.T) {
+		match := &v1alpha1.ListenerMatch{
+			MatchType: &v1alpha1.ListenerMatch_TcpProxy{
+				TcpProxy: &v1alpha1.TcpProxyMatch{
+					ClusterName: "outbound|80||myservice.mynamespace.svc.cluster.local",
+				},
+			},
+		}
+		listener := &v1alpha1.ListenerSummary{}
+
+		enrichMatchWithIstioInfo(match, listener)
+
+		tcpProxy := match.GetTcpProxy()
+		require.NotNil(t, tcpProxy)
+		assert.Equal(t, "istio_service_outbound|80||myservice.mynamespace.svc.cluster.local", tcpProxy.ClusterName)
+	})
+
+	t.Run("handles nil match", func(t *testing.T) {
+		listener := &v1alpha1.ListenerSummary{}
+		enrichMatchWithIstioInfo(nil, listener) // Should not panic
+	})
+
+	t.Run("handles nil listener", func(t *testing.T) {
+		match := &v1alpha1.ListenerMatch{}
+		enrichMatchWithIstioInfo(match, nil) // Should not panic
+	})
+
+	t.Run("handles empty match", func(t *testing.T) {
+		match := &v1alpha1.ListenerMatch{}
+		listener := &v1alpha1.ListenerSummary{}
+		enrichMatchWithIstioInfo(match, listener) // Should not panic
+	})
+}

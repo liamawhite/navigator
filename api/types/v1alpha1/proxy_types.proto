@@ -32,26 +32,28 @@ enum ProxyMode {
 
 // ListenerType indicates the type/direction of a listener
 enum ListenerType {
+  // UNKNOWN_LISTENER_TYPE indicates an unknown or unspecified listener type
+  UNKNOWN_LISTENER_TYPE = 0;
   // VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)
-  VIRTUAL_INBOUND = 0;
+  VIRTUAL_INBOUND = 1;
   // VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)
-  VIRTUAL_OUTBOUND = 1;
+  VIRTUAL_OUTBOUND = 2;
   // SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)
-  SERVICE_OUTBOUND = 2;
+  SERVICE_OUTBOUND = 3;
   // PORT_OUTBOUND listeners for generic port traffic outbound (e.g., "80", "443")
-  PORT_OUTBOUND = 3;
+  PORT_OUTBOUND = 4;
   // PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)
-  PROXY_METRICS = 4;
+  PROXY_METRICS = 5;
   // PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)
-  PROXY_HEALTHCHECK = 5;
+  PROXY_HEALTHCHECK = 6;
   // ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)
-  ADMIN_XDS = 6;
+  ADMIN_XDS = 7;
   // ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)
-  ADMIN_WEBHOOK = 7;
+  ADMIN_WEBHOOK = 8;
   // ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)
-  ADMIN_DEBUG = 8;
+  ADMIN_DEBUG = 9;
   // GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst)
-  GATEWAY_INBOUND = 9;
+  GATEWAY_INBOUND = 10;
 }
 
 // RouteType indicates the type/category of a route configuration
@@ -188,6 +190,8 @@ message ListenerSummary {
   ListenerType type = 4;
   bool use_original_dst = 5;
   string raw_config = 6;
+  repeated ListenerRule rules = 7;
+  FilterChainSummary filter_chains = 8;
 }
 
 // ClusterSummary contains essential cluster configuration information
@@ -272,4 +276,107 @@ message WeightedClusterInfo {
   string name = 1;
   uint32 weight = 2;
   map<string, string> metadata_match = 3;
+}
+
+// ListenerMatch contains listener matching criteria using discriminated union
+message ListenerMatch {
+  oneof match_type {
+    HttpRouteMatch http_route = 1;
+    FilterChainMatch filter_chain = 2;
+    TcpProxyMatch tcp_proxy = 3;
+  }
+}
+
+// HttpRouteMatch represents HTTP route matching criteria (from HTTP connection manager)
+message HttpRouteMatch {
+  // path_match contains HTTP path matching patterns
+  PathMatchInfo path_match = 1;
+  // header_matches contains HTTP header matching patterns
+  repeated HeaderMatchInfo header_matches = 2;
+  // methods contains HTTP method matching patterns
+  repeated string methods = 3;
+}
+
+// FilterChainMatch represents filter chain matching criteria (TLS/SNI/ALPN)
+message FilterChainMatch {
+  // server_names contains SNI/TLS server name matching patterns
+  repeated string server_names = 1;
+  // application_protocols contains ALPN application protocol matches
+  repeated string application_protocols = 2;
+  // transport_protocol contains the transport protocol (raw_buffer, tls, etc.)
+  string transport_protocol = 3;
+}
+
+// TcpProxyMatch represents TCP proxy matching criteria
+message TcpProxyMatch {
+  // cluster_name is the destination cluster for TCP proxy
+  string cluster_name = 1;
+}
+
+// PathMatchInfo contains HTTP path matching information
+message PathMatchInfo {
+  // match_type indicates exact, prefix, regex, etc.
+  string match_type = 1;
+  // path is the path pattern to match
+  string path = 2;
+  // case_sensitive indicates if matching is case sensitive
+  bool case_sensitive = 3;
+}
+
+// HeaderMatchInfo contains HTTP header matching information
+message HeaderMatchInfo {
+  // name is the header name to match
+  string name = 1;
+  // match_type indicates exact, prefix, regex, etc.
+  string match_type = 2;
+  // value is the header value pattern to match
+  string value = 3;
+  // invert_match indicates if the match should be inverted
+  bool invert_match = 4;
+}
+
+// ListenerDestination contains listener destination information
+message ListenerDestination {
+  // destination_type indicates cluster, static IP, original_dst, etc.
+  string destination_type = 1;
+  // cluster_name is the destination cluster name
+  string cluster_name = 2;
+  // address is the destination IP address (for static destinations)
+  string address = 3;
+  // port is the destination port
+  uint32 port = 4;
+  // weight is the traffic weight (for weighted destinations)
+  uint32 weight = 5;
+  // service_fqdn is the Istio service FQDN (enriched field)
+  string service_fqdn = 6;
+}
+
+// ListenerRule pairs a match condition with its corresponding destination
+message ListenerRule {
+  // match contains the matching criteria (HTTP route, filter chain, TCP proxy)
+  ListenerMatch match = 1;
+  // destination contains the routing destination for this match
+  ListenerDestination destination = 2;
+}
+
+// FilterChainSummary contains filter chain analysis
+message FilterChainSummary {
+  // total_chains is the number of filter chains
+  uint32 total_chains = 1;
+  // http_filters contains HTTP filter information
+  repeated FilterInfo http_filters = 2;
+  // network_filters contains network filter information
+  repeated FilterInfo network_filters = 3;
+  // tls_context indicates if TLS is configured
+  bool tls_context = 4;
+}
+
+// FilterInfo contains filter information
+message FilterInfo {
+  // name is the filter name
+  string name = 1;
+  // type is the filter type
+  string type = 2;
+  // config_summary is a summary of the filter configuration
+  string config_summary = 3;
 }

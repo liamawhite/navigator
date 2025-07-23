@@ -508,6 +508,79 @@
       },
       "title": "EndpointSummary contains endpoint configuration information"
     },
+    "v1alpha1FilterChainMatch": {
+      "type": "object",
+      "properties": {
+        "serverNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "server_names contains SNI/TLS server name matching patterns"
+        },
+        "applicationProtocols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "application_protocols contains ALPN application protocol matches"
+        },
+        "transportProtocol": {
+          "type": "string",
+          "title": "transport_protocol contains the transport protocol (raw_buffer, tls, etc.)"
+        }
+      },
+      "title": "FilterChainMatch represents filter chain matching criteria (TLS/SNI/ALPN)"
+    },
+    "v1alpha1FilterChainSummary": {
+      "type": "object",
+      "properties": {
+        "totalChains": {
+          "type": "integer",
+          "format": "int64",
+          "title": "total_chains is the number of filter chains"
+        },
+        "httpFilters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1FilterInfo"
+          },
+          "title": "http_filters contains HTTP filter information"
+        },
+        "networkFilters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1FilterInfo"
+          },
+          "title": "network_filters contains network filter information"
+        },
+        "tlsContext": {
+          "type": "boolean",
+          "title": "tls_context indicates if TLS is configured"
+        }
+      },
+      "title": "FilterChainSummary contains filter chain analysis"
+    },
+    "v1alpha1FilterInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "name is the filter name"
+        },
+        "type": {
+          "type": "string",
+          "title": "type is the filter type"
+        },
+        "configSummary": {
+          "type": "string",
+          "title": "config_summary is a summary of the filter configuration"
+        }
+      },
+      "title": "FilterInfo contains filter information"
+    },
     "v1alpha1GetProxyConfigResponse": {
       "type": "object",
       "properties": {
@@ -538,6 +611,53 @@
       },
       "description": "GetServiceResponse contains the requested service details."
     },
+    "v1alpha1HeaderMatchInfo": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "name is the header name to match"
+        },
+        "matchType": {
+          "type": "string",
+          "description": "match_type indicates exact, prefix, regex, etc."
+        },
+        "value": {
+          "type": "string",
+          "title": "value is the header value pattern to match"
+        },
+        "invertMatch": {
+          "type": "boolean",
+          "title": "invert_match indicates if the match should be inverted"
+        }
+      },
+      "title": "HeaderMatchInfo contains HTTP header matching information"
+    },
+    "v1alpha1HttpRouteMatch": {
+      "type": "object",
+      "properties": {
+        "pathMatch": {
+          "$ref": "#/definitions/v1alpha1PathMatchInfo",
+          "title": "path_match contains HTTP path matching patterns"
+        },
+        "headerMatches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1HeaderMatchInfo"
+          },
+          "title": "header_matches contains HTTP header matching patterns"
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "methods contains HTTP method matching patterns"
+        }
+      },
+      "title": "HttpRouteMatch represents HTTP route matching criteria (from HTTP connection manager)"
+    },
     "v1alpha1ListClustersResponse": {
       "type": "object",
       "properties": {
@@ -566,6 +686,67 @@
       },
       "description": "ListServicesResponse contains the list of services in the requested namespace(s)."
     },
+    "v1alpha1ListenerDestination": {
+      "type": "object",
+      "properties": {
+        "destinationType": {
+          "type": "string",
+          "description": "destination_type indicates cluster, static IP, original_dst, etc."
+        },
+        "clusterName": {
+          "type": "string",
+          "title": "cluster_name is the destination cluster name"
+        },
+        "address": {
+          "type": "string",
+          "title": "address is the destination IP address (for static destinations)"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int64",
+          "title": "port is the destination port"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int64",
+          "title": "weight is the traffic weight (for weighted destinations)"
+        },
+        "serviceFqdn": {
+          "type": "string",
+          "title": "service_fqdn is the Istio service FQDN (enriched field)"
+        }
+      },
+      "title": "ListenerDestination contains listener destination information"
+    },
+    "v1alpha1ListenerMatch": {
+      "type": "object",
+      "properties": {
+        "httpRoute": {
+          "$ref": "#/definitions/v1alpha1HttpRouteMatch"
+        },
+        "filterChain": {
+          "$ref": "#/definitions/v1alpha1FilterChainMatch"
+        },
+        "tcpProxy": {
+          "$ref": "#/definitions/v1alpha1TcpProxyMatch"
+        }
+      },
+      "title": "ListenerMatch contains listener matching criteria using discriminated union"
+    },
+    "v1alpha1ListenerRule": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "$ref": "#/definitions/v1alpha1ListenerMatch",
+          "title": "match contains the matching criteria (HTTP route, filter chain, TCP proxy)"
+        },
+        "destination": {
+          "$ref": "#/definitions/v1alpha1ListenerDestination",
+          "title": "destination contains the routing destination for this match"
+        }
+      },
+      "title": "ListenerRule pairs a match condition with its corresponding destination"
+    },
     "v1alpha1ListenerSummary": {
       "type": "object",
       "properties": {
@@ -587,6 +768,16 @@
         },
         "rawConfig": {
           "type": "string"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ListenerRule"
+          }
+        },
+        "filterChains": {
+          "$ref": "#/definitions/v1alpha1FilterChainSummary"
         }
       },
       "title": "ListenerSummary contains essential listener configuration information"
@@ -594,6 +785,7 @@
     "v1alpha1ListenerType": {
       "type": "string",
       "enum": [
+        "UNKNOWN_LISTENER_TYPE",
         "VIRTUAL_INBOUND",
         "VIRTUAL_OUTBOUND",
         "SERVICE_OUTBOUND",
@@ -605,8 +797,8 @@
         "ADMIN_DEBUG",
         "GATEWAY_INBOUND"
       ],
-      "default": "VIRTUAL_INBOUND",
-      "description": "- VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)\n - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)\n - SERVICE_OUTBOUND: SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)\n - PORT_OUTBOUND: PORT_OUTBOUND listeners for generic port traffic outbound (e.g., \"80\", \"443\")\n - PROXY_METRICS: PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)\n - PROXY_HEALTHCHECK: PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)\n - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)\n - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)\n - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)\n - GATEWAY_INBOUND: GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst)",
+      "default": "UNKNOWN_LISTENER_TYPE",
+      "description": "- UNKNOWN_LISTENER_TYPE: UNKNOWN_LISTENER_TYPE indicates an unknown or unspecified listener type\n - VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)\n - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)\n - SERVICE_OUTBOUND: SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)\n - PORT_OUTBOUND: PORT_OUTBOUND listeners for generic port traffic outbound (e.g., \"80\", \"443\")\n - PROXY_METRICS: PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)\n - PROXY_HEALTHCHECK: PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)\n - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)\n - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)\n - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)\n - GATEWAY_INBOUND: GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst)",
       "title": "ListenerType indicates the type/direction of a listener"
     },
     "v1alpha1LocalityInfo": {
@@ -644,6 +836,24 @@
         }
       },
       "title": "NodeSummary contains information about the Envoy node"
+    },
+    "v1alpha1PathMatchInfo": {
+      "type": "object",
+      "properties": {
+        "matchType": {
+          "type": "string",
+          "description": "match_type indicates exact, prefix, regex, etc."
+        },
+        "path": {
+          "type": "string",
+          "title": "path is the path pattern to match"
+        },
+        "caseSensitive": {
+          "type": "boolean",
+          "title": "case_sensitive indicates if matching is case sensitive"
+        }
+      },
+      "title": "PathMatchInfo contains HTTP path matching information"
     },
     "v1alpha1ProxyConfig": {
       "type": "object",
@@ -943,6 +1153,16 @@
       ],
       "default": "SYNC_STATUS_UNSPECIFIED",
       "description": "SyncStatus represents the health of cluster synchronization.\n\n - SYNC_STATUS_HEALTHY: Recent updates within expected timeframe\n - SYNC_STATUS_STALE: No recent updates, potentially problematic\n - SYNC_STATUS_DISCONNECTED: Connection lost"
+    },
+    "v1alpha1TcpProxyMatch": {
+      "type": "object",
+      "properties": {
+        "clusterName": {
+          "type": "string",
+          "title": "cluster_name is the destination cluster for TCP proxy"
+        }
+      },
+      "title": "TcpProxyMatch represents TCP proxy matching criteria"
     },
     "v1alpha1VirtualHostInfo": {
       "type": "object",
