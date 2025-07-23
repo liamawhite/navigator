@@ -22,6 +22,7 @@ import (
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
+	matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
@@ -172,7 +173,7 @@ func (p *Parser) parseListenerFilters(listener *listenerv3.Listener) ([]*v1alpha
 	}
 
 	filterChainSummary := &v1alpha1.FilterChainSummary{
-		TotalChains:    uint32(len(listener.FilterChains)),
+		TotalChains:    uint32(len(listener.FilterChains)), // #nosec G115 - listener filter chains count is bounded in practice
 		HttpFilters:    httpFilters,
 		NetworkFilters: networkFilters,
 		TlsContext:     hasTLS,
@@ -208,66 +209,6 @@ func (p *Parser) parseFilterChainMatch(match *listenerv3.FilterChainMatch) *v1al
 	}
 }
 
-// parseHttpConnectionManager parses HTTP connection manager for routes and destinations
-func (p *Parser) parseHttpConnectionManager(filter *listenerv3.Filter) ([]*v1alpha1.ListenerMatch, []*v1alpha1.ListenerDestination, []*v1alpha1.FilterInfo) {
-	var httpMatches []*v1alpha1.ListenerMatch
-	var httpDestinations []*v1alpha1.ListenerDestination
-	var httpFilters []*v1alpha1.FilterInfo
-
-	if filter.ConfigType == nil {
-		return httpMatches, httpDestinations, httpFilters
-	}
-
-	var hcmConfig hcm.HttpConnectionManager
-	if typedConfig := filter.GetTypedConfig(); typedConfig != nil {
-		if err := typedConfig.UnmarshalTo(&hcmConfig); err != nil {
-			return httpMatches, httpDestinations, httpFilters
-		}
-	}
-
-	// Parse HTTP filters
-	for _, httpFilter := range hcmConfig.HttpFilters {
-		httpFilters = append(httpFilters, &v1alpha1.FilterInfo{
-			Name: httpFilter.Name,
-			Type: "http",
-		})
-	}
-
-	// Parse route configuration
-	var routeConfig *route.RouteConfiguration
-	switch hcmConfig.GetRouteSpecifier().(type) {
-	case *hcm.HttpConnectionManager_RouteConfig:
-		routeConfig = hcmConfig.GetRouteConfig()
-	case *hcm.HttpConnectionManager_Rds:
-		// For RDS, we can't parse routes without additional context
-		return httpMatches, httpDestinations, httpFilters
-	}
-
-	if routeConfig != nil {
-		// Parse virtual hosts and routes
-		for _, vhost := range routeConfig.VirtualHosts {
-			for _, route := range vhost.Routes {
-				// Parse route match
-				if route.Match != nil {
-					match := p.parseRouteMatch(route.Match)
-					if match != nil {
-						httpMatches = append(httpMatches, match)
-					}
-				}
-
-				// Parse route action (destination)
-				if route.GetRoute() != nil {
-					dest := p.parseRouteAction(route.GetRoute())
-					if dest != nil {
-						httpDestinations = append(httpDestinations, dest)
-					}
-				}
-			}
-		}
-	}
-
-	return httpMatches, httpDestinations, httpFilters
-}
 
 // parseHttpConnectionManagerRules parses HTTP connection manager and returns paired rules
 func (p *Parser) parseHttpConnectionManagerRules(filter *listenerv3.Filter) ([]*v1alpha1.ListenerRule, []*v1alpha1.FilterInfo) {
@@ -393,18 +334,22 @@ func (p *Parser) parseHeaderMatch(headerMatch *route.HeaderMatcher) *v1alpha1.He
 	}
 
 	switch headerMatch.GetHeaderMatchSpecifier().(type) {
-	case *route.HeaderMatcher_ExactMatch:
-		headerMatchInfo.MatchType = "exact"
-		headerMatchInfo.Value = headerMatch.GetExactMatch()
-	case *route.HeaderMatcher_PrefixMatch:
-		headerMatchInfo.MatchType = "prefix"
-		headerMatchInfo.Value = headerMatch.GetPrefixMatch()
-	case *route.HeaderMatcher_SuffixMatch:
-		headerMatchInfo.MatchType = "suffix"
-		headerMatchInfo.Value = headerMatch.GetSuffixMatch()
-	case *route.HeaderMatcher_SafeRegexMatch:
-		headerMatchInfo.MatchType = "regex"
-		headerMatchInfo.Value = headerMatch.GetSafeRegexMatch().Regex
+	case *route.HeaderMatcher_StringMatch:
+		stringMatch := headerMatch.GetStringMatch()
+		switch stringMatch.GetMatchPattern().(type) {
+		case *matcher.StringMatcher_Exact:
+			headerMatchInfo.MatchType = "exact"
+			headerMatchInfo.Value = stringMatch.GetExact()
+		case *matcher.StringMatcher_Prefix:
+			headerMatchInfo.MatchType = "prefix"
+			headerMatchInfo.Value = stringMatch.GetPrefix()
+		case *matcher.StringMatcher_Suffix:
+			headerMatchInfo.MatchType = "suffix"
+			headerMatchInfo.Value = stringMatch.GetSuffix()
+		case *matcher.StringMatcher_SafeRegex:
+			headerMatchInfo.MatchType = "regex"
+			headerMatchInfo.Value = stringMatch.GetSafeRegex().Regex
+		}
 	case *route.HeaderMatcher_PresentMatch:
 		headerMatchInfo.MatchType = "present"
 		headerMatchInfo.Value = ""
