@@ -163,6 +163,15 @@ message VirtualService {
   
   // raw_spec is the virtual service spec as a JSON string.
   string raw_spec = 3;
+  
+  // hosts is the list of destination hosts that these routing rules apply to.
+  repeated string hosts = 4;
+  
+  // gateways is the list of gateway names that should apply these routes.
+  repeated string gateways = 5;
+  
+  // export_to controls the visibility of this virtual service to other namespaces.
+  repeated string export_to = 6;
 }
 
 // IstioControlPlaneConfig represents configuration from the Istio control plane.

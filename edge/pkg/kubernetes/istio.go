@@ -209,10 +209,35 @@ func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService
 		return nil, fmt.Errorf("failed to marshal virtual service spec: %w", err)
 	}
 
+	// Extract hosts, gateways, and exportTo from the spec
+	var hosts []string
+	if vs.Spec.Hosts != nil {
+		hosts = vs.Spec.Hosts
+	}
+
+	// Default for gateways is ["mesh"] if not specified or empty
+	var gateways []string
+	if len(vs.Spec.Gateways) > 0 {
+		gateways = vs.Spec.Gateways
+	} else {
+		gateways = []string{"mesh"}
+	}
+
+	// Default for exportTo is ["*"] if not specified or empty
+	var exportTo []string
+	if len(vs.Spec.ExportTo) > 0 {
+		exportTo = vs.Spec.ExportTo
+	} else {
+		exportTo = []string{"*"}
+	}
+
 	return &v1alpha1.VirtualService{
 		Name:      vs.Name,
 		Namespace: vs.Namespace,
 		RawSpec:   string(specBytes),
+		Hosts:     hosts,
+		Gateways:  gateways,
+		ExportTo:  exportTo,
 	}, nil
 }
 
