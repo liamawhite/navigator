@@ -50,6 +50,8 @@ enum ListenerType {
   ADMIN_WEBHOOK = 7;
   // ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)
   ADMIN_DEBUG = 8;
+  // GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst)
+  GATEWAY_INBOUND = 9;
 }
 
 // RouteType indicates the type/category of a route configuration

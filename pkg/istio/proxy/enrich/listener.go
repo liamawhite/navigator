@@ -19,19 +19,19 @@ import (
 )
 
 // enrichListenerType classifies listener type based on Istio-specific patterns
-func enrichListenerType() func(*v1alpha1.ListenerSummary) error {
+func enrichListenerType(proxyMode v1alpha1.ProxyMode) func(*v1alpha1.ListenerSummary) error {
 	return func(listener *v1alpha1.ListenerSummary) error {
 		if listener == nil {
 			return nil
 		}
 
-		listener.Type = inferIstioListenerType(listener.Name, listener.Address, listener.Port, listener.UseOriginalDst)
+		listener.Type = inferIstioListenerType(listener.Name, listener.Address, listener.Port, listener.UseOriginalDst, proxyMode)
 		return nil
 	}
 }
 
 // inferIstioListenerType applies Istio-specific listener type detection
-func inferIstioListenerType(name, address string, port uint32, useOriginalDst bool) v1alpha1.ListenerType {
+func inferIstioListenerType(name, address string, port uint32, useOriginalDst bool, proxyMode v1alpha1.ProxyMode) v1alpha1.ListenerType {
 	// Check for Istio virtual listeners by name
 	if name == "virtualInbound" {
 		return v1alpha1.ListenerType_VIRTUAL_INBOUND
@@ -55,7 +55,13 @@ func inferIstioListenerType(name, address string, port uint32, useOriginalDst bo
 				return v1alpha1.ListenerType_VIRTUAL_OUTBOUND
 			}
 		}
-		// Other 0.0.0.0 listeners are port-based
+
+		// Gateway-specific logic: 0.0.0.0 listeners without useOriginalDst
+		if proxyMode == v1alpha1.ProxyMode_GATEWAY && !useOriginalDst {
+			return v1alpha1.ListenerType_GATEWAY_INBOUND
+		}
+
+		// Other 0.0.0.0 listeners are port-based (for sidecars)
 		return v1alpha1.ListenerType_PORT_OUTBOUND
 	}
 

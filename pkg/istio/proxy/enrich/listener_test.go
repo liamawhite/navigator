@@ -23,7 +23,8 @@ import (
 )
 
 func TestEnrichListenerType(t *testing.T) {
-	enrichFunc := enrichListenerType()
+	// Test with default sidecar proxy mode
+	enrichFunc := enrichListenerType(v1alpha1.ProxyMode_SIDECAR)
 
 	tests := []struct {
 		name           string
@@ -282,7 +283,10 @@ func TestEnrichListenerType(t *testing.T) {
 	})
 }
 
-func TestInferIstioListenerType(t *testing.T) {
+func TestEnrichListenerTypeGateway(t *testing.T) {
+	// Test with gateway proxy mode
+	enrichFunc := enrichListenerType(v1alpha1.ProxyMode_GATEWAY)
+
 	tests := []struct {
 		name           string
 		listenerName   string
@@ -293,11 +297,104 @@ func TestInferIstioListenerType(t *testing.T) {
 		description    string
 	}{
 		{
+			name:           "gateway HTTP inbound",
+			listenerName:   "0.0.0.0_80",
+			address:        "0.0.0.0",
+			port:           80,
+			useOriginalDst: false,
+			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
+			description:    "Gateway HTTP listener should be GATEWAY_INBOUND",
+		},
+		{
+			name:           "gateway HTTPS inbound",
+			listenerName:   "0.0.0.0_443",
+			address:        "0.0.0.0",
+			port:           443,
+			useOriginalDst: false,
+			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
+			description:    "Gateway HTTPS listener should be GATEWAY_INBOUND",
+		},
+		{
+			name:           "gateway custom port inbound",
+			listenerName:   "0.0.0.0_8080",
+			address:        "0.0.0.0",
+			port:           8080,
+			useOriginalDst: false,
+			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
+			description:    "Gateway custom port listener should be GATEWAY_INBOUND",
+		},
+		{
+			name:           "gateway with OriginalDst still virtual outbound",
+			listenerName:   "0.0.0.0_15001",
+			address:        "0.0.0.0",
+			port:           15001,
+			useOriginalDst: true,
+			expectedType:   v1alpha1.ListenerType_VIRTUAL_OUTBOUND,
+			description:    "Gateway with OriginalDst should still be virtual outbound",
+		},
+		{
+			name:           "gateway metrics still proxy metrics",
+			listenerName:   "metrics",
+			address:        "0.0.0.0",
+			port:           15090,
+			useOriginalDst: false,
+			expectedType:   v1alpha1.ListenerType_PROXY_METRICS,
+			description:    "Gateway metrics listener should still be PROXY_METRICS",
+		},
+		{
+			name:           "gateway health check still proxy health",
+			listenerName:   "health",
+			address:        "0.0.0.0",
+			port:           15021,
+			useOriginalDst: false,
+			expectedType:   v1alpha1.ListenerType_PROXY_HEALTHCHECK,
+			description:    "Gateway health check listener should still be PROXY_HEALTHCHECK",
+		},
+		{
+			name:           "gateway service-specific still service outbound",
+			listenerName:   "10.96.1.100_8080",
+			address:        "10.96.1.100",
+			port:           8080,
+			useOriginalDst: false,
+			expectedType:   v1alpha1.ListenerType_SERVICE_OUTBOUND,
+			description:    "Gateway service-specific listener should still be SERVICE_OUTBOUND",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			listener := &v1alpha1.ListenerSummary{
+				Name:           test.listenerName,
+				Address:        test.address,
+				Port:           test.port,
+				UseOriginalDst: test.useOriginalDst,
+			}
+
+			err := enrichFunc(listener)
+			require.NoError(t, err, test.description)
+			assert.Equal(t, test.expectedType, listener.Type, test.description)
+		})
+	}
+}
+
+func TestInferIstioListenerType(t *testing.T) {
+	tests := []struct {
+		name           string
+		listenerName   string
+		address        string
+		port           uint32
+		useOriginalDst bool
+		proxyMode      v1alpha1.ProxyMode
+		expectedType   v1alpha1.ListenerType
+		description    string
+	}{
+		{
 			name:           "virtual inbound by name",
 			listenerName:   "virtualInbound",
 			address:        "192.168.1.1",
 			port:           9999,
 			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_SIDECAR,
 			expectedType:   v1alpha1.ListenerType_VIRTUAL_INBOUND,
 			description:    "Name takes precedence over other attributes",
 		},
@@ -456,9 +553,127 @@ func TestInferIstioListenerType(t *testing.T) {
 		},
 	}
 
+	// Add proxy mode to all existing tests (default to SIDECAR for backward compatibility)
+	for i := range tests {
+		if tests[i].proxyMode == v1alpha1.ProxyMode_UNKNOWN_PROXY_MODE {
+			tests[i].proxyMode = v1alpha1.ProxyMode_SIDECAR
+		}
+	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := inferIstioListenerType(test.listenerName, test.address, test.port, test.useOriginalDst)
+			result := inferIstioListenerType(test.listenerName, test.address, test.port, test.useOriginalDst, test.proxyMode)
+			assert.Equal(t, test.expectedType, result, test.description)
+		})
+	}
+}
+
+func TestInferIstioListenerTypeGateway(t *testing.T) {
+	tests := []struct {
+		name           string
+		listenerName   string
+		address        string
+		port           uint32
+		useOriginalDst bool
+		proxyMode      v1alpha1.ProxyMode
+		expectedType   v1alpha1.ListenerType
+		description    string
+	}{
+		{
+			name:           "gateway HTTP inbound",
+			listenerName:   "0.0.0.0_80",
+			address:        "0.0.0.0",
+			port:           80,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
+			description:    "Gateway 0.0.0.0 listener without OriginalDst should be GATEWAY_INBOUND",
+		},
+		{
+			name:           "gateway HTTPS inbound",
+			listenerName:   "0.0.0.0_443",
+			address:        "0.0.0.0",
+			port:           443,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
+			description:    "Gateway HTTPS listener should be GATEWAY_INBOUND",
+		},
+		{
+			name:           "gateway custom port inbound",
+			listenerName:   "gateway_8080",
+			address:        "0.0.0.0",
+			port:           8080,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
+			description:    "Gateway custom port should be GATEWAY_INBOUND",
+		},
+		{
+			name:           "sidecar same config still port outbound",
+			listenerName:   "0.0.0.0_80",
+			address:        "0.0.0.0",
+			port:           80,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_SIDECAR,
+			expectedType:   v1alpha1.ListenerType_PORT_OUTBOUND,
+			description:    "Sidecar with same config should still be PORT_OUTBOUND",
+		},
+		{
+			name:           "gateway with OriginalDst still virtual outbound",
+			listenerName:   "0.0.0.0_15001",
+			address:        "0.0.0.0",
+			port:           15001,
+			useOriginalDst: true,
+			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			expectedType:   v1alpha1.ListenerType_VIRTUAL_OUTBOUND,
+			description:    "Gateway with OriginalDst should be VIRTUAL_OUTBOUND",
+		},
+		{
+			name:           "gateway metrics port still proxy metrics",
+			listenerName:   "metrics",
+			address:        "0.0.0.0",
+			port:           15090,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			expectedType:   v1alpha1.ListenerType_PROXY_METRICS,
+			description:    "Gateway metrics port should still be PROXY_METRICS",
+		},
+		{
+			name:           "gateway health port still proxy health",
+			listenerName:   "health",
+			address:        "0.0.0.0",
+			port:           15021,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			expectedType:   v1alpha1.ListenerType_PROXY_HEALTHCHECK,
+			description:    "Gateway health port should still be PROXY_HEALTHCHECK",
+		},
+		{
+			name:           "gateway service IP still service outbound",
+			listenerName:   "backend_service",
+			address:        "10.96.1.100",
+			port:           8080,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			expectedType:   v1alpha1.ListenerType_SERVICE_OUTBOUND,
+			description:    "Gateway service IP should still be SERVICE_OUTBOUND",
+		},
+		{
+			name:           "unknown proxy mode defaults to port outbound",
+			listenerName:   "0.0.0.0_80",
+			address:        "0.0.0.0",
+			port:           80,
+			useOriginalDst: false,
+			proxyMode:      v1alpha1.ProxyMode_UNKNOWN_PROXY_MODE,
+			expectedType:   v1alpha1.ListenerType_PORT_OUTBOUND,
+			description:    "Unknown proxy mode should default to PORT_OUTBOUND",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := inferIstioListenerType(test.listenerName, test.address, test.port, test.useOriginalDst, test.proxyMode)
 			assert.Equal(t, test.expectedType, result, test.description)
 		})
 	}
