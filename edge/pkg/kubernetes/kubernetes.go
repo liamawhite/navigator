@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -79,29 +80,56 @@ func (k *Client) GetRestConfig() *rest.Config {
 
 // GetClusterState discovers all services in the cluster and returns the cluster state
 func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error) {
-	// Bulk fetch all resources at once
-	services, err := k.clientset.CoreV1().Services("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list services: %w", err)
-	}
+	// Parallelize API calls and map building in single goroutines
+	var wg sync.WaitGroup
+	var servicesResult *corev1.ServiceList
+	var endpointSlicesByService map[string][]discoveryv1.EndpointSlice
+	var podsByName map[string]*corev1.Pod
+	var servicesErr, endpointSlicesErr, podsErr error
 
-	endpointSlices, err := k.clientset.DiscoveryV1().EndpointSlices("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list endpoint slices: %w", err)
-	}
+	wg.Add(3)
 
-	pods, err := k.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pods: %w", err)
-	}
+	// Fetch services concurrently
+	go func() {
+		defer wg.Done()
+		servicesResult, servicesErr = k.clientset.CoreV1().Services("").List(ctx, metav1.ListOptions{})
+	}()
 
-	// Build lookup maps for efficient processing
-	endpointSlicesByService := k.buildEndpointSliceMap(endpointSlices.Items)
-	podsByName := k.buildPodMap(pods.Items)
+	// Fetch endpoint slices and build map concurrently
+	go func() {
+		defer wg.Done()
+		endpointSlicesResult, endpointSlicesErr := k.clientset.DiscoveryV1().EndpointSlices("").List(ctx, metav1.ListOptions{})
+		if endpointSlicesErr == nil {
+			endpointSlicesByService = k.buildEndpointSliceMap(endpointSlicesResult.Items)
+		}
+	}()
+
+	// Fetch pods and build map concurrently
+	go func() {
+		defer wg.Done()
+		podsResult, podsErr := k.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+		if podsErr == nil {
+			podsByName = k.buildPodMap(podsResult.Items)
+		}
+	}()
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+
+	// Check for errors
+	if servicesErr != nil {
+		return nil, fmt.Errorf("failed to list services: %w", servicesErr)
+	}
+	if endpointSlicesErr != nil {
+		return nil, fmt.Errorf("failed to list endpoint slices: %w", endpointSlicesErr)
+	}
+	if podsErr != nil {
+		return nil, fmt.Errorf("failed to list pods: %w", podsErr)
+	}
 
 	var protoServices []*v1alpha1.Service
 
-	for _, svc := range services.Items {
+	for _, svc := range servicesResult.Items {
 		protoService := k.convertServiceWithMaps(&svc, endpointSlicesByService, podsByName)
 		protoServices = append(protoServices, protoService)
 	}
