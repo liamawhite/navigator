@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-
 func TestClient_isEnvoyContainer(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -393,7 +392,3 @@ func TestClient_convertEndpointSlicesToInstancesWithMaps(t *testing.T) {
 		})
 	}
 }
-
-
-
-

@@ -32,10 +32,10 @@ import (
 
 // Client wraps the Kubernetes client and provides service discovery functionality
 type Client struct {
-	clientset    kubernetes.Interface
-	istioClient  istioclient.Interface
-	restConfig   *rest.Config
-	logger       *slog.Logger
+	clientset   kubernetes.Interface
+	istioClient istioclient.Interface
+	restConfig  *rest.Config
+	logger      *slog.Logger
 }
 
 // NewClient creates a new Kubernetes client
@@ -161,8 +161,8 @@ func (k *Client) mergeErrors(errors []error) error {
 	for _, err := range errors {
 		errorMessages = append(errorMessages, err.Error())
 	}
-	
-	return fmt.Errorf("multiple errors occurred (%d total): %s", 
-		len(errors), 
+
+	return fmt.Errorf("multiple errors occurred (%d total): %s",
+		len(errors),
 		strings.Join(errorMessages, "; "))
 }
