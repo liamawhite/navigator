@@ -17,7 +17,6 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 	"sync"
 
@@ -25,119 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
-
-// Client wraps the Kubernetes client and provides service discovery functionality
-type Client struct {
-	clientset  kubernetes.Interface
-	restConfig *rest.Config
-	logger     *slog.Logger
-}
-
-// NewClient creates a new Kubernetes client
-func NewClient(kubeconfigPath string, logger *slog.Logger) (*Client, error) {
-	var config *rest.Config
-	var err error
-
-	if kubeconfigPath != "" {
-		// Use kubeconfig file
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
-		}
-	} else {
-		// Use in-cluster config
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get in-cluster config: %w", err)
-		}
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
-	}
-
-	return &Client{
-		clientset:  clientset,
-		restConfig: config,
-		logger:     logger,
-	}, nil
-}
-
-// GetClientset returns the underlying Kubernetes clientset
-func (k *Client) GetClientset() kubernetes.Interface {
-	return k.clientset
-}
-
-// GetRestConfig returns the underlying Kubernetes REST config
-func (k *Client) GetRestConfig() *rest.Config {
-	return k.restConfig
-}
-
-// GetClusterState discovers all services in the cluster and returns the cluster state
-func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error) {
-	// Parallelize API calls and map building in single goroutines
-	var wg sync.WaitGroup
-	var servicesResult *corev1.ServiceList
-	var endpointSlicesByService map[string][]discoveryv1.EndpointSlice
-	var podsByName map[string]*corev1.Pod
-	var servicesErr, endpointSlicesErr, podsErr error
-
-	wg.Add(3)
-
-	// Fetch services concurrently
-	go func() {
-		defer wg.Done()
-		servicesResult, servicesErr = k.clientset.CoreV1().Services("").List(ctx, metav1.ListOptions{})
-	}()
-
-	// Fetch endpoint slices and build map concurrently
-	go func() {
-		defer wg.Done()
-		endpointSlicesResult, endpointSlicesErr := k.clientset.DiscoveryV1().EndpointSlices("").List(ctx, metav1.ListOptions{})
-		if endpointSlicesErr == nil {
-			endpointSlicesByService = k.buildEndpointSliceMap(endpointSlicesResult.Items)
-		}
-	}()
-
-	// Fetch pods and build map concurrently
-	go func() {
-		defer wg.Done()
-		podsResult, podsErr := k.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
-		if podsErr == nil {
-			podsByName = k.buildPodMap(podsResult.Items)
-		}
-	}()
-
-	// Wait for all goroutines to complete
-	wg.Wait()
-
-	// Check for errors
-	if servicesErr != nil {
-		return nil, fmt.Errorf("failed to list services: %w", servicesErr)
-	}
-	if endpointSlicesErr != nil {
-		return nil, fmt.Errorf("failed to list endpoint slices: %w", endpointSlicesErr)
-	}
-	if podsErr != nil {
-		return nil, fmt.Errorf("failed to list pods: %w", podsErr)
-	}
-
-	var protoServices []*v1alpha1.Service
-
-	for _, svc := range servicesResult.Items {
-		protoService := k.convertServiceWithMaps(&svc, endpointSlicesByService, podsByName)
-		protoServices = append(protoServices, protoService)
-	}
-
-	return &v1alpha1.ClusterState{
-		Services: protoServices,
-	}, nil
-}
 
 // buildEndpointSliceMap creates a map of service name to endpoint slices for efficient lookup
 func (k *Client) buildEndpointSliceMap(endpointSlices []discoveryv1.EndpointSlice) map[string][]discoveryv1.EndpointSlice {
@@ -353,4 +240,36 @@ func (k *Client) extractContainerInfo(pod *corev1.Pod) []*v1alpha1.Container {
 	}
 
 	return containers
+}
+
+// fetchServices fetches all services from the cluster
+func (k *Client) fetchServices(ctx context.Context, wg *sync.WaitGroup, result **corev1.ServiceList, errChan chan<- error) {
+	defer wg.Done()
+	servicesList, err := k.clientset.CoreV1().Services("").List(ctx, metav1.ListOptions{})
+	*result = servicesList
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list services: %w", err)
+	}
+}
+
+// fetchEndpointSlices fetches all endpoint slices and builds a service map
+func (k *Client) fetchEndpointSlices(ctx context.Context, wg *sync.WaitGroup, endpointSlicesByService *map[string][]discoveryv1.EndpointSlice, errChan chan<- error) {
+	defer wg.Done()
+	endpointSlicesResult, err := k.clientset.DiscoveryV1().EndpointSlices("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list endpoint slices: %w", err)
+		return
+	}
+	*endpointSlicesByService = k.buildEndpointSliceMap(endpointSlicesResult.Items)
+}
+
+// fetchPods fetches all pods and builds a name map
+func (k *Client) fetchPods(ctx context.Context, wg *sync.WaitGroup, podsByName *map[string]*corev1.Pod, errChan chan<- error) {
+	defer wg.Done()
+	podsResult, err := k.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list pods: %w", err)
+		return
+	}
+	*podsByName = k.buildPodMap(podsResult.Items)
 }
