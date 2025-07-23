@@ -209,7 +209,6 @@ func (p *Parser) parseFilterChainMatch(match *listenerv3.FilterChainMatch) *v1al
 	}
 }
 
-
 // parseHttpConnectionManagerRules parses HTTP connection manager and returns paired rules
 func (p *Parser) parseHttpConnectionManagerRules(filter *listenerv3.Filter) ([]*v1alpha1.ListenerRule, []*v1alpha1.FilterInfo) {
 	var httpRules []*v1alpha1.ListenerRule
