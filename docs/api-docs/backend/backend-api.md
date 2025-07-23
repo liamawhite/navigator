@@ -6,10 +6,15 @@
 - [backend/v1alpha1/clusterstate.proto](#backend_v1alpha1_clusterstate-proto)
     - [ClusterState](#navigator-backend-v1alpha1-ClusterState)
     - [Container](#navigator-backend-v1alpha1-Container)
+    - [DestinationRule](#navigator-backend-v1alpha1-DestinationRule)
+    - [EnvoyFilter](#navigator-backend-v1alpha1-EnvoyFilter)
+    - [Gateway](#navigator-backend-v1alpha1-Gateway)
     - [Service](#navigator-backend-v1alpha1-Service)
     - [ServiceInstance](#navigator-backend-v1alpha1-ServiceInstance)
     - [ServiceInstance.AnnotationsEntry](#navigator-backend-v1alpha1-ServiceInstance-AnnotationsEntry)
     - [ServiceInstance.LabelsEntry](#navigator-backend-v1alpha1-ServiceInstance-LabelsEntry)
+    - [Sidecar](#navigator-backend-v1alpha1-Sidecar)
+    - [VirtualService](#navigator-backend-v1alpha1-VirtualService)
   
 - [backend/v1alpha1/manager_service.proto](#backend_v1alpha1_manager_service-proto)
     - [ClusterIdentification](#navigator-backend-v1alpha1-ClusterIdentification)
@@ -42,6 +47,11 @@ ClusterState contains the current state of a cluster.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | services | [Service](#navigator-backend-v1alpha1-Service) | repeated | services is the list of all services in the cluster. |
+| destination_rules | [DestinationRule](#navigator-backend-v1alpha1-DestinationRule) | repeated | destination_rules is the list of all destination rules in the cluster. |
+| envoy_filters | [EnvoyFilter](#navigator-backend-v1alpha1-EnvoyFilter) | repeated | envoy_filters is the list of all envoy filters in the cluster. |
+| gateways | [Gateway](#navigator-backend-v1alpha1-Gateway) | repeated | gateways is the list of all gateways in the cluster. |
+| sidecars | [Sidecar](#navigator-backend-v1alpha1-Sidecar) | repeated | sidecars is the list of all sidecars in the cluster. |
+| virtual_services | [VirtualService](#navigator-backend-v1alpha1-VirtualService) | repeated | virtual_services is the list of all virtual services in the cluster. |
 
 
 
@@ -61,6 +71,57 @@ Container represents a container running in a pod.
 | status | [string](#string) |  | status is the current status of the container (e.g., &#34;Running&#34;, &#34;Waiting&#34;, &#34;Terminated&#34;). |
 | ready | [bool](#bool) |  | ready indicates whether the container is ready to serve requests. |
 | restart_count | [int32](#int32) |  | restart_count is the number of times the container has been restarted. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-DestinationRule"></a>
+
+### DestinationRule
+DestinationRule represents an Istio DestinationRule resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the destination rule. |
+| namespace | [string](#string) |  | namespace is the namespace of the destination rule. |
+| raw_spec | [string](#string) |  | raw_spec is the destination rule spec as a JSON string. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-EnvoyFilter"></a>
+
+### EnvoyFilter
+EnvoyFilter represents an Istio EnvoyFilter resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the envoy filter. |
+| namespace | [string](#string) |  | namespace is the namespace of the envoy filter. |
+| raw_spec | [string](#string) |  | raw_spec is the envoy filter spec as a JSON string. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-Gateway"></a>
+
+### Gateway
+Gateway represents an Istio Gateway resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the gateway. |
+| namespace | [string](#string) |  | namespace is the namespace of the gateway. |
+| raw_spec | [string](#string) |  | raw_spec is the gateway spec as a JSON string. |
 
 
 
@@ -133,6 +194,40 @@ ServiceInstance represents a single instance of a service.
 | ----- | ---- | ----- | ----------- |
 | key | [string](#string) |  |  |
 | value | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-Sidecar"></a>
+
+### Sidecar
+Sidecar represents an Istio Sidecar resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the sidecar. |
+| namespace | [string](#string) |  | namespace is the namespace of the sidecar. |
+| raw_spec | [string](#string) |  | raw_spec is the sidecar spec as a JSON string. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-VirtualService"></a>
+
+### VirtualService
+VirtualService represents an Istio VirtualService resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the virtual service. |
+| namespace | [string](#string) |  | namespace is the namespace of the virtual service. |
+| raw_spec | [string](#string) |  | raw_spec is the virtual service spec as a JSON string. |
 
 
 

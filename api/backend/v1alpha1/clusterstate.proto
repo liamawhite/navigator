@@ -22,6 +22,21 @@ option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 message ClusterState {
   // services is the list of all services in the cluster.
   repeated Service services = 1;
+  
+  // destination_rules is the list of all destination rules in the cluster.
+  repeated DestinationRule destination_rules = 2;
+  
+  // envoy_filters is the list of all envoy filters in the cluster.
+  repeated EnvoyFilter envoy_filters = 3;
+  
+  // gateways is the list of all gateways in the cluster.
+  repeated Gateway gateways = 4;
+  
+  // sidecars is the list of all sidecars in the cluster.
+  repeated Sidecar sidecars = 5;
+  
+  // virtual_services is the list of all virtual services in the cluster.
+  repeated VirtualService virtual_services = 6;
 }
 
 // Service represents a Kubernetes Service.
@@ -82,4 +97,64 @@ message ServiceInstance {
   
   // annotations are the Kubernetes annotations assigned to the pod.
   map<string, string> annotations = 9;
+}
+
+// DestinationRule represents an Istio DestinationRule resource.
+message DestinationRule {
+  // name is the name of the destination rule.
+  string name = 1;
+  
+  // namespace is the namespace of the destination rule.
+  string namespace = 2;
+  
+  // raw_spec is the destination rule spec as a JSON string.
+  string raw_spec = 3;
+}
+
+// EnvoyFilter represents an Istio EnvoyFilter resource.
+message EnvoyFilter {
+  // name is the name of the envoy filter.
+  string name = 1;
+  
+  // namespace is the namespace of the envoy filter.
+  string namespace = 2;
+  
+  // raw_spec is the envoy filter spec as a JSON string.
+  string raw_spec = 3;
+}
+
+// Gateway represents an Istio Gateway resource.
+message Gateway {
+  // name is the name of the gateway.
+  string name = 1;
+  
+  // namespace is the namespace of the gateway.
+  string namespace = 2;
+  
+  // raw_spec is the gateway spec as a JSON string.
+  string raw_spec = 3;
+}
+
+// Sidecar represents an Istio Sidecar resource.
+message Sidecar {
+  // name is the name of the sidecar.
+  string name = 1;
+  
+  // namespace is the namespace of the sidecar.
+  string namespace = 2;
+  
+  // raw_spec is the sidecar spec as a JSON string.
+  string raw_spec = 3;
+}
+
+// VirtualService represents an Istio VirtualService resource.
+message VirtualService {
+  // name is the name of the virtual service.
+  string name = 1;
+  
+  // namespace is the namespace of the virtual service.
+  string namespace = 2;
+  
+  // raw_spec is the virtual service spec as a JSON string.
+  string raw_spec = 3;
 }
