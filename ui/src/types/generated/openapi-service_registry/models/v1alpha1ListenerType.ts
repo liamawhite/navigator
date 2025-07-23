@@ -12,6 +12,7 @@
  * - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)
  * - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)
  * - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)
+ * - GATEWAY_INBOUND: GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst)
  */
 export enum v1alpha1ListenerType {
     VIRTUAL_INBOUND = 'VIRTUAL_INBOUND',
@@ -23,4 +24,5 @@ export enum v1alpha1ListenerType {
     ADMIN_XDS = 'ADMIN_XDS',
     ADMIN_WEBHOOK = 'ADMIN_WEBHOOK',
     ADMIN_DEBUG = 'ADMIN_DEBUG',
+    GATEWAY_INBOUND = 'GATEWAY_INBOUND',
 }

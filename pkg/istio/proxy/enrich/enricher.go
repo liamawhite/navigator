@@ -31,9 +31,15 @@ func ProxyConfigSummary(summary *configdump.ParsedSummary) error {
 		}
 	}
 
+	// Extract proxy mode for listener enrichment
+	proxyMode := v1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
+	if summary.Bootstrap != nil && summary.Bootstrap.Node != nil {
+		proxyMode = summary.Bootstrap.Node.ProxyMode
+	}
+
 	// Enrich listeners
 	for _, listener := range summary.Listeners {
-		if err := enrichListenerType()(listener); err != nil {
+		if err := enrichListenerType(proxyMode)(listener); err != nil {
 			return err
 		}
 	}

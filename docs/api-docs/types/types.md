@@ -480,6 +480,7 @@ ListenerType indicates the type/direction of a listener
 | ADMIN_XDS | 6 | ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010) |
 | ADMIN_WEBHOOK | 7 | ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012) |
 | ADMIN_DEBUG | 8 | ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014) |
+| GATEWAY_INBOUND | 9 | GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst) |
 
 
 

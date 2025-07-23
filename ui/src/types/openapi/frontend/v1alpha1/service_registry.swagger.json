@@ -602,10 +602,11 @@
         "PROXY_HEALTHCHECK",
         "ADMIN_XDS",
         "ADMIN_WEBHOOK",
-        "ADMIN_DEBUG"
+        "ADMIN_DEBUG",
+        "GATEWAY_INBOUND"
       ],
       "default": "VIRTUAL_INBOUND",
-      "description": "- VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)\n - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)\n - SERVICE_OUTBOUND: SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)\n - PORT_OUTBOUND: PORT_OUTBOUND listeners for generic port traffic outbound (e.g., \"80\", \"443\")\n - PROXY_METRICS: PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)\n - PROXY_HEALTHCHECK: PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)\n - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)\n - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)\n - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)",
+      "description": "- VIRTUAL_INBOUND: VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst)\n - VIRTUAL_OUTBOUND: VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst)\n - SERVICE_OUTBOUND: SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port)\n - PORT_OUTBOUND: PORT_OUTBOUND listeners for generic port traffic outbound (e.g., \"80\", \"443\")\n - PROXY_METRICS: PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090)\n - PROXY_HEALTHCHECK: PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021)\n - ADMIN_XDS: ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010)\n - ADMIN_WEBHOOK: ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012)\n - ADMIN_DEBUG: ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014)\n - GATEWAY_INBOUND: GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst)",
       "title": "ListenerType indicates the type/direction of a listener"
     },
     "v1alpha1LocalityInfo": {

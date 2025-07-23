@@ -69,6 +69,9 @@ const formatListenerType = (type?: string | number): string => {
         case '8':
         case 'ADMIN_DEBUG':
             return 'admin_debug';
+        case '9':
+        case 'GATEWAY_INBOUND':
+            return 'gateway_inbound';
         default:
             return String(type).toLowerCase().replace(/\s+/g, '_');
     }
@@ -105,6 +108,9 @@ const getTypeVariant = (
         case '8':
         case 'ADMIN_DEBUG':
             return 'secondary'; // Gray - legacy admin types (now port-based)
+        case '9':
+        case 'GATEWAY_INBOUND':
+            return 'default'; // Blue - gateway inbound traffic entry
         default:
             return 'outline';
     }
@@ -124,10 +130,12 @@ const groupListenersByType = (listeners: v1alpha1ListenerSummary[]) => {
         if (
             type === 'virtual_inbound' ||
             type === 'virtual_outbound' ||
+            type === 'gateway_inbound' ||
             type === '0' ||
-            type === '1'
+            type === '1' ||
+            type === '9'
         ) {
-            // Virtual listeners are the main traffic entry/exit points in Istio
+            // Virtual listeners are the main traffic entry/exit points in Istio (including gateway inbound)
             groups.virtual.push(listener);
         } else if (type === 'service_outbound' || type === '2') {
             // Service-specific outbound listeners (specific service destinations)
