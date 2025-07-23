@@ -12,15 +12,25 @@
     - [EndpointInfo](#navigator-types-v1alpha1-EndpointInfo)
     - [EndpointInfo.MetadataEntry](#navigator-types-v1alpha1-EndpointInfo-MetadataEntry)
     - [EndpointSummary](#navigator-types-v1alpha1-EndpointSummary)
+    - [FilterChainMatch](#navigator-types-v1alpha1-FilterChainMatch)
+    - [FilterChainSummary](#navigator-types-v1alpha1-FilterChainSummary)
+    - [FilterInfo](#navigator-types-v1alpha1-FilterInfo)
+    - [HeaderMatchInfo](#navigator-types-v1alpha1-HeaderMatchInfo)
+    - [HttpRouteMatch](#navigator-types-v1alpha1-HttpRouteMatch)
+    - [ListenerDestination](#navigator-types-v1alpha1-ListenerDestination)
+    - [ListenerMatch](#navigator-types-v1alpha1-ListenerMatch)
+    - [ListenerRule](#navigator-types-v1alpha1-ListenerRule)
     - [ListenerSummary](#navigator-types-v1alpha1-ListenerSummary)
     - [LocalityInfo](#navigator-types-v1alpha1-LocalityInfo)
     - [NodeSummary](#navigator-types-v1alpha1-NodeSummary)
     - [NodeSummary.MetadataEntry](#navigator-types-v1alpha1-NodeSummary-MetadataEntry)
+    - [PathMatchInfo](#navigator-types-v1alpha1-PathMatchInfo)
     - [ProxyConfig](#navigator-types-v1alpha1-ProxyConfig)
     - [RouteActionInfo](#navigator-types-v1alpha1-RouteActionInfo)
     - [RouteConfigSummary](#navigator-types-v1alpha1-RouteConfigSummary)
     - [RouteInfo](#navigator-types-v1alpha1-RouteInfo)
     - [RouteMatchInfo](#navigator-types-v1alpha1-RouteMatchInfo)
+    - [TcpProxyMatch](#navigator-types-v1alpha1-TcpProxyMatch)
     - [VirtualHostInfo](#navigator-types-v1alpha1-VirtualHostInfo)
     - [WeightedClusterInfo](#navigator-types-v1alpha1-WeightedClusterInfo)
     - [WeightedClusterInfo.MetadataMatchEntry](#navigator-types-v1alpha1-WeightedClusterInfo-MetadataMatchEntry)
@@ -205,6 +215,146 @@ EndpointSummary contains endpoint configuration information
 
 
 
+<a name="navigator-types-v1alpha1-FilterChainMatch"></a>
+
+### FilterChainMatch
+FilterChainMatch represents filter chain matching criteria (TLS/SNI/ALPN)
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| server_names | [string](#string) | repeated | server_names contains SNI/TLS server name matching patterns |
+| application_protocols | [string](#string) | repeated | application_protocols contains ALPN application protocol matches |
+| transport_protocol | [string](#string) |  | transport_protocol contains the transport protocol (raw_buffer, tls, etc.) |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-FilterChainSummary"></a>
+
+### FilterChainSummary
+FilterChainSummary contains filter chain analysis
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| total_chains | [uint32](#uint32) |  | total_chains is the number of filter chains |
+| http_filters | [FilterInfo](#navigator-types-v1alpha1-FilterInfo) | repeated | http_filters contains HTTP filter information |
+| network_filters | [FilterInfo](#navigator-types-v1alpha1-FilterInfo) | repeated | network_filters contains network filter information |
+| tls_context | [bool](#bool) |  | tls_context indicates if TLS is configured |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-FilterInfo"></a>
+
+### FilterInfo
+FilterInfo contains filter information
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the filter name |
+| type | [string](#string) |  | type is the filter type |
+| config_summary | [string](#string) |  | config_summary is a summary of the filter configuration |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-HeaderMatchInfo"></a>
+
+### HeaderMatchInfo
+HeaderMatchInfo contains HTTP header matching information
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the header name to match |
+| match_type | [string](#string) |  | match_type indicates exact, prefix, regex, etc. |
+| value | [string](#string) |  | value is the header value pattern to match |
+| invert_match | [bool](#bool) |  | invert_match indicates if the match should be inverted |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-HttpRouteMatch"></a>
+
+### HttpRouteMatch
+HttpRouteMatch represents HTTP route matching criteria (from HTTP connection manager)
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| path_match | [PathMatchInfo](#navigator-types-v1alpha1-PathMatchInfo) |  | path_match contains HTTP path matching patterns |
+| header_matches | [HeaderMatchInfo](#navigator-types-v1alpha1-HeaderMatchInfo) | repeated | header_matches contains HTTP header matching patterns |
+| methods | [string](#string) | repeated | methods contains HTTP method matching patterns |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-ListenerDestination"></a>
+
+### ListenerDestination
+ListenerDestination contains listener destination information
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| destination_type | [string](#string) |  | destination_type indicates cluster, static IP, original_dst, etc. |
+| cluster_name | [string](#string) |  | cluster_name is the destination cluster name |
+| address | [string](#string) |  | address is the destination IP address (for static destinations) |
+| port | [uint32](#uint32) |  | port is the destination port |
+| weight | [uint32](#uint32) |  | weight is the traffic weight (for weighted destinations) |
+| service_fqdn | [string](#string) |  | service_fqdn is the Istio service FQDN (enriched field) |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-ListenerMatch"></a>
+
+### ListenerMatch
+ListenerMatch contains listener matching criteria using discriminated union
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| http_route | [HttpRouteMatch](#navigator-types-v1alpha1-HttpRouteMatch) |  |  |
+| filter_chain | [FilterChainMatch](#navigator-types-v1alpha1-FilterChainMatch) |  |  |
+| tcp_proxy | [TcpProxyMatch](#navigator-types-v1alpha1-TcpProxyMatch) |  |  |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-ListenerRule"></a>
+
+### ListenerRule
+ListenerRule pairs a match condition with its corresponding destination
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| match | [ListenerMatch](#navigator-types-v1alpha1-ListenerMatch) |  | match contains the matching criteria (HTTP route, filter chain, TCP proxy) |
+| destination | [ListenerDestination](#navigator-types-v1alpha1-ListenerDestination) |  | destination contains the routing destination for this match |
+
+
+
+
+
+
 <a name="navigator-types-v1alpha1-ListenerSummary"></a>
 
 ### ListenerSummary
@@ -219,6 +369,8 @@ ListenerSummary contains essential listener configuration information
 | type | [ListenerType](#navigator-types-v1alpha1-ListenerType) |  |  |
 | use_original_dst | [bool](#bool) |  |  |
 | raw_config | [string](#string) |  |  |
+| rules | [ListenerRule](#navigator-types-v1alpha1-ListenerRule) | repeated |  |
+| filter_chains | [FilterChainSummary](#navigator-types-v1alpha1-FilterChainSummary) |  |  |
 
 
 
@@ -270,6 +422,23 @@ NodeSummary contains information about the Envoy node
 | ----- | ---- | ----- | ----------- |
 | key | [string](#string) |  |  |
 | value | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-PathMatchInfo"></a>
+
+### PathMatchInfo
+PathMatchInfo contains HTTP path matching information
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| match_type | [string](#string) |  | match_type indicates exact, prefix, regex, etc. |
+| path | [string](#string) |  | path is the path pattern to match |
+| case_sensitive | [bool](#bool) |  | case_sensitive indicates if matching is case sensitive |
 
 
 
@@ -364,6 +533,21 @@ RouteMatchInfo contains route matching information
 | path_specifier | [string](#string) |  |  |
 | path | [string](#string) |  |  |
 | case_sensitive | [bool](#bool) |  |  |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-TcpProxyMatch"></a>
+
+### TcpProxyMatch
+TcpProxyMatch represents TCP proxy matching criteria
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| cluster_name | [string](#string) |  | cluster_name is the destination cluster for TCP proxy |
 
 
 
@@ -471,16 +655,17 @@ ListenerType indicates the type/direction of a listener
 
 | Name | Number | Description |
 | ---- | ------ | ----------- |
-| VIRTUAL_INBOUND | 0 | VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst) |
-| VIRTUAL_OUTBOUND | 1 | VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst) |
-| SERVICE_OUTBOUND | 2 | SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port) |
-| PORT_OUTBOUND | 3 | PORT_OUTBOUND listeners for generic port traffic outbound (e.g., &#34;80&#34;, &#34;443&#34;) |
-| PROXY_METRICS | 4 | PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090) |
-| PROXY_HEALTHCHECK | 5 | PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021) |
-| ADMIN_XDS | 6 | ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010) |
-| ADMIN_WEBHOOK | 7 | ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012) |
-| ADMIN_DEBUG | 8 | ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014) |
-| GATEWAY_INBOUND | 9 | GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst) |
+| UNKNOWN_LISTENER_TYPE | 0 | UNKNOWN_LISTENER_TYPE indicates an unknown or unspecified listener type |
+| VIRTUAL_INBOUND | 1 | VIRTUAL_INBOUND listeners are virtual inbound listeners (typically 0.0.0.0 without use_original_dst) |
+| VIRTUAL_OUTBOUND | 2 | VIRTUAL_OUTBOUND listeners are virtual outbound listeners (typically 0.0.0.0 with use_original_dst) |
+| SERVICE_OUTBOUND | 3 | SERVICE_OUTBOUND listeners for specific upstream services (service.namespace.svc.cluster.local:port) |
+| PORT_OUTBOUND | 4 | PORT_OUTBOUND listeners for generic port traffic outbound (e.g., &#34;80&#34;, &#34;443&#34;) |
+| PROXY_METRICS | 5 | PROXY_METRICS listeners serve Prometheus metrics (typically on port 15090) |
+| PROXY_HEALTHCHECK | 6 | PROXY_HEALTHCHECK listeners serve health check endpoints (typically on port 15021) |
+| ADMIN_XDS | 7 | ADMIN_XDS listeners serve Envoy xDS configuration (typically on port 15010) |
+| ADMIN_WEBHOOK | 8 | ADMIN_WEBHOOK listeners serve Istio webhook endpoints (typically on port 15012) |
+| ADMIN_DEBUG | 9 | ADMIN_DEBUG listeners serve Envoy debug/admin interface (typically on port 15014) |
+| GATEWAY_INBOUND | 10 | GATEWAY_INBOUND listeners accept external traffic into gateway proxies (typically 0.0.0.0 without use_original_dst) |
 
 
 
