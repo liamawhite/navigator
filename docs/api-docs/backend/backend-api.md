@@ -9,6 +9,8 @@
     - [DestinationRule](#navigator-backend-v1alpha1-DestinationRule)
     - [EnvoyFilter](#navigator-backend-v1alpha1-EnvoyFilter)
     - [Gateway](#navigator-backend-v1alpha1-Gateway)
+    - [Gateway.SelectorEntry](#navigator-backend-v1alpha1-Gateway-SelectorEntry)
+    - [IstioControlPlaneConfig](#navigator-backend-v1alpha1-IstioControlPlaneConfig)
     - [Service](#navigator-backend-v1alpha1-Service)
     - [ServiceInstance](#navigator-backend-v1alpha1-ServiceInstance)
     - [ServiceInstance.AnnotationsEntry](#navigator-backend-v1alpha1-ServiceInstance-AnnotationsEntry)
@@ -52,6 +54,7 @@ ClusterState contains the current state of a cluster.
 | gateways | [Gateway](#navigator-backend-v1alpha1-Gateway) | repeated | gateways is the list of all gateways in the cluster. |
 | sidecars | [Sidecar](#navigator-backend-v1alpha1-Sidecar) | repeated | sidecars is the list of all sidecars in the cluster. |
 | virtual_services | [VirtualService](#navigator-backend-v1alpha1-VirtualService) | repeated | virtual_services is the list of all virtual services in the cluster. |
+| istio_control_plane_config | [IstioControlPlaneConfig](#navigator-backend-v1alpha1-IstioControlPlaneConfig) |  | istio_control_plane_config contains Istio control plane configuration. |
 
 
 
@@ -122,6 +125,38 @@ Gateway represents an Istio Gateway resource.
 | name | [string](#string) |  | name is the name of the gateway. |
 | namespace | [string](#string) |  | namespace is the namespace of the gateway. |
 | raw_spec | [string](#string) |  | raw_spec is the gateway spec as a JSON string. |
+| selector | [Gateway.SelectorEntry](#navigator-backend-v1alpha1-Gateway-SelectorEntry) | repeated | selector is the workload selector for the gateway. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-Gateway-SelectorEntry"></a>
+
+### Gateway.SelectorEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-IstioControlPlaneConfig"></a>
+
+### IstioControlPlaneConfig
+IstioControlPlaneConfig represents configuration from the Istio control plane.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| pilot_scope_gateway_to_namespace | [bool](#bool) |  | pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace. When true, gateway selectors only match workloads in the same namespace as the gateway. When false (default), gateway selectors match workloads across all namespaces. |
 
 
 

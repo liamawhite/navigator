@@ -97,10 +97,11 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	var protoGateways []*v1alpha1.Gateway
 	var protoSidecars []*v1alpha1.Sidecar
 	var protoVirtualServices []*v1alpha1.VirtualService
+	var protoIstioControlPlaneConfig *v1alpha1.IstioControlPlaneConfig
 
 	// Create error channel to collect errors from all goroutines
-	errChan := make(chan error, 8)
-	wg.Add(8)
+	errChan := make(chan error, 9)
+	wg.Add(9)
 
 	// Fetch Kubernetes resources concurrently
 	go k.fetchServices(ctx, &wg, &servicesResult, errChan)
@@ -113,6 +114,7 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	go k.fetchGateways(ctx, &wg, &protoGateways, errChan)
 	go k.fetchSidecars(ctx, &wg, &protoSidecars, errChan)
 	go k.fetchVirtualServices(ctx, &wg, &protoVirtualServices, errChan)
+	go k.fetchIstioControlPlaneConfig(ctx, &wg, &protoIstioControlPlaneConfig, errChan)
 
 	// Wait for all goroutines to complete
 	wg.Wait()
@@ -139,12 +141,13 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	}
 
 	return &v1alpha1.ClusterState{
-		Services:         protoServices,
-		DestinationRules: protoDestinationRules,
-		EnvoyFilters:     protoEnvoyFilters,
-		Gateways:         protoGateways,
-		Sidecars:         protoSidecars,
-		VirtualServices:  protoVirtualServices,
+		Services:                protoServices,
+		DestinationRules:        protoDestinationRules,
+		EnvoyFilters:            protoEnvoyFilters,
+		Gateways:                protoGateways,
+		Sidecars:                protoSidecars,
+		VirtualServices:         protoVirtualServices,
+		IstioControlPlaneConfig: protoIstioControlPlaneConfig,
 	}, nil
 }
 
