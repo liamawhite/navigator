@@ -15,14 +15,20 @@
 package kubernetes
 
 import (
+	"context"
+	"sync"
 	"testing"
 
+	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	istioapi "istio.io/api/networking/v1alpha3"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestClient_convertDestinationRule(t *testing.T) {
@@ -52,4 +58,262 @@ func TestClient_convertDestinationRule(t *testing.T) {
 	assert.Equal(t, "default", result.Namespace)
 	assert.Contains(t, result.RawSpec, "test-service")
 	assert.Contains(t, result.RawSpec, "ROUND_ROBIN")
+}
+
+func TestClient_convertGateway(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name         string
+		gateway      *istionetworkingv1beta1.Gateway
+		wantName     string
+		wantSelector map[string]string
+	}{
+		{
+			name: "gateway with selector",
+			gateway: &istionetworkingv1beta1.Gateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-gateway",
+					Namespace: "default",
+				},
+				Spec: istioapi.Gateway{
+					Selector: map[string]string{
+						"istio": "ingressgateway",
+						"app":   "gateway",
+					},
+					Servers: []*istioapi.Server{
+						{
+							Port: &istioapi.Port{
+								Number:   80,
+								Name:     "http",
+								Protocol: "HTTP",
+							},
+							Hosts: []string{"example.com"},
+						},
+					},
+				},
+			},
+			wantName: "test-gateway",
+			wantSelector: map[string]string{
+				"istio": "ingressgateway",
+				"app":   "gateway",
+			},
+		},
+		{
+			name: "gateway without selector",
+			gateway: &istionetworkingv1beta1.Gateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-gateway-no-selector",
+					Namespace: "default",
+				},
+				Spec: istioapi.Gateway{
+					Servers: []*istioapi.Server{
+						{
+							Port: &istioapi.Port{
+								Number:   443,
+								Name:     "https",
+								Protocol: "HTTPS",
+							},
+							Hosts: []string{"secure.example.com"},
+						},
+					},
+				},
+			},
+			wantName:     "test-gateway-no-selector",
+			wantSelector: map[string]string{},
+		},
+		{
+			name: "gateway with empty selector",
+			gateway: &istionetworkingv1beta1.Gateway{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-gateway-empty-selector",
+					Namespace: "default",
+				},
+				Spec: istioapi.Gateway{
+					Selector: map[string]string{},
+					Servers: []*istioapi.Server{
+						{
+							Port: &istioapi.Port{
+								Number:   8080,
+								Name:     "http-alt",
+								Protocol: "HTTP",
+							},
+							Hosts: []string{"alt.example.com"},
+						},
+					},
+				},
+			},
+			wantName:     "test-gateway-empty-selector",
+			wantSelector: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertGateway(tt.gateway)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantName, result.Name)
+			assert.Equal(t, "default", result.Namespace)
+			assert.Equal(t, tt.wantSelector, result.Selector)
+			assert.NotEmpty(t, result.RawSpec)
+		})
+	}
+}
+
+func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	type testDeployment struct {
+		name          string
+		envVars       []corev1.EnvVar
+		readyReplicas int32
+	}
+
+	tests := []struct {
+		name                             string
+		deployments                      []testDeployment
+		wantPilotScopeGatewayToNamespace bool
+		expectedSelectedDeployment       string
+	}{
+		{
+			name:                             "no deployments found - default config",
+			deployments:                      []testDeployment{},
+			wantPilotScopeGatewayToNamespace: false,
+			expectedSelectedDeployment:       "",
+		},
+		{
+			name: "single traditional istiod - no env var set",
+			deployments: []testDeployment{
+				{name: "istiod", envVars: []corev1.EnvVar{}, readyReplicas: 1},
+			},
+			wantPilotScopeGatewayToNamespace: false,
+			expectedSelectedDeployment:       "istiod",
+		},
+		{
+			name: "single traditional istiod - env var set to true",
+			deployments: []testDeployment{
+				{
+					name: "istiod",
+					envVars: []corev1.EnvVar{
+						{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"},
+					},
+					readyReplicas: 1,
+				},
+			},
+			wantPilotScopeGatewayToNamespace: true,
+			expectedSelectedDeployment:       "istiod",
+		},
+		{
+			name: "canary upgrade - traditional istiod preferred",
+			deployments: []testDeployment{
+				{name: "istiod", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "false"}}, readyReplicas: 1},
+				{name: "istiod-1-26-0", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"}}, readyReplicas: 2},
+			},
+			wantPilotScopeGatewayToNamespace: false, // Should use traditional istiod
+			expectedSelectedDeployment:       "istiod",
+		},
+		{
+			name: "canary upgrade - no traditional istiod, select by ready replicas",
+			deployments: []testDeployment{
+				{name: "istiod-1-25-0", envVars: []corev1.EnvVar{}, readyReplicas: 1},
+				{name: "istiod-1-26-0", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"}}, readyReplicas: 3},
+				{name: "istiod-canary", envVars: []corev1.EnvVar{}, readyReplicas: 2},
+			},
+			wantPilotScopeGatewayToNamespace: true, // Should use istiod-1-26-0 (highest replicas)
+			expectedSelectedDeployment:       "istiod-1-26-0",
+		},
+		{
+			name: "revision-based install - single deployment",
+			deployments: []testDeployment{
+				{
+					name: "istiod-1-26-0",
+					envVars: []corev1.EnvVar{
+						{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"},
+					},
+					readyReplicas: 2,
+				},
+			},
+			wantPilotScopeGatewayToNamespace: true,
+			expectedSelectedDeployment:       "istiod-1-26-0",
+		},
+		{
+			name: "multiple deployments - same ready replicas, use first",
+			deployments: []testDeployment{
+				{name: "istiod-1-25-0", envVars: []corev1.EnvVar{}, readyReplicas: 2},
+				{name: "istiod-1-26-0", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"}}, readyReplicas: 2},
+			},
+			wantPilotScopeGatewayToNamespace: false, // Should use first one (istiod-1-25-0)
+			expectedSelectedDeployment:       "istiod-1-25-0",
+		},
+		{
+			name: "deployment with zero ready replicas",
+			deployments: []testDeployment{
+				{name: "istiod-1-26-0", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"}}, readyReplicas: 0},
+			},
+			wantPilotScopeGatewayToNamespace: true,
+			expectedSelectedDeployment:       "istiod-1-26-0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake Kubernetes client
+			k8sClient := fake.NewSimpleClientset()
+			client.clientset = k8sClient
+
+			// Create all specified deployments
+			for _, deployment := range tt.deployments {
+				dep := &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      deployment.name,
+						Namespace: "istio-system",
+						Labels: map[string]string{
+							"app": "istiod",
+						},
+					},
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "discovery",
+										Env:  deployment.envVars,
+									},
+								},
+							},
+						},
+					},
+					Status: appsv1.DeploymentStatus{
+						ReadyReplicas: deployment.readyReplicas,
+					},
+				}
+				_, err := k8sClient.AppsV1().Deployments("istio-system").Create(context.TODO(), dep, metav1.CreateOptions{})
+				require.NoError(t, err)
+			}
+
+			var wg sync.WaitGroup
+			var result *v1alpha1.IstioControlPlaneConfig
+			errChan := make(chan error, 1)
+			wg.Add(1)
+
+			client.fetchIstioControlPlaneConfig(context.TODO(), &wg, &result, errChan)
+
+			wg.Wait()
+			close(errChan)
+
+			// Check for errors
+			var errors []error
+			for err := range errChan {
+				if err != nil {
+					errors = append(errors, err)
+				}
+			}
+			assert.Empty(t, errors, "No errors should occur during config detection")
+
+			// Verify result
+			require.NotNil(t, result)
+			assert.Equal(t, tt.wantPilotScopeGatewayToNamespace, result.PilotScopeGatewayToNamespace)
+		})
+	}
 }

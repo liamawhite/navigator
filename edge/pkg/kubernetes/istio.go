@@ -23,6 +23,7 @@ import (
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	istionetworkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -171,10 +172,19 @@ func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*v1alpha1.G
 		return nil, fmt.Errorf("failed to marshal gateway spec: %w", err)
 	}
 
+	// Extract selector from gateway spec
+	selector := make(map[string]string)
+	if gw.Spec.Selector != nil {
+		for key, value := range gw.Spec.Selector {
+			selector[key] = value
+		}
+	}
+
 	return &v1alpha1.Gateway{
 		Name:      gw.Name,
 		Namespace: gw.Namespace,
 		RawSpec:   string(specBytes),
+		Selector:  selector,
 	}, nil
 }
 
@@ -204,4 +214,109 @@ func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService
 		Namespace: vs.Namespace,
 		RawSpec:   string(specBytes),
 	}, nil
+}
+
+// fetchIstioControlPlaneConfig fetches Istio control plane configuration.
+// Supports canary upgrades and revision-based Istio installations by discovering
+// all istiod deployments and selecting the active control plane.
+func (k *Client) fetchIstioControlPlaneConfig(ctx context.Context, wg *sync.WaitGroup, result **v1alpha1.IstioControlPlaneConfig, errChan chan<- error) {
+	defer wg.Done()
+
+	config := &v1alpha1.IstioControlPlaneConfig{
+		PilotScopeGatewayToNamespace: false, // default value
+	}
+
+	// Find all istiod deployments using label selector
+	deployments, err := k.clientset.AppsV1().Deployments("istio-system").List(ctx, metav1.ListOptions{
+		LabelSelector: "app=istiod",
+	})
+	if err != nil {
+		k.logger.Debug("failed to list istiod deployments, using default Istio configuration", "error", err)
+		*result = config
+		return
+	}
+
+	if len(deployments.Items) == 0 {
+		k.logger.Debug("no istiod deployments found, using default Istio configuration")
+		*result = config
+		return
+	}
+
+	// Select the active control plane deployment
+	activeDeployment := k.selectActiveControlPlane(deployments.Items)
+	if activeDeployment == nil {
+		k.logger.Debug("no active istiod deployment found, using default Istio configuration")
+		*result = config
+		return
+	}
+
+	k.logger.Debug("selected active istiod deployment", "name", activeDeployment.Name, "namespace", activeDeployment.Namespace)
+
+	// Extract configuration from the active deployment
+	k.extractPilotConfiguration(activeDeployment, config)
+
+	*result = config
+}
+
+// selectActiveControlPlane selects the active control plane from multiple istiod deployments.
+// Priority order:
+// 1. Deployment named "istiod" (traditional default)
+// 2. Deployment with highest ready replicas
+// 3. First deployment (fallback)
+func (k *Client) selectActiveControlPlane(deployments []appsv1.Deployment) *appsv1.Deployment {
+	if len(deployments) == 0 {
+		return nil
+	}
+
+	// Priority 1: Look for traditional "istiod" deployment
+	for i := range deployments {
+		if deployments[i].Name == "istiod" {
+			k.logger.Debug("found traditional istiod deployment")
+			return &deployments[i]
+		}
+	}
+
+	// Priority 2: Select deployment with highest ready replicas
+	var bestDeployment *appsv1.Deployment
+	maxReadyReplicas := int32(-1)
+
+	for i := range deployments {
+		deployment := &deployments[i]
+		readyReplicas := deployment.Status.ReadyReplicas
+
+		if readyReplicas > maxReadyReplicas {
+			maxReadyReplicas = readyReplicas
+			bestDeployment = deployment
+		}
+	}
+
+	if bestDeployment != nil {
+		k.logger.Debug("selected deployment with most ready replicas",
+			"name", bestDeployment.Name,
+			"readyReplicas", maxReadyReplicas)
+		return bestDeployment
+	}
+
+	// Priority 3: Fallback to first deployment
+	k.logger.Debug("using first available deployment as fallback", "name", deployments[0].Name)
+	return &deployments[0]
+}
+
+// extractPilotConfiguration extracts pilot configuration from an istiod deployment
+func (k *Client) extractPilotConfiguration(deployment *appsv1.Deployment, config *v1alpha1.IstioControlPlaneConfig) {
+	// Check for PILOT_SCOPE_GATEWAY_TO_NAMESPACE environment variable in istiod deployment
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		if container.Name == "discovery" {
+			for _, env := range container.Env {
+				if env.Name == "PILOT_SCOPE_GATEWAY_TO_NAMESPACE" {
+					if env.Value == "true" {
+						config.PilotScopeGatewayToNamespace = true
+						k.logger.Debug("found PILOT_SCOPE_GATEWAY_TO_NAMESPACE=true", "deployment", deployment.Name)
+					}
+					return
+				}
+			}
+			break
+		}
+	}
 }

@@ -37,6 +37,9 @@ message ClusterState {
   
   // virtual_services is the list of all virtual services in the cluster.
   repeated VirtualService virtual_services = 6;
+  
+  // istio_control_plane_config contains Istio control plane configuration.
+  IstioControlPlaneConfig istio_control_plane_config = 7;
 }
 
 // Service represents a Kubernetes Service.
@@ -133,6 +136,9 @@ message Gateway {
   
   // raw_spec is the gateway spec as a JSON string.
   string raw_spec = 3;
+  
+  // selector is the workload selector for the gateway.
+  map<string, string> selector = 4;
 }
 
 // Sidecar represents an Istio Sidecar resource.
@@ -157,4 +163,12 @@ message VirtualService {
   
   // raw_spec is the virtual service spec as a JSON string.
   string raw_spec = 3;
+}
+
+// IstioControlPlaneConfig represents configuration from the Istio control plane.
+message IstioControlPlaneConfig {
+  // pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace.
+  // When true, gateway selectors only match workloads in the same namespace as the gateway.
+  // When false (default), gateway selectors match workloads across all namespaces.
+  bool pilot_scope_gateway_to_namespace = 1;
 }
