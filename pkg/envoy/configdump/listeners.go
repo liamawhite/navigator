@@ -22,7 +22,6 @@ import (
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
-	matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
@@ -333,22 +332,18 @@ func (p *Parser) parseHeaderMatch(headerMatch *route.HeaderMatcher) *v1alpha1.He
 	}
 
 	switch headerMatch.GetHeaderMatchSpecifier().(type) {
-	case *route.HeaderMatcher_StringMatch:
-		stringMatch := headerMatch.GetStringMatch()
-		switch stringMatch.GetMatchPattern().(type) {
-		case *matcher.StringMatcher_Exact:
-			headerMatchInfo.MatchType = "exact"
-			headerMatchInfo.Value = stringMatch.GetExact()
-		case *matcher.StringMatcher_Prefix:
-			headerMatchInfo.MatchType = "prefix"
-			headerMatchInfo.Value = stringMatch.GetPrefix()
-		case *matcher.StringMatcher_Suffix:
-			headerMatchInfo.MatchType = "suffix"
-			headerMatchInfo.Value = stringMatch.GetSuffix()
-		case *matcher.StringMatcher_SafeRegex:
-			headerMatchInfo.MatchType = "regex"
-			headerMatchInfo.Value = stringMatch.GetSafeRegex().Regex
-		}
+	case *route.HeaderMatcher_ExactMatch:
+		headerMatchInfo.MatchType = "exact"
+		headerMatchInfo.Value = headerMatch.GetExactMatch() //nolint:staticcheck // deprecated but needed for backward compatibility
+	case *route.HeaderMatcher_PrefixMatch:
+		headerMatchInfo.MatchType = "prefix"
+		headerMatchInfo.Value = headerMatch.GetPrefixMatch() //nolint:staticcheck // deprecated but needed for backward compatibility
+	case *route.HeaderMatcher_SuffixMatch:
+		headerMatchInfo.MatchType = "suffix"
+		headerMatchInfo.Value = headerMatch.GetSuffixMatch() //nolint:staticcheck // deprecated but needed for backward compatibility
+	case *route.HeaderMatcher_SafeRegexMatch:
+		headerMatchInfo.MatchType = "regex"
+		headerMatchInfo.Value = headerMatch.GetSafeRegexMatch().Regex //nolint:staticcheck // deprecated but needed for backward compatibility
 	case *route.HeaderMatcher_PresentMatch:
 		headerMatchInfo.MatchType = "present"
 		headerMatchInfo.Value = ""
