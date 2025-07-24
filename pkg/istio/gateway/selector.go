@@ -15,6 +15,7 @@
 package gateway
 
 import (
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -28,13 +29,19 @@ import (
 // - If gateway selector has labels, they must match the workload labels
 // - If scopeToNamespace is true, gateway and workload must be in the same namespace
 // - If scopeToNamespace is false (default), gateway can match workloads across namespaces
-func MatchesWorkload(gateway *typesv1alpha1.Gateway, workloadLabels map[string]string, workloadNamespace string, scopeToNamespace bool) bool {
+func matchesWorkload(gateway *typesv1alpha1.Gateway, instance *backendv1alpha1.ServiceInstance, namespace string, scopeToNamespace bool) bool {
 	if gateway == nil {
 		return false
 	}
 
+	// Extract workload labels from the service instance
+	workloadLabels := instance.Labels
+	if workloadLabels == nil {
+		workloadLabels = make(map[string]string)
+	}
+
 	// Check namespace scoping constraint
-	if scopeToNamespace && gateway.Namespace != workloadNamespace {
+	if scopeToNamespace && gateway.Namespace != namespace {
 		return false
 	}
 
@@ -56,11 +63,11 @@ func MatchesWorkload(gateway *typesv1alpha1.Gateway, workloadLabels map[string]s
 // FilterGatewaysForWorkload returns all gateways that apply to a specific workload instance.
 // This is a convenience function that filters a list of gateways based on the workload's
 // labels and namespace, respecting the PILOT_SCOPE_GATEWAY_TO_NAMESPACE setting.
-func FilterGatewaysForWorkload(gateways []*typesv1alpha1.Gateway, workloadLabels map[string]string, workloadNamespace string, scopeToNamespace bool) []*typesv1alpha1.Gateway {
+func FilterGatewaysForWorkload(gateways []*typesv1alpha1.Gateway, instance *backendv1alpha1.ServiceInstance, workloadNamespace string, scopeToNamespace bool) []*typesv1alpha1.Gateway {
 	var matchingGateways []*typesv1alpha1.Gateway
 
 	for _, gateway := range gateways {
-		if MatchesWorkload(gateway, workloadLabels, workloadNamespace, scopeToNamespace) {
+		if matchesWorkload(gateway, instance, workloadNamespace, scopeToNamespace) {
 			matchingGateways = append(matchingGateways, gateway)
 		}
 	}

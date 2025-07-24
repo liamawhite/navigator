@@ -17,6 +17,7 @@ package sidecar
 import (
 	"testing"
 
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,14 +26,14 @@ func TestMatchesWorkload(t *testing.T) {
 	tests := []struct {
 		name              string
 		sidecar           *typesv1alpha1.Sidecar
-		workloadLabels    map[string]string
+		instance          *backendv1alpha1.ServiceInstance
 		workloadNamespace string
 		expectedMatch     bool
 	}{
 		{
 			name:              "nil sidecar should not match",
 			sidecar:           nil,
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedMatch:     false,
 		},
@@ -43,7 +44,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace:        "default",
 				WorkloadSelector: nil,
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedMatch:     true,
 		},
@@ -56,7 +57,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{},
 				},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedMatch:     true,
 		},
@@ -69,7 +70,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: nil,
 				},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedMatch:     true,
 		},
@@ -80,7 +81,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace:        "istio-system",
 				WorkloadSelector: nil,
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedMatch:     false,
 		},
@@ -93,7 +94,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test"},
 				},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedMatch:     true,
 		},
@@ -106,7 +107,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test"},
 				},
 			},
-			workloadLabels:    map[string]string{"app": "test", "version": "v1", "env": "prod"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1", "env": "prod"}},
 			workloadNamespace: "default",
 			expectedMatch:     true,
 		},
@@ -119,7 +120,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test"},
 				},
 			},
-			workloadLabels:    map[string]string{"version": "v1"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"version": "v1"}},
 			workloadNamespace: "default",
 			expectedMatch:     false,
 		},
@@ -132,7 +133,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test"},
 				},
 			},
-			workloadLabels:    map[string]string{"app": "other"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "other"}},
 			workloadNamespace: "default",
 			expectedMatch:     false,
 		},
@@ -145,7 +146,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test", "version": "v1"},
 				},
 			},
-			workloadLabels:    map[string]string{"app": "test", "version": "v1", "env": "prod"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1", "env": "prod"}},
 			workloadNamespace: "default",
 			expectedMatch:     true,
 		},
@@ -158,7 +159,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test", "version": "v1"},
 				},
 			},
-			workloadLabels:    map[string]string{"app": "test", "version": "v2"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v2"}},
 			workloadNamespace: "default",
 			expectedMatch:     false,
 		},
@@ -171,7 +172,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test"},
 				},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedMatch:     false,
 		},
@@ -184,7 +185,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{},
 				},
 			},
-			workloadLabels:    map[string]string{},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{}},
 			workloadNamespace: "default",
 			expectedMatch:     true,
 		},
@@ -197,7 +198,7 @@ func TestMatchesWorkload(t *testing.T) {
 					MatchLabels: map[string]string{"app": "test"},
 				},
 			},
-			workloadLabels:    map[string]string{},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{}},
 			workloadNamespace: "default",
 			expectedMatch:     false,
 		},
@@ -205,8 +206,8 @@ func TestMatchesWorkload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := MatchesWorkload(tt.sidecar, tt.workloadLabels, tt.workloadNamespace)
-			assert.Equal(t, tt.expectedMatch, result, "MatchesWorkload result mismatch")
+			result := matchesWorkload(tt.sidecar, tt.instance, tt.workloadNamespace)
+			assert.Equal(t, tt.expectedMatch, result, "matchesWorkload result mismatch")
 		})
 	}
 }
@@ -257,13 +258,13 @@ func TestFilterSidecarsForWorkload(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		workloadLabels    map[string]string
+		instance          *backendv1alpha1.ServiceInstance
 		workloadNamespace string
 		expectedSidecars  []string // Sidecar names that should match
 	}{
 		{
 			name:              "workload matches multiple sidecars in same namespace",
-			workloadLabels:    map[string]string{"app": "test", "version": "v1"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1"}},
 			workloadNamespace: "default",
 			expectedSidecars: []string{
 				"all-workloads-sidecar",
@@ -274,7 +275,7 @@ func TestFilterSidecarsForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload with partial labels matches subset",
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			expectedSidecars: []string{
 				"all-workloads-sidecar",
@@ -284,7 +285,7 @@ func TestFilterSidecarsForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload with no matching labels only matches empty/nil selectors",
-			workloadLabels:    map[string]string{"app": "unrelated"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "unrelated"}},
 			workloadNamespace: "default",
 			expectedSidecars: []string{
 				"all-workloads-sidecar",
@@ -293,7 +294,7 @@ func TestFilterSidecarsForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload with no labels only matches empty/nil selectors",
-			workloadLabels:    map[string]string{},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{}},
 			workloadNamespace: "default",
 			expectedSidecars: []string{
 				"all-workloads-sidecar",
@@ -302,13 +303,13 @@ func TestFilterSidecarsForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload in different namespace does not match any sidecars",
-			workloadLabels:    map[string]string{"app": "test", "version": "v1"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1"}},
 			workloadNamespace: "staging",
 			expectedSidecars:  []string{},
 		},
 		{
 			name:              "workload in production namespace matches only sidecars in that namespace",
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "production",
 			expectedSidecars: []string{
 				"different-namespace-sidecar",
@@ -318,7 +319,7 @@ func TestFilterSidecarsForWorkload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FilterSidecarsForWorkload(sidecars, tt.workloadLabels, tt.workloadNamespace)
+			result := FilterSidecarsForWorkload(sidecars, tt.instance, tt.workloadNamespace)
 
 			// Convert result to sidecar names for easier comparison
 			var resultNames []string
@@ -333,12 +334,12 @@ func TestFilterSidecarsForWorkload(t *testing.T) {
 
 func TestFilterSidecarsForWorkload_EmptyInput(t *testing.T) {
 	t.Run("empty sidecar list returns empty result", func(t *testing.T) {
-		result := FilterSidecarsForWorkload([]*typesv1alpha1.Sidecar{}, map[string]string{"app": "test"}, "default")
+		result := FilterSidecarsForWorkload([]*typesv1alpha1.Sidecar{}, &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}}, "default")
 		assert.Empty(t, result, "Expected empty result for empty sidecar list")
 	})
 
 	t.Run("nil sidecar list returns empty result", func(t *testing.T) {
-		result := FilterSidecarsForWorkload(nil, map[string]string{"app": "test"}, "default")
+		result := FilterSidecarsForWorkload(nil, &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}}, "default")
 		assert.Empty(t, result, "Expected empty result for nil sidecar list")
 	})
 }

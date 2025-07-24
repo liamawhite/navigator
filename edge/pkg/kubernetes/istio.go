@@ -334,27 +334,17 @@ func (k *Client) fetchIstioControlPlaneConfig(ctx context.Context, wg *sync.Wait
 	defer wg.Done()
 
 	config := &typesv1alpha1.IstioControlPlaneConfig{
-		PilotScopeGatewayToNamespace: false, // default value
+		PilotScopeGatewayToNamespace: false,          // default value
+		RootNamespace:                "istio-system", // default fallback
 	}
 
-	// Find all istiod deployments using label selector
-	deployments, err := k.clientset.AppsV1().Deployments("istio-system").List(ctx, metav1.ListOptions{
-		LabelSelector: "app=istiod",
-	})
-	if err != nil {
-		k.logger.Debug("failed to list istiod deployments, using default Istio configuration", "error", err)
-		*result = config
-		return
+	// First, try to find the root namespace by searching across multiple common namespaces
+	rootNamespace, activeDeployment := k.discoverIstioControlPlane(ctx)
+	if rootNamespace != "" {
+		config.RootNamespace = rootNamespace
+		k.logger.Debug("discovered Istio root namespace", "namespace", rootNamespace)
 	}
 
-	if len(deployments.Items) == 0 {
-		k.logger.Debug("no istiod deployments found, using default Istio configuration")
-		*result = config
-		return
-	}
-
-	// Select the active control plane deployment
-	activeDeployment := k.selectActiveControlPlane(deployments.Items)
 	if activeDeployment == nil {
 		k.logger.Debug("no active istiod deployment found, using default Istio configuration")
 		*result = config
@@ -367,6 +357,80 @@ func (k *Client) fetchIstioControlPlaneConfig(ctx context.Context, wg *sync.Wait
 	k.extractPilotConfiguration(activeDeployment, config)
 
 	*result = config
+}
+
+// discoverIstioControlPlane discovers the Istio control plane by searching across multiple
+// potential namespaces and returns the root namespace and active deployment.
+func (k *Client) discoverIstioControlPlane(ctx context.Context) (string, *appsv1.Deployment) {
+	// Common namespaces where Istio control plane might be installed
+	candidateNamespaces := []string{
+		"istio-system",
+		"istio-control-plane",
+		"istiod",
+		"istio",
+	}
+
+	// Also check all namespaces for istiod deployments (for custom installations)
+	allNamespaces, err := k.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err == nil {
+		for _, ns := range allNamespaces.Items {
+			// Add any namespace that looks like it could contain Istio control plane
+			if ns.Name != "istio-system" &&
+				ns.Name != "istio-control-plane" &&
+				ns.Name != "istiod" &&
+				ns.Name != "istio" {
+				candidateNamespaces = append(candidateNamespaces, ns.Name)
+			}
+		}
+	}
+
+	var bestDeployment *appsv1.Deployment
+	var bestNamespace string
+	maxReadyReplicas := int32(-1)
+
+	// Search each namespace for istiod deployments
+	for _, namespace := range candidateNamespaces {
+		deployments, err := k.clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: "app=istiod",
+		})
+		if err != nil {
+			continue
+		}
+
+		if len(deployments.Items) == 0 {
+			continue
+		}
+
+		// Select the best deployment from this namespace
+		activeDeployment := k.selectActiveControlPlane(deployments.Items)
+		if activeDeployment == nil {
+			continue
+		}
+
+		// Prioritize traditional "istio-system" namespace
+		if namespace == "istio-system" {
+			k.logger.Debug("found istiod in traditional istio-system namespace")
+			return namespace, activeDeployment
+		}
+
+		// Otherwise, prefer deployment with most ready replicas
+		if activeDeployment.Status.ReadyReplicas > maxReadyReplicas {
+			maxReadyReplicas = activeDeployment.Status.ReadyReplicas
+			bestDeployment = activeDeployment
+			bestNamespace = namespace
+		}
+	}
+
+	if bestDeployment != nil {
+		k.logger.Debug("discovered Istio control plane",
+			"namespace", bestNamespace,
+			"deployment", bestDeployment.Name,
+			"readyReplicas", maxReadyReplicas)
+		return bestNamespace, bestDeployment
+	}
+
+	k.logger.Debug("no istiod deployments found in any namespace")
+	return "", nil
 }
 
 // selectActiveControlPlane selects the active control plane from multiple istiod deployments.
