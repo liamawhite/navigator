@@ -7,6 +7,8 @@
     - [ClusterState](#navigator-backend-v1alpha1-ClusterState)
     - [Container](#navigator-backend-v1alpha1-Container)
     - [DestinationRule](#navigator-backend-v1alpha1-DestinationRule)
+    - [DestinationRuleSubset](#navigator-backend-v1alpha1-DestinationRuleSubset)
+    - [DestinationRuleSubset.LabelsEntry](#navigator-backend-v1alpha1-DestinationRuleSubset-LabelsEntry)
     - [EnvoyFilter](#navigator-backend-v1alpha1-EnvoyFilter)
     - [Gateway](#navigator-backend-v1alpha1-Gateway)
     - [Gateway.SelectorEntry](#navigator-backend-v1alpha1-Gateway-SelectorEntry)
@@ -17,6 +19,8 @@
     - [ServiceInstance.LabelsEntry](#navigator-backend-v1alpha1-ServiceInstance-LabelsEntry)
     - [Sidecar](#navigator-backend-v1alpha1-Sidecar)
     - [VirtualService](#navigator-backend-v1alpha1-VirtualService)
+    - [WorkloadSelector](#navigator-backend-v1alpha1-WorkloadSelector)
+    - [WorkloadSelector.MatchLabelsEntry](#navigator-backend-v1alpha1-WorkloadSelector-MatchLabelsEntry)
   
 - [backend/v1alpha1/manager_service.proto](#backend_v1alpha1_manager_service-proto)
     - [ClusterIdentification](#navigator-backend-v1alpha1-ClusterIdentification)
@@ -91,6 +95,42 @@ DestinationRule represents an Istio DestinationRule resource.
 | name | [string](#string) |  | name is the name of the destination rule. |
 | namespace | [string](#string) |  | namespace is the namespace of the destination rule. |
 | raw_spec | [string](#string) |  | raw_spec is the destination rule spec as a JSON string. |
+| host | [string](#string) |  | host is the name of a service from the service registry. |
+| subsets | [DestinationRuleSubset](#navigator-backend-v1alpha1-DestinationRuleSubset) | repeated | subsets is the list of named subsets for traffic routing. |
+| export_to | [string](#string) | repeated | export_to controls the visibility of this destination rule to other namespaces. |
+| workload_selector | [WorkloadSelector](#navigator-backend-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-DestinationRuleSubset"></a>
+
+### DestinationRuleSubset
+DestinationRuleSubset represents a named subset for destination rule traffic routing.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the subset. |
+| labels | [DestinationRuleSubset.LabelsEntry](#navigator-backend-v1alpha1-DestinationRuleSubset-LabelsEntry) | repeated | labels are the key-value pairs that define the subset. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-DestinationRuleSubset-LabelsEntry"></a>
+
+### DestinationRuleSubset.LabelsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
 
 
 
@@ -266,6 +306,37 @@ VirtualService represents an Istio VirtualService resource.
 | hosts | [string](#string) | repeated | hosts is the list of destination hosts that these routing rules apply to. |
 | gateways | [string](#string) | repeated | gateways is the list of gateway names that should apply these routes. |
 | export_to | [string](#string) | repeated | export_to controls the visibility of this virtual service to other namespaces. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-WorkloadSelector"></a>
+
+### WorkloadSelector
+WorkloadSelector represents the workload selector criteria used across Istio resources.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| match_labels | [WorkloadSelector.MatchLabelsEntry](#navigator-backend-v1alpha1-WorkloadSelector-MatchLabelsEntry) | repeated | match_labels are the labels used to select pods/VMs. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-WorkloadSelector-MatchLabelsEntry"></a>
+
+### WorkloadSelector.MatchLabelsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
 
 
 

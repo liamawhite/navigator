@@ -112,6 +112,33 @@ message DestinationRule {
   
   // raw_spec is the destination rule spec as a JSON string.
   string raw_spec = 3;
+  
+  // host is the name of a service from the service registry.
+  string host = 4;
+  
+  // subsets is the list of named subsets for traffic routing.
+  repeated DestinationRuleSubset subsets = 5;
+  
+  // export_to controls the visibility of this destination rule to other namespaces.
+  repeated string export_to = 6;
+  
+  // workload_selector is the criteria used to select the specific set of pods/VMs.
+  WorkloadSelector workload_selector = 7;
+}
+
+// DestinationRuleSubset represents a named subset for destination rule traffic routing.
+message DestinationRuleSubset {
+  // name is the name of the subset.
+  string name = 1;
+  
+  // labels are the key-value pairs that define the subset.
+  map<string, string> labels = 2;
+}
+
+// WorkloadSelector represents the workload selector criteria used across Istio resources.
+message WorkloadSelector {
+  // match_labels are the labels used to select pods/VMs.
+  map<string, string> match_labels = 1;
 }
 
 // EnvoyFilter represents an Istio EnvoyFilter resource.

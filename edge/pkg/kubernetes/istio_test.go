@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	istioapi "istio.io/api/networking/v1alpha3"
+	istiotype "istio.io/api/type/v1beta1"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,30 +35,178 @@ import (
 func TestClient_convertDestinationRule(t *testing.T) {
 	client := &Client{logger: logging.For("test")}
 
-	dr := &istionetworkingv1beta1.DestinationRule{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-dr",
-			Namespace: "default",
-		},
-		Spec: istioapi.DestinationRule{
-			Host: "test-service",
-			TrafficPolicy: &istioapi.TrafficPolicy{
-				LoadBalancer: &istioapi.LoadBalancerSettings{
-					LbPolicy: &istioapi.LoadBalancerSettings_Simple{
-						Simple: istioapi.LoadBalancerSettings_ROUND_ROBIN,
+	tests := []struct {
+		name                 string
+		destinationRule      *istionetworkingv1beta1.DestinationRule
+		wantHost             string
+		wantSubsets          []*v1alpha1.DestinationRuleSubset
+		wantExportTo         []string
+		wantWorkloadSelector *v1alpha1.WorkloadSelector
+	}{
+		{
+			name: "all fields specified",
+			destinationRule: &istionetworkingv1beta1.DestinationRule{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dr-full",
+					Namespace: "default",
+				},
+				Spec: istioapi.DestinationRule{
+					Host:     "reviews.bookinfo.svc.cluster.local",
+					ExportTo: []string{".", "production"},
+					Subsets: []*istioapi.Subset{
+						{
+							Name:   "v1",
+							Labels: map[string]string{"version": "v1"},
+						},
+						{
+							Name:   "v2",
+							Labels: map[string]string{"version": "v2", "app": "reviews"},
+						},
+					},
+					WorkloadSelector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{"app": "reviews", "tier": "backend"},
 					},
 				},
 			},
+			wantHost: "reviews.bookinfo.svc.cluster.local",
+			wantSubsets: []*v1alpha1.DestinationRuleSubset{
+				{Name: "v1", Labels: map[string]string{"version": "v1"}},
+				{Name: "v2", Labels: map[string]string{"version": "v2", "app": "reviews"}},
+			},
+			wantExportTo: []string{".", "production"},
+			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{"app": "reviews", "tier": "backend"},
+			},
+		},
+		{
+			name: "host only - defaults for exportTo",
+			destinationRule: &istionetworkingv1beta1.DestinationRule{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dr-host-only",
+					Namespace: "default",
+				},
+				Spec: istioapi.DestinationRule{
+					Host: "productpage.bookinfo.svc.cluster.local",
+				},
+			},
+			wantHost:             "productpage.bookinfo.svc.cluster.local",
+			wantSubsets:          []*v1alpha1.DestinationRuleSubset{},
+			wantExportTo:         []string{"*"}, // default
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "empty exportTo should get default",
+			destinationRule: &istionetworkingv1beta1.DestinationRule{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dr-empty-export",
+					Namespace: "istio-system",
+				},
+				Spec: istioapi.DestinationRule{
+					Host:     "istio-proxy",
+					ExportTo: []string{}, // empty slice
+				},
+			},
+			wantHost:             "istio-proxy",
+			wantSubsets:          []*v1alpha1.DestinationRuleSubset{},
+			wantExportTo:         []string{"*"}, // default for empty slice
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "subsets without labels",
+			destinationRule: &istionetworkingv1beta1.DestinationRule{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dr-empty-labels",
+					Namespace: "default",
+				},
+				Spec: istioapi.DestinationRule{
+					Host: "details.bookinfo.svc.cluster.local",
+					Subsets: []*istioapi.Subset{
+						{
+							Name:   "default",
+							Labels: nil, // nil labels
+						},
+						{
+							Name:   "empty",
+							Labels: map[string]string{}, // empty labels
+						},
+					},
+					ExportTo: []string{"*"},
+				},
+			},
+			wantHost: "details.bookinfo.svc.cluster.local",
+			wantSubsets: []*v1alpha1.DestinationRuleSubset{
+				{Name: "default", Labels: map[string]string{}},
+				{Name: "empty", Labels: map[string]string{}},
+			},
+			wantExportTo:         []string{"*"},
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "workload selector without labels",
+			destinationRule: &istionetworkingv1beta1.DestinationRule{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dr-empty-selector",
+					Namespace: "default",
+				},
+				Spec: istioapi.DestinationRule{
+					Host: "ratings.bookinfo.svc.cluster.local",
+					WorkloadSelector: &istiotype.WorkloadSelector{
+						MatchLabels: nil, // nil labels
+					},
+				},
+			},
+			wantHost:             "ratings.bookinfo.svc.cluster.local",
+			wantSubsets:          []*v1alpha1.DestinationRuleSubset{},
+			wantExportTo:         []string{"*"}, // default
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "empty host should be preserved",
+			destinationRule: &istionetworkingv1beta1.DestinationRule{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dr-no-host",
+					Namespace: "default",
+				},
+				Spec: istioapi.DestinationRule{
+					Host: "", // empty host
+					Subsets: []*istioapi.Subset{
+						{
+							Name:   "canary",
+							Labels: map[string]string{"deployment": "canary"},
+						},
+					},
+				},
+			},
+			wantHost: "",
+			wantSubsets: []*v1alpha1.DestinationRuleSubset{
+				{Name: "canary", Labels: map[string]string{"deployment": "canary"}},
+			},
+			wantExportTo:         []string{"*"}, // default
+			wantWorkloadSelector: nil,
 		},
 	}
 
-	result, err := client.convertDestinationRule(dr)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertDestinationRule(tt.destinationRule)
 
-	require.NoError(t, err)
-	assert.Equal(t, "test-dr", result.Name)
-	assert.Equal(t, "default", result.Namespace)
-	assert.Contains(t, result.RawSpec, "test-service")
-	assert.Contains(t, result.RawSpec, "ROUND_ROBIN")
+			require.NoError(t, err)
+			assert.Equal(t, tt.destinationRule.Name, result.Name)
+			assert.Equal(t, tt.destinationRule.Namespace, result.Namespace)
+			assert.Equal(t, tt.wantHost, result.Host)
+			assert.Equal(t, len(tt.wantSubsets), len(result.Subsets))
+
+			// Check subsets in detail
+			for i, expectedSubset := range tt.wantSubsets {
+				assert.Equal(t, expectedSubset.Name, result.Subsets[i].Name)
+				assert.Equal(t, expectedSubset.Labels, result.Subsets[i].Labels)
+			}
+
+			assert.Equal(t, tt.wantExportTo, result.ExportTo)
+			assert.Equal(t, tt.wantWorkloadSelector, result.WorkloadSelector)
+			assert.NotEmpty(t, result.RawSpec)
+		})
+	}
 }
 
 func TestClient_convertGateway(t *testing.T) {
