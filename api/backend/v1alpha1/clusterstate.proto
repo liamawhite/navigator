@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package navigator.backend.v1alpha1;
 
+import "types/v1alpha1/istio_resources.proto";
+
 option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 
 // ClusterState contains the current state of a cluster.
@@ -24,22 +26,22 @@ message ClusterState {
   repeated Service services = 1;
   
   // destination_rules is the list of all destination rules in the cluster.
-  repeated DestinationRule destination_rules = 2;
+  repeated navigator.types.v1alpha1.DestinationRule destination_rules = 2;
   
   // envoy_filters is the list of all envoy filters in the cluster.
-  repeated EnvoyFilter envoy_filters = 3;
+  repeated navigator.types.v1alpha1.EnvoyFilter envoy_filters = 3;
   
   // gateways is the list of all gateways in the cluster.
-  repeated Gateway gateways = 4;
+  repeated navigator.types.v1alpha1.Gateway gateways = 4;
   
   // sidecars is the list of all sidecars in the cluster.
-  repeated Sidecar sidecars = 5;
+  repeated navigator.types.v1alpha1.Sidecar sidecars = 5;
   
   // virtual_services is the list of all virtual services in the cluster.
-  repeated VirtualService virtual_services = 6;
+  repeated navigator.types.v1alpha1.VirtualService virtual_services = 6;
   
   // istio_control_plane_config contains Istio control plane configuration.
-  IstioControlPlaneConfig istio_control_plane_config = 7;
+  navigator.types.v1alpha1.IstioControlPlaneConfig istio_control_plane_config = 7;
 }
 
 // Service represents a Kubernetes Service.
@@ -102,134 +104,3 @@ message ServiceInstance {
   map<string, string> annotations = 9;
 }
 
-// DestinationRule represents an Istio DestinationRule resource.
-message DestinationRule {
-  // name is the name of the destination rule.
-  string name = 1;
-  
-  // namespace is the namespace of the destination rule.
-  string namespace = 2;
-  
-  // raw_spec is the destination rule spec as a JSON string.
-  string raw_spec = 3;
-  
-  // host is the name of a service from the service registry.
-  string host = 4;
-  
-  // subsets is the list of named subsets for traffic routing.
-  repeated DestinationRuleSubset subsets = 5;
-  
-  // export_to controls the visibility of this destination rule to other namespaces.
-  repeated string export_to = 6;
-  
-  // workload_selector is the criteria used to select the specific set of pods/VMs.
-  WorkloadSelector workload_selector = 7;
-}
-
-// DestinationRuleSubset represents a named subset for destination rule traffic routing.
-message DestinationRuleSubset {
-  // name is the name of the subset.
-  string name = 1;
-  
-  // labels are the key-value pairs that define the subset.
-  map<string, string> labels = 2;
-}
-
-// WorkloadSelector represents the workload selector criteria used across Istio resources.
-message WorkloadSelector {
-  // match_labels are the labels used to select pods/VMs.
-  map<string, string> match_labels = 1;
-}
-
-// PolicyTargetReference represents a reference to a specific resource based on Istio's PolicyTargetReference.
-message PolicyTargetReference {
-  // group specifies the group of the target resource.
-  string group = 1;
-  
-  // kind indicates the kind of target resource (required).
-  string kind = 2;
-  
-  // name provides the name of the target resource (required).
-  string name = 3;
-  
-  // namespace defines the namespace of the referenced resource.
-  // When unspecified, the local namespace is inferred.
-  string namespace = 4;
-}
-
-// EnvoyFilter represents an Istio EnvoyFilter resource.
-message EnvoyFilter {
-  // name is the name of the envoy filter.
-  string name = 1;
-  
-  // namespace is the namespace of the envoy filter.
-  string namespace = 2;
-  
-  // raw_spec is the envoy filter spec as a JSON string.
-  string raw_spec = 3;
-  
-  // workload_selector is the criteria used to select the specific set of pods/VMs.
-  WorkloadSelector workload_selector = 4;
-  
-  // target_refs is the list of resources that this envoy filter applies to.
-  repeated PolicyTargetReference target_refs = 5;
-}
-
-// Gateway represents an Istio Gateway resource.
-message Gateway {
-  // name is the name of the gateway.
-  string name = 1;
-  
-  // namespace is the namespace of the gateway.
-  string namespace = 2;
-  
-  // raw_spec is the gateway spec as a JSON string.
-  string raw_spec = 3;
-  
-  // selector is the workload selector for the gateway.
-  map<string, string> selector = 4;
-}
-
-// Sidecar represents an Istio Sidecar resource.
-message Sidecar {
-  // name is the name of the sidecar.
-  string name = 1;
-  
-  // namespace is the namespace of the sidecar.
-  string namespace = 2;
-  
-  // raw_spec is the sidecar spec as a JSON string.
-  string raw_spec = 3;
-  
-  // workload_selector is the criteria used to select the specific set of pods/VMs.
-  WorkloadSelector workload_selector = 4;
-}
-
-// VirtualService represents an Istio VirtualService resource.
-message VirtualService {
-  // name is the name of the virtual service.
-  string name = 1;
-  
-  // namespace is the namespace of the virtual service.
-  string namespace = 2;
-  
-  // raw_spec is the virtual service spec as a JSON string.
-  string raw_spec = 3;
-  
-  // hosts is the list of destination hosts that these routing rules apply to.
-  repeated string hosts = 4;
-  
-  // gateways is the list of gateway names that should apply these routes.
-  repeated string gateways = 5;
-  
-  // export_to controls the visibility of this virtual service to other namespaces.
-  repeated string export_to = 6;
-}
-
-// IstioControlPlaneConfig represents configuration from the Istio control plane.
-message IstioControlPlaneConfig {
-  // pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace.
-  // When true, gateway selectors only match workloads in the same namespace as the gateway.
-  // When false (default), gateway selectors match workloads across all namespaces.
-  bool pilot_scope_gateway_to_namespace = 1;
-}

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"sync"
 
-	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	istionetworkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -28,7 +28,7 @@ import (
 )
 
 // fetchDestinationRules fetches and converts all destination rules from the cluster
-func (k *Client) fetchDestinationRules(ctx context.Context, wg *sync.WaitGroup, result *[]*v1alpha1.DestinationRule, errChan chan<- error) {
+func (k *Client) fetchDestinationRules(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.DestinationRule, errChan chan<- error) {
 	defer wg.Done()
 	drList, err := k.istioClient.NetworkingV1beta1().DestinationRules("").List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -36,7 +36,7 @@ func (k *Client) fetchDestinationRules(ctx context.Context, wg *sync.WaitGroup, 
 		return
 	}
 
-	var protoDestinationRules []*v1alpha1.DestinationRule
+	var protoDestinationRules []*typesv1alpha1.DestinationRule
 	for i := range drList.Items {
 		dr := drList.Items[i]
 		protoDR, convertErr := k.convertDestinationRule(dr)
@@ -50,7 +50,7 @@ func (k *Client) fetchDestinationRules(ctx context.Context, wg *sync.WaitGroup, 
 }
 
 // fetchEnvoyFilters fetches and converts all envoy filters from the cluster
-func (k *Client) fetchEnvoyFilters(ctx context.Context, wg *sync.WaitGroup, result *[]*v1alpha1.EnvoyFilter, errChan chan<- error) {
+func (k *Client) fetchEnvoyFilters(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.EnvoyFilter, errChan chan<- error) {
 	defer wg.Done()
 	efList, err := k.istioClient.NetworkingV1alpha3().EnvoyFilters("").List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -58,7 +58,7 @@ func (k *Client) fetchEnvoyFilters(ctx context.Context, wg *sync.WaitGroup, resu
 		return
 	}
 
-	var protoEnvoyFilters []*v1alpha1.EnvoyFilter
+	var protoEnvoyFilters []*typesv1alpha1.EnvoyFilter
 	for i := range efList.Items {
 		ef := efList.Items[i]
 		protoEF, convertErr := k.convertEnvoyFilter(ef)
@@ -72,7 +72,7 @@ func (k *Client) fetchEnvoyFilters(ctx context.Context, wg *sync.WaitGroup, resu
 }
 
 // fetchGateways fetches and converts all gateways from the cluster
-func (k *Client) fetchGateways(ctx context.Context, wg *sync.WaitGroup, result *[]*v1alpha1.Gateway, errChan chan<- error) {
+func (k *Client) fetchGateways(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.Gateway, errChan chan<- error) {
 	defer wg.Done()
 	gwList, err := k.istioClient.NetworkingV1beta1().Gateways("").List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -80,7 +80,7 @@ func (k *Client) fetchGateways(ctx context.Context, wg *sync.WaitGroup, result *
 		return
 	}
 
-	var protoGateways []*v1alpha1.Gateway
+	var protoGateways []*typesv1alpha1.Gateway
 	for i := range gwList.Items {
 		gw := gwList.Items[i]
 		protoGW, convertErr := k.convertGateway(gw)
@@ -94,7 +94,7 @@ func (k *Client) fetchGateways(ctx context.Context, wg *sync.WaitGroup, result *
 }
 
 // fetchSidecars fetches and converts all sidecars from the cluster
-func (k *Client) fetchSidecars(ctx context.Context, wg *sync.WaitGroup, result *[]*v1alpha1.Sidecar, errChan chan<- error) {
+func (k *Client) fetchSidecars(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.Sidecar, errChan chan<- error) {
 	defer wg.Done()
 	scList, err := k.istioClient.NetworkingV1beta1().Sidecars("").List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -102,7 +102,7 @@ func (k *Client) fetchSidecars(ctx context.Context, wg *sync.WaitGroup, result *
 		return
 	}
 
-	var protoSidecars []*v1alpha1.Sidecar
+	var protoSidecars []*typesv1alpha1.Sidecar
 	for i := range scList.Items {
 		sc := scList.Items[i]
 		protoSC, convertErr := k.convertSidecar(sc)
@@ -116,7 +116,7 @@ func (k *Client) fetchSidecars(ctx context.Context, wg *sync.WaitGroup, result *
 }
 
 // fetchVirtualServices fetches and converts all virtual services from the cluster
-func (k *Client) fetchVirtualServices(ctx context.Context, wg *sync.WaitGroup, result *[]*v1alpha1.VirtualService, errChan chan<- error) {
+func (k *Client) fetchVirtualServices(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.VirtualService, errChan chan<- error) {
 	defer wg.Done()
 	vsList, err := k.istioClient.NetworkingV1beta1().VirtualServices("").List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -124,7 +124,7 @@ func (k *Client) fetchVirtualServices(ctx context.Context, wg *sync.WaitGroup, r
 		return
 	}
 
-	var protoVirtualServices []*v1alpha1.VirtualService
+	var protoVirtualServices []*typesv1alpha1.VirtualService
 	for i := range vsList.Items {
 		vs := vsList.Items[i]
 		protoVS, convertErr := k.convertVirtualService(vs)
@@ -138,7 +138,7 @@ func (k *Client) fetchVirtualServices(ctx context.Context, wg *sync.WaitGroup, r
 }
 
 // convertDestinationRule converts an Istio DestinationRule to a protobuf DestinationRule
-func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRule) (*v1alpha1.DestinationRule, error) {
+func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRule) (*typesv1alpha1.DestinationRule, error) {
 	specBytes, err := json.Marshal(&dr.Spec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal destination rule spec: %w", err)
@@ -151,9 +151,9 @@ func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRu
 	}
 
 	// Extract subsets from the spec
-	var subsets []*v1alpha1.DestinationRuleSubset
+	var subsets []*typesv1alpha1.DestinationRuleSubset
 	for _, subset := range dr.Spec.Subsets {
-		protoSubset := &v1alpha1.DestinationRuleSubset{
+		protoSubset := &typesv1alpha1.DestinationRuleSubset{
 			Name:   subset.Name,
 			Labels: make(map[string]string),
 		}
@@ -174,18 +174,18 @@ func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRu
 	}
 
 	// Extract workload selector from the spec
-	var workloadSelector *v1alpha1.WorkloadSelector
+	var workloadSelector *typesv1alpha1.WorkloadSelector
 	if dr.Spec.WorkloadSelector != nil && dr.Spec.WorkloadSelector.MatchLabels != nil {
 		matchLabels := make(map[string]string)
 		for key, value := range dr.Spec.WorkloadSelector.MatchLabels {
 			matchLabels[key] = value
 		}
-		workloadSelector = &v1alpha1.WorkloadSelector{
+		workloadSelector = &typesv1alpha1.WorkloadSelector{
 			MatchLabels: matchLabels,
 		}
 	}
 
-	return &v1alpha1.DestinationRule{
+	return &typesv1alpha1.DestinationRule{
 		Name:             dr.Name,
 		Namespace:        dr.Namespace,
 		RawSpec:          string(specBytes),
@@ -197,29 +197,29 @@ func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRu
 }
 
 // convertEnvoyFilter converts an Istio EnvoyFilter to a protobuf EnvoyFilter
-func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*v1alpha1.EnvoyFilter, error) {
+func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*typesv1alpha1.EnvoyFilter, error) {
 	specBytes, err := json.Marshal(&ef.Spec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal envoy filter spec: %w", err)
 	}
 
 	// Extract workload selector from the spec
-	var workloadSelector *v1alpha1.WorkloadSelector
+	var workloadSelector *typesv1alpha1.WorkloadSelector
 	if ef.Spec.WorkloadSelector != nil && ef.Spec.WorkloadSelector.Labels != nil {
 		matchLabels := make(map[string]string)
 		for key, value := range ef.Spec.WorkloadSelector.Labels {
 			matchLabels[key] = value
 		}
-		workloadSelector = &v1alpha1.WorkloadSelector{
+		workloadSelector = &typesv1alpha1.WorkloadSelector{
 			MatchLabels: matchLabels,
 		}
 	}
 
 	// Extract target refs from the spec
-	var targetRefs []*v1alpha1.PolicyTargetReference
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
 	for _, targetRef := range ef.Spec.TargetRefs {
 		if targetRef != nil {
-			protoTargetRef := &v1alpha1.PolicyTargetReference{
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
 				Group:     targetRef.Group,
 				Kind:      targetRef.Kind,
 				Name:      targetRef.Name,
@@ -229,7 +229,7 @@ func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*v
 		}
 	}
 
-	return &v1alpha1.EnvoyFilter{
+	return &typesv1alpha1.EnvoyFilter{
 		Name:             ef.Name,
 		Namespace:        ef.Namespace,
 		RawSpec:          string(specBytes),
@@ -239,7 +239,7 @@ func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*v
 }
 
 // convertGateway converts an Istio Gateway to a protobuf Gateway
-func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*v1alpha1.Gateway, error) {
+func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*typesv1alpha1.Gateway, error) {
 	specBytes, err := json.Marshal(&gw.Spec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal gateway spec: %w", err)
@@ -253,7 +253,7 @@ func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*v1alpha1.G
 		}
 	}
 
-	return &v1alpha1.Gateway{
+	return &typesv1alpha1.Gateway{
 		Name:      gw.Name,
 		Namespace: gw.Namespace,
 		RawSpec:   string(specBytes),
@@ -262,25 +262,25 @@ func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*v1alpha1.G
 }
 
 // convertSidecar converts an Istio Sidecar to a protobuf Sidecar
-func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*v1alpha1.Sidecar, error) {
+func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*typesv1alpha1.Sidecar, error) {
 	specBytes, err := json.Marshal(&sc.Spec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal sidecar spec: %w", err)
 	}
 
 	// Extract workload selector from the spec
-	var workloadSelector *v1alpha1.WorkloadSelector
+	var workloadSelector *typesv1alpha1.WorkloadSelector
 	if sc.Spec.WorkloadSelector != nil && sc.Spec.WorkloadSelector.Labels != nil {
 		matchLabels := make(map[string]string)
 		for key, value := range sc.Spec.WorkloadSelector.Labels {
 			matchLabels[key] = value
 		}
-		workloadSelector = &v1alpha1.WorkloadSelector{
+		workloadSelector = &typesv1alpha1.WorkloadSelector{
 			MatchLabels: matchLabels,
 		}
 	}
 
-	return &v1alpha1.Sidecar{
+	return &typesv1alpha1.Sidecar{
 		Name:             sc.Name,
 		Namespace:        sc.Namespace,
 		RawSpec:          string(specBytes),
@@ -289,7 +289,7 @@ func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*v1alpha1.S
 }
 
 // convertVirtualService converts an Istio VirtualService to a protobuf VirtualService
-func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService) (*v1alpha1.VirtualService, error) {
+func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService) (*typesv1alpha1.VirtualService, error) {
 	specBytes, err := json.Marshal(&vs.Spec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal virtual service spec: %w", err)
@@ -317,7 +317,7 @@ func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService
 		exportTo = []string{"*"}
 	}
 
-	return &v1alpha1.VirtualService{
+	return &typesv1alpha1.VirtualService{
 		Name:      vs.Name,
 		Namespace: vs.Namespace,
 		RawSpec:   string(specBytes),
@@ -330,10 +330,10 @@ func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService
 // fetchIstioControlPlaneConfig fetches Istio control plane configuration.
 // Supports canary upgrades and revision-based Istio installations by discovering
 // all istiod deployments and selecting the active control plane.
-func (k *Client) fetchIstioControlPlaneConfig(ctx context.Context, wg *sync.WaitGroup, result **v1alpha1.IstioControlPlaneConfig, errChan chan<- error) {
+func (k *Client) fetchIstioControlPlaneConfig(ctx context.Context, wg *sync.WaitGroup, result **typesv1alpha1.IstioControlPlaneConfig, errChan chan<- error) {
 	defer wg.Done()
 
-	config := &v1alpha1.IstioControlPlaneConfig{
+	config := &typesv1alpha1.IstioControlPlaneConfig{
 		PilotScopeGatewayToNamespace: false, // default value
 	}
 
@@ -414,7 +414,7 @@ func (k *Client) selectActiveControlPlane(deployments []appsv1.Deployment) *apps
 }
 
 // extractPilotConfiguration extracts pilot configuration from an istiod deployment
-func (k *Client) extractPilotConfiguration(deployment *appsv1.Deployment, config *v1alpha1.IstioControlPlaneConfig) {
+func (k *Client) extractPilotConfiguration(deployment *appsv1.Deployment, config *typesv1alpha1.IstioControlPlaneConfig) {
 	// Check for PILOT_SCOPE_GATEWAY_TO_NAMESPACE environment variable in istiod deployment
 	for _, container := range deployment.Spec.Template.Spec.Containers {
 		if container.Name == "discovery" {

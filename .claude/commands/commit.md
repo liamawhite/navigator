@@ -30,7 +30,23 @@ git diff --cached
 - Identify the scope and purpose of the changes
 - Generate appropriate commit message and PR content based on the actual changes
 
-### 3. Run Quality Checks
+### 3. Check CLAUDE.md Updates
+
+Check if CLAUDE.md needs to be updated based on the changes:
+
+**If changes include:**
+- New directories or components
+- Modified build commands or development workflows
+- Technology stack changes (new dependencies, frameworks)
+- Architectural changes or new patterns
+- New development tools or CI/CD changes
+
+**Then:**
+- Ask the user: "I notice changes that may require CLAUDE.md updates. Would you like me to analyze and update the documentation?"
+- If yes, analyze the changes and update CLAUDE.md accordingly
+- If no, proceed to quality checks
+
+### 4. Run Quality Checks
 
 Always run quality checks before committing:
 
@@ -43,7 +59,7 @@ make check
 - Re-run `make check` to verify fixes
 - If issues persist after fixes, show the remaining errors to the user and ask for guidance
 
-### 4. Create Commit
+### 5. Create Commit
 
 **Generate commit message based on the diff analysis:**
 - Use conventional commit format: `type(scope): description`
@@ -57,7 +73,7 @@ make check
 git commit -m "[commit message here]"
 ```
 
-### 5. Ask About Pull Request
+### 6. Ask About Pull Request
 
 **Ask the user:** "Would you like me to create a pull request for this commit?"
 
@@ -65,7 +81,7 @@ git commit -m "[commit message here]"
 
 **If yes:** Continue to PR creation steps.
 
-### 6. Handle Branch for PR Creation
+### 7. Handle Branch for PR Creation
 
 **Check current branch:**
 
@@ -93,7 +109,7 @@ git checkout -b "$BRANCH_NAME"
 git push -u origin "$(git branch --show-current)"
 ```
 
-### 7. Create Pull Request
+### 8. Create Pull Request
 
 Use GitHub CLI to create the pull request:
 
@@ -111,13 +127,13 @@ EOF
 - Summary with bullet points describing what was modified
 - Test plan based on the areas of code that were changed
 
-### 8. Provide PR URL
+### 9. Provide PR URL
 
 After successful PR creation, provide the user with:
 - The PR URL for easy access
 - Brief summary of what was accomplished
 
-### 9. Update Existing PR (Alternative Workflow)
+### 10. Update Existing PR (Alternative Workflow)
 
 **If there's already an open PR for the current branch and you have new changes:**
 
@@ -163,7 +179,7 @@ gh pr view --json url,title 2>/dev/null || echo "No PR found"
    - Show the updated PR URL
    - Summarize what changes were added to the existing PR
 
-### 10. Important Notes
+### 11. Important Notes
 
 **Always confirm with user before:**
 - Adding unstaged/untracked files

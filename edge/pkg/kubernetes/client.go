@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -92,12 +93,12 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	var servicesResult *corev1.ServiceList
 	var endpointSlicesByService map[string][]discoveryv1.EndpointSlice
 	var podsByName map[string]*corev1.Pod
-	var protoDestinationRules []*v1alpha1.DestinationRule
-	var protoEnvoyFilters []*v1alpha1.EnvoyFilter
-	var protoGateways []*v1alpha1.Gateway
-	var protoSidecars []*v1alpha1.Sidecar
-	var protoVirtualServices []*v1alpha1.VirtualService
-	var protoIstioControlPlaneConfig *v1alpha1.IstioControlPlaneConfig
+	var protoDestinationRules []*typesv1alpha1.DestinationRule
+	var protoEnvoyFilters []*typesv1alpha1.EnvoyFilter
+	var protoGateways []*typesv1alpha1.Gateway
+	var protoSidecars []*typesv1alpha1.Sidecar
+	var protoVirtualServices []*typesv1alpha1.VirtualService
+	var protoIstioControlPlaneConfig *typesv1alpha1.IstioControlPlaneConfig
 
 	// Create error channel to collect errors from all goroutines
 	errChan := make(chan error, 9)

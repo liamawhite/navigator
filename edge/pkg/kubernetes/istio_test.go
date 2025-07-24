@@ -20,7 +20,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,9 +40,9 @@ func TestClient_convertDestinationRule(t *testing.T) {
 		name                 string
 		destinationRule      *istionetworkingv1beta1.DestinationRule
 		wantHost             string
-		wantSubsets          []*v1alpha1.DestinationRuleSubset
+		wantSubsets          []*typesv1alpha1.DestinationRuleSubset
 		wantExportTo         []string
-		wantWorkloadSelector *v1alpha1.WorkloadSelector
+		wantWorkloadSelector *typesv1alpha1.WorkloadSelector
 	}{
 		{
 			name: "all fields specified",
@@ -70,12 +70,12 @@ func TestClient_convertDestinationRule(t *testing.T) {
 				},
 			},
 			wantHost: "reviews.bookinfo.svc.cluster.local",
-			wantSubsets: []*v1alpha1.DestinationRuleSubset{
+			wantSubsets: []*typesv1alpha1.DestinationRuleSubset{
 				{Name: "v1", Labels: map[string]string{"version": "v1"}},
 				{Name: "v2", Labels: map[string]string{"version": "v2", "app": "reviews"}},
 			},
 			wantExportTo: []string{".", "production"},
-			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
 				MatchLabels: map[string]string{"app": "reviews", "tier": "backend"},
 			},
 		},
@@ -91,7 +91,7 @@ func TestClient_convertDestinationRule(t *testing.T) {
 				},
 			},
 			wantHost:             "productpage.bookinfo.svc.cluster.local",
-			wantSubsets:          []*v1alpha1.DestinationRuleSubset{},
+			wantSubsets:          []*typesv1alpha1.DestinationRuleSubset{},
 			wantExportTo:         []string{"*"}, // default
 			wantWorkloadSelector: nil,
 		},
@@ -108,7 +108,7 @@ func TestClient_convertDestinationRule(t *testing.T) {
 				},
 			},
 			wantHost:             "istio-proxy",
-			wantSubsets:          []*v1alpha1.DestinationRuleSubset{},
+			wantSubsets:          []*typesv1alpha1.DestinationRuleSubset{},
 			wantExportTo:         []string{"*"}, // default for empty slice
 			wantWorkloadSelector: nil,
 		},
@@ -135,7 +135,7 @@ func TestClient_convertDestinationRule(t *testing.T) {
 				},
 			},
 			wantHost: "details.bookinfo.svc.cluster.local",
-			wantSubsets: []*v1alpha1.DestinationRuleSubset{
+			wantSubsets: []*typesv1alpha1.DestinationRuleSubset{
 				{Name: "default", Labels: map[string]string{}},
 				{Name: "empty", Labels: map[string]string{}},
 			},
@@ -157,7 +157,7 @@ func TestClient_convertDestinationRule(t *testing.T) {
 				},
 			},
 			wantHost:             "ratings.bookinfo.svc.cluster.local",
-			wantSubsets:          []*v1alpha1.DestinationRuleSubset{},
+			wantSubsets:          []*typesv1alpha1.DestinationRuleSubset{},
 			wantExportTo:         []string{"*"}, // default
 			wantWorkloadSelector: nil,
 		},
@@ -179,7 +179,7 @@ func TestClient_convertDestinationRule(t *testing.T) {
 				},
 			},
 			wantHost: "",
-			wantSubsets: []*v1alpha1.DestinationRuleSubset{
+			wantSubsets: []*typesv1alpha1.DestinationRuleSubset{
 				{Name: "canary", Labels: map[string]string{"deployment": "canary"}},
 			},
 			wantExportTo:         []string{"*"}, // default
@@ -443,7 +443,7 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 			}
 
 			var wg sync.WaitGroup
-			var result *v1alpha1.IstioControlPlaneConfig
+			var result *typesv1alpha1.IstioControlPlaneConfig
 			errChan := make(chan error, 1)
 			wg.Add(1)
 
@@ -585,7 +585,7 @@ func TestClient_convertSidecar(t *testing.T) {
 		sidecar              *istionetworkingv1beta1.Sidecar
 		wantName             string
 		wantNamespace        string
-		wantWorkloadSelector *v1alpha1.WorkloadSelector
+		wantWorkloadSelector *typesv1alpha1.WorkloadSelector
 	}{
 		{
 			name: "sidecar with workload selector",
@@ -616,7 +616,7 @@ func TestClient_convertSidecar(t *testing.T) {
 			},
 			wantName:      "test-sidecar",
 			wantNamespace: "production",
-			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
 				MatchLabels: map[string]string{
 					"app":     "reviews",
 					"version": "v2",
@@ -687,7 +687,7 @@ func TestClient_convertSidecar(t *testing.T) {
 			},
 			wantName:      "test-sidecar-empty-labels",
 			wantNamespace: "test",
-			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
 				MatchLabels: map[string]string{},
 			},
 		},
@@ -730,7 +730,7 @@ func TestClient_convertSidecar(t *testing.T) {
 			},
 			wantName:      "test-sidecar-single-label",
 			wantNamespace: "bookinfo",
-			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
 				MatchLabels: map[string]string{
 					"app": "ratings",
 				},
