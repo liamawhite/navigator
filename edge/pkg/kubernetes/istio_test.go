@@ -317,3 +317,112 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_convertVirtualService(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name           string
+		virtualService *istionetworkingv1beta1.VirtualService
+		wantHosts      []string
+		wantGateways   []string
+		wantExportTo   []string
+	}{
+		{
+			name: "all fields specified",
+			virtualService: &istionetworkingv1beta1.VirtualService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-vs",
+					Namespace: "default",
+				},
+				Spec: istioapi.VirtualService{
+					Hosts:    []string{"bookinfo.com", "reviews.bookinfo.com"},
+					Gateways: []string{"bookinfo-gateway", "mesh"},
+					ExportTo: []string{".", "production"},
+				},
+			},
+			wantHosts:    []string{"bookinfo.com", "reviews.bookinfo.com"},
+			wantGateways: []string{"bookinfo-gateway", "mesh"},
+			wantExportTo: []string{".", "production"},
+		},
+		{
+			name: "hosts only - defaults for gateways and exportTo",
+			virtualService: &istionetworkingv1beta1.VirtualService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-vs-hosts-only",
+					Namespace: "default",
+				},
+				Spec: istioapi.VirtualService{
+					Hosts: []string{"api.example.com"},
+				},
+			},
+			wantHosts:    []string{"api.example.com"},
+			wantGateways: []string{"mesh"}, // default
+			wantExportTo: []string{"*"},    // default
+		},
+		{
+			name: "empty slices should get defaults",
+			virtualService: &istionetworkingv1beta1.VirtualService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-vs-empty",
+					Namespace: "default",
+				},
+				Spec: istioapi.VirtualService{
+					Hosts:    []string{"service.local"},
+					Gateways: []string{}, // empty slice
+					ExportTo: []string{}, // empty slice
+				},
+			},
+			wantHosts:    []string{"service.local"},
+			wantGateways: []string{"mesh"}, // default for empty slice
+			wantExportTo: []string{"*"},    // default for empty slice
+		},
+		{
+			name: "nil slices should get defaults",
+			virtualService: &istionetworkingv1beta1.VirtualService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-vs-nil",
+					Namespace: "default",
+				},
+				Spec: istioapi.VirtualService{
+					Hosts: []string{"another.service"},
+					// Gateways and ExportTo are nil
+				},
+			},
+			wantHosts:    []string{"another.service"},
+			wantGateways: []string{"mesh"}, // default for nil
+			wantExportTo: []string{"*"},    // default for nil
+		},
+		{
+			name: "custom gateways with default exportTo",
+			virtualService: &istionetworkingv1beta1.VirtualService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-vs-custom-gw",
+					Namespace: "istio-system",
+				},
+				Spec: istioapi.VirtualService{
+					Hosts:    []string{"*.example.com"},
+					Gateways: []string{"custom-gateway", "another-gateway"},
+					// ExportTo is nil - should get default
+				},
+			},
+			wantHosts:    []string{"*.example.com"},
+			wantGateways: []string{"custom-gateway", "another-gateway"},
+			wantExportTo: []string{"*"}, // default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertVirtualService(tt.virtualService)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.virtualService.Name, result.Name)
+			assert.Equal(t, tt.virtualService.Namespace, result.Namespace)
+			assert.Equal(t, tt.wantHosts, result.Hosts)
+			assert.Equal(t, tt.wantGateways, result.Gateways)
+			assert.Equal(t, tt.wantExportTo, result.ExportTo)
+			assert.NotEmpty(t, result.RawSpec)
+		})
+	}
+}

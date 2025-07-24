@@ -263,6 +263,9 @@ VirtualService represents an Istio VirtualService resource.
 | name | [string](#string) |  | name is the name of the virtual service. |
 | namespace | [string](#string) |  | namespace is the namespace of the virtual service. |
 | raw_spec | [string](#string) |  | raw_spec is the virtual service spec as a JSON string. |
+| hosts | [string](#string) | repeated | hosts is the list of destination hosts that these routing rules apply to. |
+| gateways | [string](#string) | repeated | gateways is the list of gateway names that should apply these routes. |
+| export_to | [string](#string) | repeated | export_to controls the visibility of this virtual service to other namespaces. |
 
 
 
