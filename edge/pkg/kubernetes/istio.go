@@ -144,10 +144,55 @@ func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRu
 		return nil, fmt.Errorf("failed to marshal destination rule spec: %w", err)
 	}
 
+	// Extract host from the spec
+	var host string
+	if dr.Spec.Host != "" {
+		host = dr.Spec.Host
+	}
+
+	// Extract subsets from the spec
+	var subsets []*v1alpha1.DestinationRuleSubset
+	for _, subset := range dr.Spec.Subsets {
+		protoSubset := &v1alpha1.DestinationRuleSubset{
+			Name:   subset.Name,
+			Labels: make(map[string]string),
+		}
+		if subset.Labels != nil {
+			for key, value := range subset.Labels {
+				protoSubset.Labels[key] = value
+			}
+		}
+		subsets = append(subsets, protoSubset)
+	}
+
+	// Default for exportTo is ["*"] if not specified or empty
+	var exportTo []string
+	if len(dr.Spec.ExportTo) > 0 {
+		exportTo = dr.Spec.ExportTo
+	} else {
+		exportTo = []string{"*"}
+	}
+
+	// Extract workload selector from the spec
+	var workloadSelector *v1alpha1.WorkloadSelector
+	if dr.Spec.WorkloadSelector != nil && dr.Spec.WorkloadSelector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range dr.Spec.WorkloadSelector.MatchLabels {
+			matchLabels[key] = value
+		}
+		workloadSelector = &v1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
 	return &v1alpha1.DestinationRule{
-		Name:      dr.Name,
-		Namespace: dr.Namespace,
-		RawSpec:   string(specBytes),
+		Name:             dr.Name,
+		Namespace:        dr.Namespace,
+		RawSpec:          string(specBytes),
+		Host:             host,
+		Subsets:          subsets,
+		ExportTo:         exportTo,
+		WorkloadSelector: workloadSelector,
 	}, nil
 }
 
