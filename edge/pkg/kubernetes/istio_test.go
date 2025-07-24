@@ -16,6 +16,7 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 
@@ -572,6 +573,200 @@ func TestClient_convertVirtualService(t *testing.T) {
 			assert.Equal(t, tt.wantGateways, result.Gateways)
 			assert.Equal(t, tt.wantExportTo, result.ExportTo)
 			assert.NotEmpty(t, result.RawSpec)
+		})
+	}
+}
+
+func TestClient_convertSidecar(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name                 string
+		sidecar              *istionetworkingv1beta1.Sidecar
+		wantName             string
+		wantNamespace        string
+		wantWorkloadSelector *v1alpha1.WorkloadSelector
+	}{
+		{
+			name: "sidecar with workload selector",
+			sidecar: &istionetworkingv1beta1.Sidecar{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sidecar",
+					Namespace: "production",
+				},
+				Spec: istioapi.Sidecar{
+					WorkloadSelector: &istioapi.WorkloadSelector{
+						Labels: map[string]string{
+							"app":     "reviews",
+							"version": "v2",
+							"tier":    "backend",
+						},
+					},
+					Ingress: []*istioapi.IstioIngressListener{
+						{
+							Port: &istioapi.SidecarPort{
+								Number:   9080,
+								Protocol: "HTTP",
+								Name:     "http",
+							},
+							DefaultEndpoint: "127.0.0.1:8080",
+						},
+					},
+				},
+			},
+			wantName:      "test-sidecar",
+			wantNamespace: "production",
+			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app":     "reviews",
+					"version": "v2",
+					"tier":    "backend",
+				},
+			},
+		},
+		{
+			name: "sidecar without workload selector",
+			sidecar: &istionetworkingv1beta1.Sidecar{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sidecar-no-selector",
+					Namespace: "default",
+				},
+				Spec: istioapi.Sidecar{
+					Egress: []*istioapi.IstioEgressListener{
+						{
+							Hosts: []string{"./productpage.default.svc.cluster.local"},
+						},
+					},
+				},
+			},
+			wantName:             "test-sidecar-no-selector",
+			wantNamespace:        "default",
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "sidecar with nil workload selector",
+			sidecar: &istionetworkingv1beta1.Sidecar{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sidecar-nil-selector",
+					Namespace: "istio-system",
+				},
+				Spec: istioapi.Sidecar{
+					WorkloadSelector: nil,
+					Egress: []*istioapi.IstioEgressListener{
+						{
+							Hosts: []string{"./ratings.default.svc.cluster.local"},
+						},
+					},
+				},
+			},
+			wantName:             "test-sidecar-nil-selector",
+			wantNamespace:        "istio-system",
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "sidecar with empty workload selector labels",
+			sidecar: &istionetworkingv1beta1.Sidecar{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sidecar-empty-labels",
+					Namespace: "test",
+				},
+				Spec: istioapi.Sidecar{
+					WorkloadSelector: &istioapi.WorkloadSelector{
+						Labels: map[string]string{}, // empty labels
+					},
+					Ingress: []*istioapi.IstioIngressListener{
+						{
+							Port: &istioapi.SidecarPort{
+								Number:   8080,
+								Protocol: "HTTP",
+								Name:     "http",
+							},
+						},
+					},
+				},
+			},
+			wantName:      "test-sidecar-empty-labels",
+			wantNamespace: "test",
+			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{},
+			},
+		},
+		{
+			name: "sidecar with nil workload selector labels",
+			sidecar: &istionetworkingv1beta1.Sidecar{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sidecar-nil-labels",
+					Namespace: "default",
+				},
+				Spec: istioapi.Sidecar{
+					WorkloadSelector: &istioapi.WorkloadSelector{
+						Labels: nil, // nil labels
+					},
+					Egress: []*istioapi.IstioEgressListener{
+						{
+							Hosts: []string{"./details.default.svc.cluster.local"},
+						},
+					},
+				},
+			},
+			wantName:             "test-sidecar-nil-labels",
+			wantNamespace:        "default",
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "sidecar with single label",
+			sidecar: &istionetworkingv1beta1.Sidecar{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-sidecar-single-label",
+					Namespace: "bookinfo",
+				},
+				Spec: istioapi.Sidecar{
+					WorkloadSelector: &istioapi.WorkloadSelector{
+						Labels: map[string]string{
+							"app": "ratings",
+						},
+					},
+				},
+			},
+			wantName:      "test-sidecar-single-label",
+			wantNamespace: "bookinfo",
+			wantWorkloadSelector: &v1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app": "ratings",
+				},
+			},
+		},
+		{
+			name: "minimal sidecar configuration",
+			sidecar: &istionetworkingv1beta1.Sidecar{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "minimal-sidecar",
+					Namespace: "minimal",
+				},
+				Spec: istioapi.Sidecar{
+					// Minimal spec with no additional configuration
+				},
+			},
+			wantName:             "minimal-sidecar",
+			wantNamespace:        "minimal",
+			wantWorkloadSelector: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertSidecar(tt.sidecar)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantName, result.Name)
+			assert.Equal(t, tt.wantNamespace, result.Namespace)
+			assert.Equal(t, tt.wantWorkloadSelector, result.WorkloadSelector)
+			assert.NotEmpty(t, result.RawSpec)
+
+			// Verify RawSpec contains valid JSON
+			var spec map[string]interface{}
+			err = json.Unmarshal([]byte(result.RawSpec), &spec)
+			assert.NoError(t, err, "RawSpec should be valid JSON")
 		})
 	}
 }

@@ -307,6 +307,7 @@ Sidecar represents an Istio Sidecar resource.
 | name | [string](#string) |  | name is the name of the sidecar. |
 | namespace | [string](#string) |  | namespace is the namespace of the sidecar. |
 | raw_spec | [string](#string) |  | raw_spec is the sidecar spec as a JSON string. |
+| workload_selector | [WorkloadSelector](#navigator-backend-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
 
 
 
