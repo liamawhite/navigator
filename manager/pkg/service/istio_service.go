@@ -124,11 +124,11 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	// For now, return all other resources - in a more sophisticated implementation,
 	// we would filter these based on relevance to the workload
 	return &frontendv1alpha1.GetIstioResourcesResponse{
-		VirtualServices:      clusterState.VirtualServices,
-		DestinationRules:     clusterState.DestinationRules,
-		Gateways:             matchingGateways,
-		Sidecars:             matchingSidecars,
-		EnvoyFilters:         matchingEnvoyFilters,
-		PeerAuthentications:  matchingPeerAuthentications,
+		VirtualServices:     clusterState.VirtualServices,
+		DestinationRules:    clusterState.DestinationRules,
+		Gateways:            matchingGateways,
+		Sidecars:            matchingSidecars,
+		EnvoyFilters:        matchingEnvoyFilters,
+		PeerAuthentications: matchingPeerAuthentications,
 	}, nil
 }

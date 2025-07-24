@@ -25,12 +25,12 @@ import (
 
 func TestMatchesWorkload(t *testing.T) {
 	tests := []struct {
-		name         string
-		peerAuth     *typesv1alpha1.PeerAuthentication
-		instance     *backendv1alpha1.ServiceInstance
-		namespace    string
-		rootNS       string
-		expected     bool
+		name      string
+		peerAuth  *typesv1alpha1.PeerAuthentication
+		instance  *backendv1alpha1.ServiceInstance
+		namespace string
+		rootNS    string
+		expected  bool
 	}{
 		{
 			name: "empty selector matches all workloads in same namespace",
