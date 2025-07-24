@@ -12,6 +12,7 @@
     - [Gateway.SelectorEntry](#navigator-types-v1alpha1-Gateway-SelectorEntry)
     - [IstioControlPlaneConfig](#navigator-types-v1alpha1-IstioControlPlaneConfig)
     - [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference)
+    - [RequestAuthentication](#navigator-types-v1alpha1-RequestAuthentication)
     - [Sidecar](#navigator-types-v1alpha1-Sidecar)
     - [VirtualService](#navigator-types-v1alpha1-VirtualService)
     - [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector)
@@ -201,6 +202,25 @@ PolicyTargetReference represents a reference to a specific resource based on Ist
 | kind | [string](#string) |  | kind indicates the kind of target resource (required). |
 | name | [string](#string) |  | name provides the name of the target resource (required). |
 | namespace | [string](#string) |  | namespace defines the namespace of the referenced resource. When unspecified, the local namespace is inferred. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-RequestAuthentication"></a>
+
+### RequestAuthentication
+RequestAuthentication represents an Istio RequestAuthentication resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the request authentication. |
+| namespace | [string](#string) |  | namespace is the namespace of the request authentication. |
+| raw_spec | [string](#string) |  | raw_spec is the request authentication spec as a JSON string. |
+| selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
+| target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this request authentication applies to. |
 
 
 

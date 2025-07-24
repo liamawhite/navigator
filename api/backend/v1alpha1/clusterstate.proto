@@ -31,17 +31,20 @@ message ClusterState {
   // envoy_filters is the list of all envoy filters in the cluster.
   repeated navigator.types.v1alpha1.EnvoyFilter envoy_filters = 3;
   
+  // request_authentications is the list of all request authentications in the cluster.
+  repeated navigator.types.v1alpha1.RequestAuthentication request_authentications = 4;
+  
   // gateways is the list of all gateways in the cluster.
-  repeated navigator.types.v1alpha1.Gateway gateways = 4;
+  repeated navigator.types.v1alpha1.Gateway gateways = 5;
   
   // sidecars is the list of all sidecars in the cluster.
-  repeated navigator.types.v1alpha1.Sidecar sidecars = 5;
+  repeated navigator.types.v1alpha1.Sidecar sidecars = 6;
   
   // virtual_services is the list of all virtual services in the cluster.
-  repeated navigator.types.v1alpha1.VirtualService virtual_services = 6;
+  repeated navigator.types.v1alpha1.VirtualService virtual_services = 7;
   
   // istio_control_plane_config contains Istio control plane configuration.
-  navigator.types.v1alpha1.IstioControlPlaneConfig istio_control_plane_config = 7;
+  navigator.types.v1alpha1.IstioControlPlaneConfig istio_control_plane_config = 8;
 }
 
 // Service represents a Kubernetes Service.
