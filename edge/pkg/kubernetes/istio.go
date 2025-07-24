@@ -268,10 +268,23 @@ func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*v1alpha1.S
 		return nil, fmt.Errorf("failed to marshal sidecar spec: %w", err)
 	}
 
+	// Extract workload selector from the spec
+	var workloadSelector *v1alpha1.WorkloadSelector
+	if sc.Spec.WorkloadSelector != nil && sc.Spec.WorkloadSelector.Labels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range sc.Spec.WorkloadSelector.Labels {
+			matchLabels[key] = value
+		}
+		workloadSelector = &v1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
 	return &v1alpha1.Sidecar{
-		Name:      sc.Name,
-		Namespace: sc.Namespace,
-		RawSpec:   string(specBytes),
+		Name:             sc.Name,
+		Namespace:        sc.Namespace,
+		RawSpec:          string(specBytes),
+		WorkloadSelector: workloadSelector,
 	}, nil
 }
 

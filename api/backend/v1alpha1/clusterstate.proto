@@ -200,6 +200,9 @@ message Sidecar {
   
   // raw_spec is the sidecar spec as a JSON string.
   string raw_spec = 3;
+  
+  // workload_selector is the criteria used to select the specific set of pods/VMs.
+  WorkloadSelector workload_selector = 4;
 }
 
 // VirtualService represents an Istio VirtualService resource.
