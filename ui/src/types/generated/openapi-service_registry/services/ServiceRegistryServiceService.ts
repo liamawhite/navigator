@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { rpcStatus } from '../models/rpcStatus';
+import type { v1alpha1GetIstioResourcesResponse } from '../models/v1alpha1GetIstioResourcesResponse';
 import type { v1alpha1GetProxyConfigResponse } from '../models/v1alpha1GetProxyConfigResponse';
 import type { v1alpha1GetServiceInstanceResponse } from '../models/v1alpha1GetServiceInstanceResponse';
 import type { v1alpha1GetServiceResponse } from '../models/v1alpha1GetServiceResponse';
@@ -85,6 +86,29 @@ export class ServiceRegistryServiceService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v1alpha1/services/{serviceId}/instances/{instanceId}',
+            path: {
+                'serviceId': serviceId,
+                'instanceId': instanceId,
+            },
+        });
+    }
+    /**
+     * GetIstioResources retrieves the Istio configuration resources for a specific service instance.
+     * @param serviceId service_id is the unique identifier of the service.
+     * Format: namespace:service-name (e.g., "default:nginx-service")
+     * @param instanceId instance_id is the unique identifier of the service instance.
+     * Format: cluster_id:namespace:pod_name (e.g., "cluster1:default:nginx-pod-123")
+     * @returns v1alpha1GetIstioResourcesResponse A successful response.
+     * @returns rpcStatus An unexpected error response.
+     * @throws ApiError
+     */
+    public static serviceRegistryServiceGetIstioResources(
+        serviceId: string,
+        instanceId: string,
+    ): CancelablePromise<v1alpha1GetIstioResourcesResponse | rpcStatus> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/v1alpha1/services/{serviceId}/instances/{instanceId}/istio-resources',
             path: {
                 'serviceId': serviceId,
                 'instanceId': instanceId,

@@ -42,19 +42,26 @@ type ProxyConfigProvider interface {
 	GetProxyConfig(ctx context.Context, clusterID, namespace, podName string) (*types.ProxyConfig, error)
 }
 
+// IstioResourcesProvider defines the interface for retrieving Istio resources for a specific workload
+type IstioResourcesProvider interface {
+	GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, labels map[string]string) (*frontendv1alpha1.GetIstioResourcesResponse, error)
+}
+
 // FrontendService implements the frontend ServiceRegistryService
 type FrontendService struct {
 	frontendv1alpha1.UnimplementedServiceRegistryServiceServer
 	connectionManager ReadOptimizedConnectionManager
 	proxyProvider     ProxyConfigProvider
+	istioProvider     IstioResourcesProvider
 	logger            *slog.Logger
 }
 
 // NewFrontendService creates a new frontend service
-func NewFrontendService(connectionManager ReadOptimizedConnectionManager, proxyProvider ProxyConfigProvider, logger *slog.Logger) *FrontendService {
+func NewFrontendService(connectionManager ReadOptimizedConnectionManager, proxyProvider ProxyConfigProvider, istioProvider IstioResourcesProvider, logger *slog.Logger) *FrontendService {
 	return &FrontendService{
 		connectionManager: connectionManager,
 		proxyProvider:     proxyProvider,
+		istioProvider:     istioProvider,
 		logger:            logger,
 	}
 }
@@ -162,6 +169,45 @@ func (f *FrontendService) GetProxyConfig(ctx context.Context, req *frontendv1alp
 	return &frontendv1alpha1.GetProxyConfigResponse{
 		ProxyConfig: proxyConfig,
 	}, nil
+}
+
+// GetIstioResources retrieves the Istio configuration resources for a specific service instance
+func (f *FrontendService) GetIstioResources(ctx context.Context, req *frontendv1alpha1.GetIstioResourcesRequest) (*frontendv1alpha1.GetIstioResourcesResponse, error) {
+	f.logger.Debug("getting istio resources", "service_id", req.ServiceId, "instance_id", req.InstanceId)
+
+	// Parse instance ID to extract cluster, namespace, and pod name
+	clusterID, namespace, _, err := parseInstanceID(req.InstanceId)
+	if err != nil {
+		f.logger.Warn("invalid instance ID format", "instance_id", req.InstanceId, "error", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid instance ID format: %v", err)
+	}
+
+	// Get the service instance to extract labels
+	aggInstance, exists := f.connectionManager.GetAggregatedServiceInstance(req.InstanceId)
+	if !exists {
+		f.logger.Warn("service instance not found", "instance_id", req.InstanceId)
+		return nil, status.Errorf(codes.NotFound, "service instance not found: %s", req.InstanceId)
+	}
+
+	// Request Istio resources from the appropriate cluster
+	istioResources, err := f.istioProvider.GetIstioResourcesForWorkload(ctx, clusterID, namespace, aggInstance.Labels)
+	if err != nil {
+		f.logger.Error("failed to get istio resources",
+			"instance_id", req.InstanceId,
+			"cluster_id", clusterID,
+			"namespace", namespace,
+			"error", err)
+		return nil, status.Errorf(codes.Internal, "failed to retrieve istio resources: %v", err)
+	}
+
+	f.logger.Debug("got istio resources",
+		"instance_id", req.InstanceId,
+		"cluster_id", clusterID,
+		"gateways", len(istioResources.Gateways),
+		"virtual_services", len(istioResources.VirtualServices),
+		"destination_rules", len(istioResources.DestinationRules))
+
+	return istioResources, nil
 }
 
 // ListClusters returns sync state information for all connected clusters

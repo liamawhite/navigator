@@ -149,6 +149,45 @@
         ]
       }
     },
+    "/api/v1alpha1/services/{serviceId}/instances/{instanceId}/istio-resources": {
+      "get": {
+        "summary": "GetIstioResources retrieves the Istio configuration resources for a specific service instance.",
+        "operationId": "ServiceRegistryService_GetIstioResources",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetIstioResourcesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "serviceId",
+            "description": "service_id is the unique identifier of the service.\nFormat: namespace:service-name (e.g., \"default:nginx-service\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "instanceId",
+            "description": "instance_id is the unique identifier of the service instance.\nFormat: cluster_id:namespace:pod_name (e.g., \"cluster1:default:nginx-pod-123\")",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ServiceRegistryService"
+        ]
+      }
+    },
     "/api/v1alpha1/services/{serviceId}/instances/{instanceId}/proxy-config": {
       "get": {
         "summary": "GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance.",
@@ -410,6 +449,64 @@
       },
       "description": "Container represents a container running in a pod."
     },
+    "v1alpha1DestinationRule": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the destination rule."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the destination rule."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the destination rule spec as a JSON string."
+        },
+        "host": {
+          "type": "string",
+          "description": "host is the name of a service from the service registry."
+        },
+        "subsets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1DestinationRuleSubset"
+          },
+          "description": "subsets is the list of named subsets for traffic routing."
+        },
+        "exportTo": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "export_to controls the visibility of this destination rule to other namespaces."
+        },
+        "workloadSelector": {
+          "$ref": "#/definitions/v1alpha1WorkloadSelector",
+          "description": "workload_selector is the criteria used to select the specific set of pods/VMs."
+        }
+      },
+      "description": "DestinationRule represents an Istio DestinationRule resource."
+    },
+    "v1alpha1DestinationRuleSubset": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the subset."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "labels are the key-value pairs that define the subset."
+        }
+      },
+      "description": "DestinationRuleSubset represents a named subset for destination rule traffic routing."
+    },
     "v1alpha1DynamicConfigInfo": {
       "type": "object",
       "properties": {
@@ -508,6 +605,36 @@
       },
       "title": "EndpointSummary contains endpoint configuration information"
     },
+    "v1alpha1EnvoyFilter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the envoy filter."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the envoy filter."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the envoy filter spec as a JSON string."
+        },
+        "workloadSelector": {
+          "$ref": "#/definitions/v1alpha1WorkloadSelector",
+          "description": "workload_selector is the criteria used to select the specific set of pods/VMs."
+        },
+        "targetRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1PolicyTargetReference"
+          },
+          "description": "target_refs is the list of resources that this envoy filter applies to."
+        }
+      },
+      "description": "EnvoyFilter represents an Istio EnvoyFilter resource."
+    },
     "v1alpha1FilterChainMatch": {
       "type": "object",
       "properties": {
@@ -580,6 +707,77 @@
         }
       },
       "title": "FilterInfo contains filter information"
+    },
+    "v1alpha1Gateway": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the gateway."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the gateway."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the gateway spec as a JSON string."
+        },
+        "selector": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "selector is the workload selector for the gateway."
+        }
+      },
+      "description": "Gateway represents an Istio Gateway resource."
+    },
+    "v1alpha1GetIstioResourcesResponse": {
+      "type": "object",
+      "properties": {
+        "virtualServices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1VirtualService"
+          },
+          "description": "virtual_services are VirtualService resources affecting this instance."
+        },
+        "destinationRules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1DestinationRule"
+          },
+          "description": "destination_rules are DestinationRule resources affecting this instance."
+        },
+        "gateways": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Gateway"
+          },
+          "description": "gateways are Gateway resources affecting this instance."
+        },
+        "sidecars": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1Sidecar"
+          },
+          "description": "sidecars are Sidecar resources affecting this instance."
+        },
+        "envoyFilters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1EnvoyFilter"
+          },
+          "description": "envoy_filters are EnvoyFilter resources affecting this instance."
+        }
+      },
+      "description": "GetIstioResourcesResponse contains the Istio resources for the requested service instance."
     },
     "v1alpha1GetProxyConfigResponse": {
       "type": "object",
@@ -854,6 +1052,28 @@
         }
       },
       "title": "PathMatchInfo contains HTTP path matching information"
+    },
+    "v1alpha1PolicyTargetReference": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string",
+          "description": "group specifies the group of the target resource."
+        },
+        "kind": {
+          "type": "string",
+          "description": "kind indicates the kind of target resource (required)."
+        },
+        "name": {
+          "type": "string",
+          "description": "name provides the name of the target resource (required)."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace defines the namespace of the referenced resource.\nWhen unspecified, the local namespace is inferred."
+        }
+      },
+      "description": "PolicyTargetReference represents a reference to a specific resource based on Istio's PolicyTargetReference."
     },
     "v1alpha1ProxyConfig": {
       "type": "object",
@@ -1143,6 +1363,28 @@
       },
       "description": "ServiceInstanceDetail represents detailed information about a specific service instance."
     },
+    "v1alpha1Sidecar": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the sidecar."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the sidecar."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the sidecar spec as a JSON string."
+        },
+        "workloadSelector": {
+          "$ref": "#/definitions/v1alpha1WorkloadSelector",
+          "description": "workload_selector is the criteria used to select the specific set of pods/VMs."
+        }
+      },
+      "description": "Sidecar represents an Istio Sidecar resource."
+    },
     "v1alpha1SyncStatus": {
       "type": "string",
       "enum": [
@@ -1186,6 +1428,45 @@
       },
       "title": "VirtualHostInfo contains virtual host information"
     },
+    "v1alpha1VirtualService": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the virtual service."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the virtual service."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the virtual service spec as a JSON string."
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "hosts is the list of destination hosts that these routing rules apply to."
+        },
+        "gateways": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "gateways is the list of gateway names that should apply these routes."
+        },
+        "exportTo": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "export_to controls the visibility of this virtual service to other namespaces."
+        }
+      },
+      "description": "VirtualService represents an Istio VirtualService resource."
+    },
     "v1alpha1WeightedClusterInfo": {
       "type": "object",
       "properties": {
@@ -1204,6 +1485,19 @@
         }
       },
       "title": "WeightedClusterInfo contains weighted cluster information"
+    },
+    "v1alpha1WorkloadSelector": {
+      "type": "object",
+      "properties": {
+        "matchLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "match_labels are the labels used to select pods/VMs."
+        }
+      },
+      "description": "WorkloadSelector represents the workload selector criteria used across Istio resources."
     }
   }
 }

@@ -83,7 +83,8 @@ func NewManagerService(config Config, connectionManager ConnectionManager, logge
 	}
 
 	proxyService := NewProxyService(connectionManager, logger)
-	frontendService := NewFrontendService(readOptimizedManager, proxyService, logger)
+	istioService := NewIstioService(connectionManager, logger)
+	frontendService := NewFrontendService(readOptimizedManager, proxyService, istioService, logger)
 
 	return &ManagerService{
 		config:            config,

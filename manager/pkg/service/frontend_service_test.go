@@ -121,6 +121,19 @@ func (m *MockProxyService) CleanupExpiredRequests() {
 	m.Called()
 }
 
+// MockIstioService for testing
+type MockIstioService struct {
+	mock.Mock
+}
+
+func (m *MockIstioService) GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, labels map[string]string) (*frontendv1alpha1.GetIstioResourcesResponse, error) {
+	args := m.Called(ctx, clusterID, namespace, labels)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*frontendv1alpha1.GetIstioResourcesResponse), args.Error(1)
+}
+
 func TestFrontendService_ListServices(t *testing.T) {
 	logger := logging.For("test")
 	mockConnManager := new(MockConnectionManager)
@@ -145,7 +158,8 @@ func TestFrontendService_ListServices(t *testing.T) {
 	mockConnManager.On("ListAggregatedServices", "", "").Return([]*connections.AggregatedService{testService})
 
 	mockProxyService := new(MockProxyService)
-	frontendService := NewFrontendService(mockConnManager, mockProxyService, logger)
+	mockIstioService := new(MockIstioService)
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
 
 	// Test ListServices
 	req := &frontendv1alpha1.ListServicesRequest{}
@@ -185,7 +199,8 @@ func TestFrontendService_GetService(t *testing.T) {
 	mockConnManager.On("GetAggregatedService", "default:test-service").Return(testService, true)
 
 	mockProxyService := new(MockProxyService)
-	frontendService := NewFrontendService(mockConnManager, mockProxyService, logger)
+	mockIstioService := new(MockIstioService)
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
 
 	// Test GetService
 	req := &frontendv1alpha1.GetServiceRequest{Id: "default:test-service"}
@@ -206,7 +221,8 @@ func TestFrontendService_GetService_NotFound(t *testing.T) {
 	mockConnManager.On("GetAggregatedService", "default:nonexistent").Return((*connections.AggregatedService)(nil), false)
 
 	mockProxyService := new(MockProxyService)
-	frontendService := NewFrontendService(mockConnManager, mockProxyService, logger)
+	mockIstioService := new(MockIstioService)
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
 
 	// Test GetService with non-existent service
 	req := &frontendv1alpha1.GetServiceRequest{Id: "default:nonexistent"}
@@ -240,7 +256,8 @@ func TestFrontendService_GetServiceInstance(t *testing.T) {
 	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:default:pod1").Return(testInstance, true)
 
 	mockProxyService := new(MockProxyService)
-	frontendService := NewFrontendService(mockConnManager, mockProxyService, logger)
+	mockIstioService := new(MockIstioService)
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
 
 	// Test GetServiceInstance
 	req := &frontendv1alpha1.GetServiceInstanceRequest{
@@ -282,7 +299,8 @@ func TestFrontendService_GetProxyConfig(t *testing.T) {
 	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:default:pod1").Return(testInstance, true)
 	mockProxyService.On("GetProxyConfig", mock.Anything, "cluster1", "default", "pod1").Return(testProxyConfig, nil)
 
-	frontendService := NewFrontendService(mockConnManager, mockProxyService, logger)
+	mockIstioService := new(MockIstioService)
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
 
 	// Test GetProxyConfig
 	req := &frontendv1alpha1.GetProxyConfigRequest{
@@ -298,4 +316,93 @@ func TestFrontendService_GetProxyConfig(t *testing.T) {
 
 	mockConnManager.AssertExpectations(t)
 	mockProxyService.AssertExpectations(t)
+}
+
+func TestFrontendService_GetIstioResources(t *testing.T) {
+	logger := logging.For("test")
+	mockConnManager := new(MockConnectionManager)
+
+	// Create test data
+	testInstance := &connections.AggregatedServiceInstance{
+		InstanceID:   "cluster1:default:pod1",
+		IP:           "10.0.0.1",
+		PodName:      "pod1",
+		Namespace:    "default",
+		ClusterName:  "cluster1",
+		EnvoyPresent: true,
+		Labels:       map[string]string{"app": "test", "version": "v1"},
+	}
+
+	testIstioResources := &frontendv1alpha1.GetIstioResourcesResponse{
+		VirtualServices: []*types.VirtualService{
+			{
+				Name:      "test-vs",
+				Namespace: "default",
+				Hosts:     []string{"test.example.com"},
+			},
+		},
+		Gateways: []*types.Gateway{
+			{
+				Name:      "test-gateway",
+				Namespace: "default",
+				Selector:  map[string]string{"app": "test"},
+			},
+		},
+	}
+
+	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:default:pod1").Return(testInstance, true)
+	mockProxyService := new(MockProxyService)
+	mockIstioService := new(MockIstioService)
+	mockIstioService.On("GetIstioResourcesForWorkload", mock.Anything, "cluster1", "default", testInstance.Labels).Return(testIstioResources, nil)
+
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
+
+	// Test GetIstioResources
+	req := &frontendv1alpha1.GetIstioResourcesRequest{
+		ServiceId:  "default:test-service",
+		InstanceId: "cluster1:default:pod1",
+	}
+	resp, err := frontendService.GetIstioResources(context.Background(), req)
+
+	// Verify the response
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Len(t, resp.VirtualServices, 1)
+	assert.Equal(t, "test-vs", resp.VirtualServices[0].Name)
+	assert.Len(t, resp.Gateways, 1)
+	assert.Equal(t, "test-gateway", resp.Gateways[0].Name)
+
+	// Verify all mocks were called as expected
+	mockConnManager.AssertExpectations(t)
+	mockIstioService.AssertExpectations(t)
+}
+
+func TestFrontendService_GetIstioResources_InstanceNotFound(t *testing.T) {
+	logger := logging.For("test")
+	mockConnManager := new(MockConnectionManager)
+
+	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:default:nonexistent").Return((*connections.AggregatedServiceInstance)(nil), false)
+
+	mockProxyService := new(MockProxyService)
+	mockIstioService := new(MockIstioService)
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
+
+	// Test GetIstioResources with non-existent instance
+	req := &frontendv1alpha1.GetIstioResourcesRequest{
+		ServiceId:  "default:test-service",
+		InstanceId: "cluster1:default:nonexistent",
+	}
+	resp, err := frontendService.GetIstioResources(context.Background(), req)
+
+	// Verify error response
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+
+	// Check that it's a NotFound error
+	grpcErr, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.NotFound, grpcErr.Code())
+
+	// Verify all mocks were called as expected
+	mockConnManager.AssertExpectations(t)
 }
