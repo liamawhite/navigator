@@ -13,6 +13,7 @@
     - [Gateway](#navigator-backend-v1alpha1-Gateway)
     - [Gateway.SelectorEntry](#navigator-backend-v1alpha1-Gateway-SelectorEntry)
     - [IstioControlPlaneConfig](#navigator-backend-v1alpha1-IstioControlPlaneConfig)
+    - [PolicyTargetReference](#navigator-backend-v1alpha1-PolicyTargetReference)
     - [Service](#navigator-backend-v1alpha1-Service)
     - [ServiceInstance](#navigator-backend-v1alpha1-ServiceInstance)
     - [ServiceInstance.AnnotationsEntry](#navigator-backend-v1alpha1-ServiceInstance-AnnotationsEntry)
@@ -148,6 +149,8 @@ EnvoyFilter represents an Istio EnvoyFilter resource.
 | name | [string](#string) |  | name is the name of the envoy filter. |
 | namespace | [string](#string) |  | namespace is the namespace of the envoy filter. |
 | raw_spec | [string](#string) |  | raw_spec is the envoy filter spec as a JSON string. |
+| workload_selector | [WorkloadSelector](#navigator-backend-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
+| target_refs | [PolicyTargetReference](#navigator-backend-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this envoy filter applies to. |
 
 
 
@@ -197,6 +200,24 @@ IstioControlPlaneConfig represents configuration from the Istio control plane.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | pilot_scope_gateway_to_namespace | [bool](#bool) |  | pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace. When true, gateway selectors only match workloads in the same namespace as the gateway. When false (default), gateway selectors match workloads across all namespaces. |
+
+
+
+
+
+
+<a name="navigator-backend-v1alpha1-PolicyTargetReference"></a>
+
+### PolicyTargetReference
+PolicyTargetReference represents a reference to a specific resource based on Istio&#39;s PolicyTargetReference.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| group | [string](#string) |  | group specifies the group of the target resource. |
+| kind | [string](#string) |  | kind indicates the kind of target resource (required). |
+| name | [string](#string) |  | name provides the name of the target resource (required). |
+| namespace | [string](#string) |  | namespace defines the namespace of the referenced resource. When unspecified, the local namespace is inferred. |
 
 
 
