@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/liamawhite/navigator/manager/pkg/connections"
-	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
@@ -34,7 +34,7 @@ type MockConnectionManager struct {
 	mock.Mock
 }
 
-func (m *MockConnectionManager) RegisterConnection(clusterID string, stream v1alpha1.ManagerService_ConnectServer) error {
+func (m *MockConnectionManager) RegisterConnection(clusterID string, stream backendv1alpha1.ManagerService_ConnectServer) error {
 	args := m.Called(clusterID, stream)
 	return args.Error(0)
 }
@@ -43,19 +43,19 @@ func (m *MockConnectionManager) UnregisterConnection(clusterID string) {
 	m.Called(clusterID)
 }
 
-func (m *MockConnectionManager) UpdateClusterState(clusterID string, clusterState *v1alpha1.ClusterState) error {
+func (m *MockConnectionManager) UpdateClusterState(clusterID string, clusterState *backendv1alpha1.ClusterState) error {
 	args := m.Called(clusterID, clusterState)
 	return args.Error(0)
 }
 
-func (m *MockConnectionManager) GetClusterState(clusterID string) (*v1alpha1.ClusterState, error) {
+func (m *MockConnectionManager) GetClusterState(clusterID string) (*backendv1alpha1.ClusterState, error) {
 	args := m.Called(clusterID)
-	return args.Get(0).(*v1alpha1.ClusterState), args.Error(1)
+	return args.Get(0).(*backendv1alpha1.ClusterState), args.Error(1)
 }
 
-func (m *MockConnectionManager) GetAllClusterStates() map[string]*v1alpha1.ClusterState {
+func (m *MockConnectionManager) GetAllClusterStates() map[string]*backendv1alpha1.ClusterState {
 	args := m.Called()
-	return args.Get(0).(map[string]*v1alpha1.ClusterState)
+	return args.Get(0).(map[string]*backendv1alpha1.ClusterState)
 }
 
 func (m *MockConnectionManager) IsClusterConnected(clusterID string) bool {
@@ -68,7 +68,7 @@ func (m *MockConnectionManager) GetActiveClusterCount() int {
 	return args.Int(0)
 }
 
-func (m *MockConnectionManager) SendMessageToCluster(clusterID string, message *v1alpha1.ConnectResponse) error {
+func (m *MockConnectionManager) SendMessageToCluster(clusterID string, message *backendv1alpha1.ConnectResponse) error {
 	args := m.Called(clusterID, message)
 	return args.Error(0)
 }
@@ -107,7 +107,7 @@ func (m *MockProxyService) GetProxyConfig(ctx context.Context, clusterID, namesp
 	return args.Get(0).(*types.ProxyConfig), args.Error(1)
 }
 
-func (m *MockProxyService) HandleProxyConfigResponse(response *v1alpha1.ProxyConfigResponse) error {
+func (m *MockProxyService) HandleProxyConfigResponse(response *backendv1alpha1.ProxyConfigResponse) error {
 	args := m.Called(response)
 	return args.Error(0)
 }
@@ -126,8 +126,8 @@ type MockIstioService struct {
 	mock.Mock
 }
 
-func (m *MockIstioService) GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, labels map[string]string) (*frontendv1alpha1.GetIstioResourcesResponse, error) {
-	args := m.Called(ctx, clusterID, namespace, labels)
+func (m *MockIstioService) GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, instance *backendv1alpha1.ServiceInstance) (*frontendv1alpha1.GetIstioResourcesResponse, error) {
+	args := m.Called(ctx, clusterID, namespace, instance)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -353,7 +353,9 @@ func TestFrontendService_GetIstioResources(t *testing.T) {
 	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:default:pod1").Return(testInstance, true)
 	mockProxyService := new(MockProxyService)
 	mockIstioService := new(MockIstioService)
-	mockIstioService.On("GetIstioResourcesForWorkload", mock.Anything, "cluster1", "default", testInstance.Labels).Return(testIstioResources, nil)
+	mockIstioService.On("GetIstioResourcesForWorkload", mock.Anything, "cluster1", "default", mock.MatchedBy(func(instance *backendv1alpha1.ServiceInstance) bool {
+		return instance.Labels["app"] == "test"
+	})).Return(testIstioResources, nil)
 
 	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
 

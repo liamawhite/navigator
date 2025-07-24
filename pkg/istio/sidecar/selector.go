@@ -15,6 +15,7 @@
 package sidecar
 
 import (
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -26,13 +27,19 @@ import (
 // - If workload selector is nil/empty, the sidecar applies to all workloads in the same namespace
 // - If workload selector has match_labels, they must match the workload labels
 // - Sidecars are always namespace-scoped (unlike gateways which can be scoped globally)
-func MatchesWorkload(sidecar *typesv1alpha1.Sidecar, workloadLabels map[string]string, workloadNamespace string) bool {
+func matchesWorkload(sidecar *typesv1alpha1.Sidecar, instance *backendv1alpha1.ServiceInstance, namespace string) bool {
 	if sidecar == nil {
 		return false
 	}
 
+	// Extract workload labels from the service instance
+	workloadLabels := instance.Labels
+	if workloadLabels == nil {
+		workloadLabels = make(map[string]string)
+	}
+
 	// Sidecars are always namespace-scoped - they only apply to workloads in the same namespace
-	if sidecar.Namespace != workloadNamespace {
+	if sidecar.Namespace != namespace {
 		return false
 	}
 
@@ -54,11 +61,11 @@ func MatchesWorkload(sidecar *typesv1alpha1.Sidecar, workloadLabels map[string]s
 // FilterSidecarsForWorkload returns all sidecars that apply to a specific workload instance.
 // This is a convenience function that filters a list of sidecars based on the workload's
 // labels and namespace. Sidecars are always namespace-scoped.
-func FilterSidecarsForWorkload(sidecars []*typesv1alpha1.Sidecar, workloadLabels map[string]string, workloadNamespace string) []*typesv1alpha1.Sidecar {
+func FilterSidecarsForWorkload(sidecars []*typesv1alpha1.Sidecar, instance *backendv1alpha1.ServiceInstance, workloadNamespace string) []*typesv1alpha1.Sidecar {
 	var matchingSidecars []*typesv1alpha1.Sidecar
 
 	for _, sidecar := range sidecars {
-		if MatchesWorkload(sidecar, workloadLabels, workloadNamespace) {
+		if matchesWorkload(sidecar, instance, workloadNamespace) {
 			matchingSidecars = append(matchingSidecars, sidecar)
 		}
 	}

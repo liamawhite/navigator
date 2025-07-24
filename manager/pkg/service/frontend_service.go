@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/liamawhite/navigator/manager/pkg/connections"
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"google.golang.org/grpc/codes"
@@ -44,7 +45,7 @@ type ProxyConfigProvider interface {
 
 // IstioResourcesProvider defines the interface for retrieving Istio resources for a specific workload
 type IstioResourcesProvider interface {
-	GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, labels map[string]string) (*frontendv1alpha1.GetIstioResourcesResponse, error)
+	GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, instance *backendv1alpha1.ServiceInstance) (*frontendv1alpha1.GetIstioResourcesResponse, error)
 }
 
 // FrontendService implements the frontend ServiceRegistryService
@@ -189,8 +190,13 @@ func (f *FrontendService) GetIstioResources(ctx context.Context, req *frontendv1
 		return nil, status.Errorf(codes.NotFound, "service instance not found: %s", req.InstanceId)
 	}
 
+	// Convert to ServiceInstance for the istio provider
+	serviceInstance := &backendv1alpha1.ServiceInstance{
+		Labels: aggInstance.Labels,
+	}
+
 	// Request Istio resources from the appropriate cluster
-	istioResources, err := f.istioProvider.GetIstioResourcesForWorkload(ctx, clusterID, namespace, aggInstance.Labels)
+	istioResources, err := f.istioProvider.GetIstioResourcesForWorkload(ctx, clusterID, namespace, serviceInstance)
 	if err != nil {
 		f.logger.Error("failed to get istio resources",
 			"instance_id", req.InstanceId,

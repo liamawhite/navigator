@@ -18,9 +18,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/istio/envoyfilter"
 	"github.com/liamawhite/navigator/pkg/istio/gateway"
 	"github.com/liamawhite/navigator/pkg/istio/sidecar"
 )
@@ -45,11 +48,11 @@ func NewIstioService(clusterProvider ClusterStateProvider, logger *slog.Logger) 
 }
 
 // GetIstioResourcesForWorkload retrieves and filters Istio resources for a specific workload
-func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, labels map[string]string) (*frontendv1alpha1.GetIstioResourcesResponse, error) {
+func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, clusterID, namespace string, instance *backendv1alpha1.ServiceInstance) (*frontendv1alpha1.GetIstioResourcesResponse, error) {
 	i.logger.Debug("getting istio resources for workload",
 		"cluster_id", clusterID,
 		"namespace", namespace,
-		"labels", labels)
+		"labels", instance.Labels)
 
 	// Get cluster state
 	clusterState, err := i.clusterProvider.GetClusterState(clusterID)
@@ -58,16 +61,45 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	}
 
 	// Determine namespace scoping from control plane config
-	var scopeToNamespace bool
+	scopeToNamespace := false
 	if clusterState.IstioControlPlaneConfig != nil {
 		scopeToNamespace = clusterState.IstioControlPlaneConfig.PilotScopeGatewayToNamespace
 	}
 
-	// Filter gateways based on workload selector matching
-	matchingGateways := gateway.FilterGatewaysForWorkload(clusterState.Gateways, labels, namespace, scopeToNamespace)
+	// Determine root namespace for EnvoyFilter filtering
+	rootNamespace := "istio-system" // default fallback
+	if clusterState.IstioControlPlaneConfig != nil && clusterState.IstioControlPlaneConfig.RootNamespace != "" {
+		rootNamespace = clusterState.IstioControlPlaneConfig.RootNamespace
+	}
 
-	// Filter sidecars based on workload selector matching
-	matchingSidecars := sidecar.FilterSidecarsForWorkload(clusterState.Sidecars, labels, namespace)
+	// Parallelize filtering operations for better performance
+	var wg sync.WaitGroup
+	var matchingGateways []*typesv1alpha1.Gateway
+	var matchingSidecars []*typesv1alpha1.Sidecar
+	var matchingEnvoyFilters []*typesv1alpha1.EnvoyFilter
+
+	wg.Add(3)
+
+	// Filter gateways concurrently
+	go func() {
+		defer wg.Done()
+		matchingGateways = gateway.FilterGatewaysForWorkload(clusterState.Gateways, instance, namespace, scopeToNamespace)
+	}()
+
+	// Filter sidecars concurrently
+	go func() {
+		defer wg.Done()
+		matchingSidecars = sidecar.FilterSidecarsForWorkload(clusterState.Sidecars, instance, namespace)
+	}()
+
+	// Filter envoy filters concurrently
+	go func() {
+		defer wg.Done()
+		matchingEnvoyFilters = envoyfilter.FilterEnvoyFiltersForWorkload(clusterState.EnvoyFilters, instance, namespace, rootNamespace)
+	}()
+
+	// Wait for all filtering operations to complete
+	wg.Wait()
 
 	i.logger.Debug("filtered istio resources",
 		"cluster_id", clusterID,
@@ -75,6 +107,8 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		"matching_gateways", len(matchingGateways),
 		"total_sidecars", len(clusterState.Sidecars),
 		"matching_sidecars", len(matchingSidecars),
+		"total_envoyfilters", len(clusterState.EnvoyFilters),
+		"matching_envoyfilters", len(matchingEnvoyFilters),
 		"scope_to_namespace", scopeToNamespace)
 
 	// For now, return all other resources - in a more sophisticated implementation,
@@ -84,6 +118,6 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		DestinationRules: clusterState.DestinationRules,
 		Gateways:         matchingGateways,
 		Sidecars:         matchingSidecars,
-		EnvoyFilters:     clusterState.EnvoyFilters,
+		EnvoyFilters:     matchingEnvoyFilters,
 	}, nil
 }

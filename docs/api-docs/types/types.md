@@ -182,6 +182,7 @@ IstioControlPlaneConfig represents configuration from the Istio control plane.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | pilot_scope_gateway_to_namespace | [bool](#bool) |  | pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace. When true, gateway selectors only match workloads in the same namespace as the gateway. When false (default), gateway selectors match workloads across all namespaces. |
+| root_namespace | [string](#string) |  | root_namespace is the namespace where the Istio control plane is installed. This is typically &#34;istio-system&#34; but can be customized in multi-cluster or external control plane deployments. Resources in the root namespace have special behavior (e.g., EnvoyFilters apply globally). |
 
 
 

@@ -17,6 +17,7 @@ package gateway
 import (
 	"testing"
 
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/stretchr/testify/assert"
 )
@@ -25,7 +26,7 @@ func TestMatchesWorkload(t *testing.T) {
 	tests := []struct {
 		name              string
 		gateway           *typesv1alpha1.Gateway
-		workloadLabels    map[string]string
+		instance          *backendv1alpha1.ServiceInstance
 		workloadNamespace string
 		scopeToNamespace  bool
 		expectedMatch     bool
@@ -33,7 +34,7 @@ func TestMatchesWorkload(t *testing.T) {
 		{
 			name:              "nil gateway should not match",
 			gateway:           nil,
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     false,
@@ -45,7 +46,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "istio-system",
 				Selector:  map[string]string{},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     true,
@@ -57,7 +58,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "istio-system",
 				Selector:  nil,
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     true,
@@ -69,7 +70,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{"app": "test"},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     true,
@@ -81,7 +82,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{"app": "test"},
 			},
-			workloadLabels:    map[string]string{"app": "test", "version": "v1", "env": "prod"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1", "env": "prod"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     true,
@@ -93,7 +94,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{"app": "test"},
 			},
-			workloadLabels:    map[string]string{"version": "v1"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"version": "v1"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     false,
@@ -105,7 +106,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{"app": "test"},
 			},
-			workloadLabels:    map[string]string{"app": "other"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "other"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     false,
@@ -117,7 +118,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{"app": "test", "version": "v1"},
 			},
-			workloadLabels:    map[string]string{"app": "test", "version": "v1", "env": "prod"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1", "env": "prod"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     true,
@@ -129,7 +130,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{"app": "test", "version": "v1"},
 			},
-			workloadLabels:    map[string]string{"app": "test", "version": "v2"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v2"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     false,
@@ -141,7 +142,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "istio-system",
 				Selector:  map[string]string{"app": "test"},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedMatch:     true,
@@ -153,7 +154,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "istio-system",
 				Selector:  map[string]string{"app": "test"},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  true,
 			expectedMatch:     false,
@@ -165,7 +166,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{"app": "test"},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  true,
 			expectedMatch:     true,
@@ -177,7 +178,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "istio-system",
 				Selector:  map[string]string{},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  true,
 			expectedMatch:     false, // should fail due to namespace mismatch
@@ -189,7 +190,7 @@ func TestMatchesWorkload(t *testing.T) {
 				Namespace: "default",
 				Selector:  map[string]string{},
 			},
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  true,
 			expectedMatch:     true,
@@ -198,8 +199,8 @@ func TestMatchesWorkload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := MatchesWorkload(tt.gateway, tt.workloadLabels, tt.workloadNamespace, tt.scopeToNamespace)
-			assert.Equal(t, tt.expectedMatch, result, "MatchesWorkload result mismatch")
+			result := matchesWorkload(tt.gateway, tt.instance, tt.workloadNamespace, tt.scopeToNamespace)
+			assert.Equal(t, tt.expectedMatch, result, "matchesWorkload result mismatch")
 		})
 	}
 }
@@ -235,14 +236,14 @@ func TestFilterGatewaysForWorkload(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		workloadLabels    map[string]string
+		instance          *backendv1alpha1.ServiceInstance
 		workloadNamespace string
 		scopeToNamespace  bool
 		expectedGateways  []string // Gateway names that should match
 	}{
 		{
 			name:              "workload matches multiple gateways without scoping",
-			workloadLabels:    map[string]string{"app": "test", "version": "v1"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedGateways: []string{
@@ -254,7 +255,7 @@ func TestFilterGatewaysForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload matches fewer gateways with namespace scoping",
-			workloadLabels:    map[string]string{"app": "test", "version": "v1"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test", "version": "v1"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  true,
 			expectedGateways: []string{
@@ -264,7 +265,7 @@ func TestFilterGatewaysForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload with partial labels matches subset",
-			workloadLabels:    map[string]string{"app": "test"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedGateways: []string{
@@ -275,7 +276,7 @@ func TestFilterGatewaysForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload with no matching labels only matches empty selector",
-			workloadLabels:    map[string]string{"app": "unrelated"},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "unrelated"}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedGateways: []string{
@@ -284,7 +285,7 @@ func TestFilterGatewaysForWorkload(t *testing.T) {
 		},
 		{
 			name:              "workload with no labels only matches empty selector",
-			workloadLabels:    map[string]string{},
+			instance:          &backendv1alpha1.ServiceInstance{Labels: map[string]string{}},
 			workloadNamespace: "default",
 			scopeToNamespace:  false,
 			expectedGateways: []string{
@@ -295,7 +296,7 @@ func TestFilterGatewaysForWorkload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FilterGatewaysForWorkload(gateways, tt.workloadLabels, tt.workloadNamespace, tt.scopeToNamespace)
+			result := FilterGatewaysForWorkload(gateways, tt.instance, tt.workloadNamespace, tt.scopeToNamespace)
 
 			// Convert result to gateway names for easier comparison
 			var resultNames []string
@@ -310,12 +311,12 @@ func TestFilterGatewaysForWorkload(t *testing.T) {
 
 func TestFilterGatewaysForWorkload_EmptyInput(t *testing.T) {
 	t.Run("empty gateway list returns empty result", func(t *testing.T) {
-		result := FilterGatewaysForWorkload([]*typesv1alpha1.Gateway{}, map[string]string{"app": "test"}, "default", false)
+		result := FilterGatewaysForWorkload([]*typesv1alpha1.Gateway{}, &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}}, "default", false)
 		assert.Empty(t, result, "Expected empty result for empty gateway list")
 	})
 
 	t.Run("nil gateway list returns empty result", func(t *testing.T) {
-		result := FilterGatewaysForWorkload(nil, map[string]string{"app": "test"}, "default", false)
+		result := FilterGatewaysForWorkload(nil, &backendv1alpha1.ServiceInstance{Labels: map[string]string{"app": "test"}}, "default", false)
 		assert.Empty(t, result, "Expected empty result for nil gateway list")
 	})
 }

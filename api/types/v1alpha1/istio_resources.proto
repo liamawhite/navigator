@@ -148,4 +148,9 @@ message IstioControlPlaneConfig {
   // When true, gateway selectors only match workloads in the same namespace as the gateway.
   // When false (default), gateway selectors match workloads across all namespaces.
   bool pilot_scope_gateway_to_namespace = 1;
+  
+  // root_namespace is the namespace where the Istio control plane is installed.
+  // This is typically "istio-system" but can be customized in multi-cluster or external control plane deployments.
+  // Resources in the root namespace have special behavior (e.g., EnvoyFilters apply globally).
+  string root_namespace = 2;
 }

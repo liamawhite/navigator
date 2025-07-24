@@ -18,7 +18,8 @@
       "Bash(go run:*)",
       "Bash(gh pr view:*)",
       "Bash(git add:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }
