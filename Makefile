@@ -37,7 +37,7 @@ lint:
 	cd ui && npm ci && npm run lint:fix
 
 test-unit: 
-	go test -tags=test -v ./manager/... ./edge/... ./navctl/... ./pkg/...
+	go test -race -tags=test -v ./manager/... ./edge/... ./navctl/... ./pkg/...
 
 generate: clean
 	cd api && buf generate
