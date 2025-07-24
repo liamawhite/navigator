@@ -195,13 +195,13 @@ func TestClient_convertDestinationRule(t *testing.T) {
 			assert.Equal(t, tt.destinationRule.Namespace, result.Namespace)
 			assert.Equal(t, tt.wantHost, result.Host)
 			assert.Equal(t, len(tt.wantSubsets), len(result.Subsets))
-			
+
 			// Check subsets in detail
 			for i, expectedSubset := range tt.wantSubsets {
 				assert.Equal(t, expectedSubset.Name, result.Subsets[i].Name)
 				assert.Equal(t, expectedSubset.Labels, result.Subsets[i].Labels)
 			}
-			
+
 			assert.Equal(t, tt.wantExportTo, result.ExportTo)
 			assert.Equal(t, tt.wantWorkloadSelector, result.WorkloadSelector)
 			assert.NotEmpty(t, result.RawSpec)
