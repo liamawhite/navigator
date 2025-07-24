@@ -6,6 +6,8 @@
 - [frontend/v1alpha1/service_registry.proto](#frontend_v1alpha1_service_registry-proto)
     - [ClusterSyncInfo](#navigator-frontend-v1alpha1-ClusterSyncInfo)
     - [Container](#navigator-frontend-v1alpha1-Container)
+    - [GetIstioResourcesRequest](#navigator-frontend-v1alpha1-GetIstioResourcesRequest)
+    - [GetIstioResourcesResponse](#navigator-frontend-v1alpha1-GetIstioResourcesResponse)
     - [GetProxyConfigRequest](#navigator-frontend-v1alpha1-GetProxyConfigRequest)
     - [GetProxyConfigResponse](#navigator-frontend-v1alpha1-GetProxyConfigResponse)
     - [GetServiceInstanceRequest](#navigator-frontend-v1alpha1-GetServiceInstanceRequest)
@@ -69,6 +71,41 @@ Container represents a container running in a pod.
 | status | [string](#string) |  | status is the current status of the container (e.g., &#34;Running&#34;, &#34;Waiting&#34;, &#34;Terminated&#34;). |
 | ready | [bool](#bool) |  | ready indicates whether the container is ready to serve requests. |
 | restart_count | [int32](#int32) |  | restart_count is the number of times the container has been restarted. |
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-GetIstioResourcesRequest"></a>
+
+### GetIstioResourcesRequest
+GetIstioResourcesRequest specifies which service instance&#39;s Istio resources to retrieve.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| service_id | [string](#string) |  | service_id is the unique identifier of the service. Format: namespace:service-name (e.g., &#34;default:nginx-service&#34;) |
+| instance_id | [string](#string) |  | instance_id is the unique identifier of the service instance. Format: cluster_id:namespace:pod_name (e.g., &#34;cluster1:default:nginx-pod-123&#34;) |
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-GetIstioResourcesResponse"></a>
+
+### GetIstioResourcesResponse
+GetIstioResourcesResponse contains the Istio resources for the requested service instance.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| virtual_services | [navigator.types.v1alpha1.VirtualService](#navigator-types-v1alpha1-VirtualService) | repeated | virtual_services are VirtualService resources affecting this instance. |
+| destination_rules | [navigator.types.v1alpha1.DestinationRule](#navigator-types-v1alpha1-DestinationRule) | repeated | destination_rules are DestinationRule resources affecting this instance. |
+| gateways | [navigator.types.v1alpha1.Gateway](#navigator-types-v1alpha1-Gateway) | repeated | gateways are Gateway resources affecting this instance. |
+| sidecars | [navigator.types.v1alpha1.Sidecar](#navigator-types-v1alpha1-Sidecar) | repeated | sidecars are Sidecar resources affecting this instance. |
+| envoy_filters | [navigator.types.v1alpha1.EnvoyFilter](#navigator-types-v1alpha1-EnvoyFilter) | repeated | envoy_filters are EnvoyFilter resources affecting this instance. |
 
 
 
@@ -356,6 +393,7 @@ It enables listing and retrieving services from multiple Kubernetes clusters via
 | GetService | [GetServiceRequest](#navigator-frontend-v1alpha1-GetServiceRequest) | [GetServiceResponse](#navigator-frontend-v1alpha1-GetServiceResponse) | GetService returns detailed information about a specific service. The service may have instances across multiple clusters. |
 | GetServiceInstance | [GetServiceInstanceRequest](#navigator-frontend-v1alpha1-GetServiceInstanceRequest) | [GetServiceInstanceResponse](#navigator-frontend-v1alpha1-GetServiceInstanceResponse) | GetServiceInstance returns detailed information about a specific service instance. |
 | GetProxyConfig | [GetProxyConfigRequest](#navigator-frontend-v1alpha1-GetProxyConfigRequest) | [GetProxyConfigResponse](#navigator-frontend-v1alpha1-GetProxyConfigResponse) | GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance. |
+| GetIstioResources | [GetIstioResourcesRequest](#navigator-frontend-v1alpha1-GetIstioResourcesRequest) | [GetIstioResourcesResponse](#navigator-frontend-v1alpha1-GetIstioResourcesResponse) | GetIstioResources retrieves the Istio configuration resources for a specific service instance. |
 | ListClusters | [ListClustersRequest](#navigator-frontend-v1alpha1-ListClustersRequest) | [ListClustersResponse](#navigator-frontend-v1alpha1-ListClustersResponse) | ListClusters returns sync state information for all connected clusters. |
 
  

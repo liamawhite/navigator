@@ -37,6 +37,7 @@ const (
 	ServiceRegistryService_GetService_FullMethodName         = "/navigator.frontend.v1alpha1.ServiceRegistryService/GetService"
 	ServiceRegistryService_GetServiceInstance_FullMethodName = "/navigator.frontend.v1alpha1.ServiceRegistryService/GetServiceInstance"
 	ServiceRegistryService_GetProxyConfig_FullMethodName     = "/navigator.frontend.v1alpha1.ServiceRegistryService/GetProxyConfig"
+	ServiceRegistryService_GetIstioResources_FullMethodName  = "/navigator.frontend.v1alpha1.ServiceRegistryService/GetIstioResources"
 	ServiceRegistryService_ListClusters_FullMethodName       = "/navigator.frontend.v1alpha1.ServiceRegistryService/ListClusters"
 )
 
@@ -54,6 +55,8 @@ type ServiceRegistryServiceClient interface {
 	GetServiceInstance(ctx context.Context, in *GetServiceInstanceRequest, opts ...grpc.CallOption) (*GetServiceInstanceResponse, error)
 	// GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance.
 	GetProxyConfig(ctx context.Context, in *GetProxyConfigRequest, opts ...grpc.CallOption) (*GetProxyConfigResponse, error)
+	// GetIstioResources retrieves the Istio configuration resources for a specific service instance.
+	GetIstioResources(ctx context.Context, in *GetIstioResourcesRequest, opts ...grpc.CallOption) (*GetIstioResourcesResponse, error)
 	// ListClusters returns sync state information for all connected clusters.
 	ListClusters(ctx context.Context, in *ListClustersRequest, opts ...grpc.CallOption) (*ListClustersResponse, error)
 }
@@ -102,6 +105,15 @@ func (c *serviceRegistryServiceClient) GetProxyConfig(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *serviceRegistryServiceClient) GetIstioResources(ctx context.Context, in *GetIstioResourcesRequest, opts ...grpc.CallOption) (*GetIstioResourcesResponse, error) {
+	out := new(GetIstioResourcesResponse)
+	err := c.cc.Invoke(ctx, ServiceRegistryService_GetIstioResources_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceRegistryServiceClient) ListClusters(ctx context.Context, in *ListClustersRequest, opts ...grpc.CallOption) (*ListClustersResponse, error) {
 	out := new(ListClustersResponse)
 	err := c.cc.Invoke(ctx, ServiceRegistryService_ListClusters_FullMethodName, in, out, opts...)
@@ -125,6 +137,8 @@ type ServiceRegistryServiceServer interface {
 	GetServiceInstance(context.Context, *GetServiceInstanceRequest) (*GetServiceInstanceResponse, error)
 	// GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance.
 	GetProxyConfig(context.Context, *GetProxyConfigRequest) (*GetProxyConfigResponse, error)
+	// GetIstioResources retrieves the Istio configuration resources for a specific service instance.
+	GetIstioResources(context.Context, *GetIstioResourcesRequest) (*GetIstioResourcesResponse, error)
 	// ListClusters returns sync state information for all connected clusters.
 	ListClusters(context.Context, *ListClustersRequest) (*ListClustersResponse, error)
 	mustEmbedUnimplementedServiceRegistryServiceServer()
@@ -145,6 +159,9 @@ func (UnimplementedServiceRegistryServiceServer) GetServiceInstance(context.Cont
 }
 func (UnimplementedServiceRegistryServiceServer) GetProxyConfig(context.Context, *GetProxyConfigRequest) (*GetProxyConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProxyConfig not implemented")
+}
+func (UnimplementedServiceRegistryServiceServer) GetIstioResources(context.Context, *GetIstioResourcesRequest) (*GetIstioResourcesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetIstioResources not implemented")
 }
 func (UnimplementedServiceRegistryServiceServer) ListClusters(context.Context, *ListClustersRequest) (*ListClustersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListClusters not implemented")
@@ -235,6 +252,24 @@ func _ServiceRegistryService_GetProxyConfig_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ServiceRegistryService_GetIstioResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetIstioResourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceRegistryServiceServer).GetIstioResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ServiceRegistryService_GetIstioResources_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceRegistryServiceServer).GetIstioResources(ctx, req.(*GetIstioResourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ServiceRegistryService_ListClusters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListClustersRequest)
 	if err := dec(in); err != nil {
@@ -275,6 +310,10 @@ var ServiceRegistryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProxyConfig",
 			Handler:    _ServiceRegistryService_GetProxyConfig_Handler,
+		},
+		{
+			MethodName: "GetIstioResources",
+			Handler:    _ServiceRegistryService_GetIstioResources_Handler,
 		},
 		{
 			MethodName: "ListClusters",

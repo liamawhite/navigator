@@ -18,6 +18,7 @@ package navigator.frontend.v1alpha1;
 
 import "google/api/annotations.proto";
 import "types/v1alpha1/proxy_types.proto";
+import "types/v1alpha1/istio_resources.proto";
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1";
 
@@ -44,6 +45,11 @@ service ServiceRegistryService {
   // GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance.
   rpc GetProxyConfig(GetProxyConfigRequest) returns (GetProxyConfigResponse) {
     option (google.api.http) = {get: "/api/v1alpha1/services/{service_id}/instances/{instance_id}/proxy-config"};
+  }
+
+  // GetIstioResources retrieves the Istio configuration resources for a specific service instance.
+  rpc GetIstioResources(GetIstioResourcesRequest) returns (GetIstioResourcesResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/services/{service_id}/instances/{instance_id}/istio-resources"};
   }
 
   // ListClusters returns sync state information for all connected clusters.
@@ -216,6 +222,35 @@ message GetProxyConfigRequest {
 message GetProxyConfigResponse {
   // proxy_config contains the complete Envoy proxy configuration.
   navigator.types.v1alpha1.ProxyConfig proxy_config = 1;
+}
+
+// GetIstioResourcesRequest specifies which service instance's Istio resources to retrieve.
+message GetIstioResourcesRequest {
+  // service_id is the unique identifier of the service.
+  // Format: namespace:service-name (e.g., "default:nginx-service")
+  string service_id = 1;
+
+  // instance_id is the unique identifier of the service instance.
+  // Format: cluster_id:namespace:pod_name (e.g., "cluster1:default:nginx-pod-123")
+  string instance_id = 2;
+}
+
+// GetIstioResourcesResponse contains the Istio resources for the requested service instance.
+message GetIstioResourcesResponse {
+  // virtual_services are VirtualService resources affecting this instance.
+  repeated navigator.types.v1alpha1.VirtualService virtual_services = 1;
+  
+  // destination_rules are DestinationRule resources affecting this instance.
+  repeated navigator.types.v1alpha1.DestinationRule destination_rules = 2;
+  
+  // gateways are Gateway resources affecting this instance.
+  repeated navigator.types.v1alpha1.Gateway gateways = 3;
+  
+  // sidecars are Sidecar resources affecting this instance.
+  repeated navigator.types.v1alpha1.Sidecar sidecars = 4;
+  
+  // envoy_filters are EnvoyFilter resources affecting this instance.
+  repeated navigator.types.v1alpha1.EnvoyFilter envoy_filters = 5;
 }
 
 // ListClustersRequest for retrieving cluster sync information.
