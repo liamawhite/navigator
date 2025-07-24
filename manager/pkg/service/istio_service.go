@@ -22,6 +22,7 @@ import (
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/istio/gateway"
+	"github.com/liamawhite/navigator/pkg/istio/sidecar"
 )
 
 // ClusterStateProvider defines the interface for accessing cluster state
@@ -65,10 +66,15 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	// Filter gateways based on workload selector matching
 	matchingGateways := gateway.FilterGatewaysForWorkload(clusterState.Gateways, labels, namespace, scopeToNamespace)
 
+	// Filter sidecars based on workload selector matching
+	matchingSidecars := sidecar.FilterSidecarsForWorkload(clusterState.Sidecars, labels, namespace)
+
 	i.logger.Debug("filtered istio resources",
 		"cluster_id", clusterID,
 		"total_gateways", len(clusterState.Gateways),
 		"matching_gateways", len(matchingGateways),
+		"total_sidecars", len(clusterState.Sidecars),
+		"matching_sidecars", len(matchingSidecars),
 		"scope_to_namespace", scopeToNamespace)
 
 	// For now, return all other resources - in a more sophisticated implementation,
@@ -77,7 +83,7 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		VirtualServices:  clusterState.VirtualServices,
 		DestinationRules: clusterState.DestinationRules,
 		Gateways:         matchingGateways,
-		Sidecars:         clusterState.Sidecars,
+		Sidecars:         matchingSidecars,
 		EnvoyFilters:     clusterState.EnvoyFilters,
 	}, nil
 }

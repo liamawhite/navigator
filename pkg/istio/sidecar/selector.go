@@ -1,0 +1,67 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package sidecar
+
+import (
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"k8s.io/apimachinery/pkg/labels"
+)
+
+// MatchesWorkload determines if a sidecar applies to a specific workload instance.
+// It implements Istio's sidecar workload selector matching logic.
+//
+// Sidecar selector matching rules (from Istio documentation):
+// - If workload selector is nil/empty, the sidecar applies to all workloads in the same namespace
+// - If workload selector has match_labels, they must match the workload labels
+// - Sidecars are always namespace-scoped (unlike gateways which can be scoped globally)
+func MatchesWorkload(sidecar *typesv1alpha1.Sidecar, workloadLabels map[string]string, workloadNamespace string) bool {
+	if sidecar == nil {
+		return false
+	}
+
+	// Sidecars are always namespace-scoped - they only apply to workloads in the same namespace
+	if sidecar.Namespace != workloadNamespace {
+		return false
+	}
+
+	// If sidecar has no workload selector, it applies to all workloads in the same namespace
+	if sidecar.WorkloadSelector == nil || len(sidecar.WorkloadSelector.MatchLabels) == 0 {
+		return true
+	}
+
+	// Convert sidecar workload selector to Kubernetes label selector
+	sidecarSelector := labels.Set(sidecar.WorkloadSelector.MatchLabels).AsSelector()
+
+	// Convert workload labels to Kubernetes labels
+	workloadLabelSet := labels.Set(workloadLabels)
+
+	// Check if sidecar workload selector matches workload labels
+	return sidecarSelector.Matches(workloadLabelSet)
+}
+
+// FilterSidecarsForWorkload returns all sidecars that apply to a specific workload instance.
+// This is a convenience function that filters a list of sidecars based on the workload's
+// labels and namespace. Sidecars are always namespace-scoped.
+func FilterSidecarsForWorkload(sidecars []*typesv1alpha1.Sidecar, workloadLabels map[string]string, workloadNamespace string) []*typesv1alpha1.Sidecar {
+	var matchingSidecars []*typesv1alpha1.Sidecar
+
+	for _, sidecar := range sidecars {
+		if MatchesWorkload(sidecar, workloadLabels, workloadNamespace) {
+			matchingSidecars = append(matchingSidecars, sidecar)
+		}
+	}
+
+	return matchingSidecars
+}
