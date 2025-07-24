@@ -5,6 +5,7 @@
 import type { v1alpha1DestinationRule } from './v1alpha1DestinationRule';
 import type { v1alpha1EnvoyFilter } from './v1alpha1EnvoyFilter';
 import type { v1alpha1Gateway } from './v1alpha1Gateway';
+import type { v1alpha1RequestAuthentication } from './v1alpha1RequestAuthentication';
 import type { v1alpha1Sidecar } from './v1alpha1Sidecar';
 import type { v1alpha1VirtualService } from './v1alpha1VirtualService';
 /**
@@ -31,5 +32,9 @@ export type v1alpha1GetIstioResourcesResponse = {
      * envoy_filters are EnvoyFilter resources affecting this instance.
      */
     envoyFilters?: Array<v1alpha1EnvoyFilter>;
+    /**
+     * request_authentications are RequestAuthentication resources affecting this instance.
+     */
+    requestAuthentications?: Array<v1alpha1RequestAuthentication>;
 };
 

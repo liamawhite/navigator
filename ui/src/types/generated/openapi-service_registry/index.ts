@@ -47,6 +47,7 @@ export type { v1alpha1PathMatchInfo } from './models/v1alpha1PathMatchInfo';
 export type { v1alpha1PolicyTargetReference } from './models/v1alpha1PolicyTargetReference';
 export type { v1alpha1ProxyConfig } from './models/v1alpha1ProxyConfig';
 export { v1alpha1ProxyMode } from './models/v1alpha1ProxyMode';
+export type { v1alpha1RequestAuthentication } from './models/v1alpha1RequestAuthentication';
 export type { v1alpha1RouteActionInfo } from './models/v1alpha1RouteActionInfo';
 export type { v1alpha1RouteConfigSummary } from './models/v1alpha1RouteConfigSummary';
 export type { v1alpha1RouteInfo } from './models/v1alpha1RouteInfo';

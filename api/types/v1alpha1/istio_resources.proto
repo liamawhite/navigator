@@ -142,6 +142,24 @@ message VirtualService {
   repeated string export_to = 6;
 }
 
+// RequestAuthentication represents an Istio RequestAuthentication resource.
+message RequestAuthentication {
+  // name is the name of the request authentication.
+  string name = 1;
+  
+  // namespace is the namespace of the request authentication.
+  string namespace = 2;
+  
+  // raw_spec is the request authentication spec as a JSON string.
+  string raw_spec = 3;
+  
+  // selector is the criteria used to select the specific set of pods/VMs.
+  WorkloadSelector selector = 4;
+  
+  // target_refs is the list of resources that this request authentication applies to.
+  repeated PolicyTargetReference target_refs = 5;
+}
+
 // IstioControlPlaneConfig represents configuration from the Istio control plane.
 message IstioControlPlaneConfig {
   // pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace.

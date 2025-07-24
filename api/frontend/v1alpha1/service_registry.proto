@@ -251,6 +251,9 @@ message GetIstioResourcesResponse {
   
   // envoy_filters are EnvoyFilter resources affecting this instance.
   repeated navigator.types.v1alpha1.EnvoyFilter envoy_filters = 5;
+  
+  // request_authentications are RequestAuthentication resources affecting this instance.
+  repeated navigator.types.v1alpha1.RequestAuthentication request_authentications = 6;
 }
 
 // ListClustersRequest for retrieving cluster sync information.
