@@ -280,7 +280,7 @@ func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAu
 		}
 	}
 
-	// Extract target refs from the spec  
+	// Extract target refs from the spec
 	var targetRefs []*typesv1alpha1.PolicyTargetReference
 	for _, targetRef := range ra.Spec.TargetRefs {
 		if targetRef != nil {

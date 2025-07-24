@@ -249,9 +249,9 @@ func TestMatchesWorkload(t *testing.T) {
 func TestFilterRequestAuthenticationsForWorkload(t *testing.T) {
 	requestAuthentications := []*typesv1alpha1.RequestAuthentication{
 		{
-			Name:     "all-workloads-auth",
+			Name:      "all-workloads-auth",
 			Namespace: "production",
-			Selector: nil, // nil selector matches all workloads in namespace
+			Selector:  nil, // nil selector matches all workloads in namespace
 		},
 		{
 			Name:      "app-specific-auth",
@@ -309,11 +309,11 @@ func TestFilterRequestAuthenticationsForWorkload(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                             string
-		instance                         *backendv1alpha1.ServiceInstance
-		workloadNamespace                string
-		rootNamespace                    string
-		expectedRequestAuthentications   []string // RequestAuthentication names that should match
+		name                           string
+		instance                       *backendv1alpha1.ServiceInstance
+		workloadNamespace              string
+		rootNamespace                  string
+		expectedRequestAuthentications []string // RequestAuthentication names that should match
 	}{
 		{
 			name:              "workload matches multiple request authentications in same namespace",

@@ -144,14 +144,14 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	}
 
 	return &v1alpha1.ClusterState{
-		Services:                 protoServices,
-		DestinationRules:         protoDestinationRules,
-		EnvoyFilters:             protoEnvoyFilters,
-		RequestAuthentications:   protoRequestAuthentications,
-		Gateways:                 protoGateways,
-		Sidecars:                 protoSidecars,
-		VirtualServices:          protoVirtualServices,
-		IstioControlPlaneConfig:  protoIstioControlPlaneConfig,
+		Services:                protoServices,
+		DestinationRules:        protoDestinationRules,
+		EnvoyFilters:            protoEnvoyFilters,
+		RequestAuthentications:  protoRequestAuthentications,
+		Gateways:                protoGateways,
+		Sidecars:                protoSidecars,
+		VirtualServices:         protoVirtualServices,
+		IstioControlPlaneConfig: protoIstioControlPlaneConfig,
 	}, nil
 }
 
