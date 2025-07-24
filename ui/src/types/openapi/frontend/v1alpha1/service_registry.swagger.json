@@ -776,6 +776,14 @@
           },
           "description": "envoy_filters are EnvoyFilter resources affecting this instance."
         },
+        "requestAuthentications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1RequestAuthentication"
+          },
+          "description": "request_authentications are RequestAuthentication resources affecting this instance."
+        },
         "peerAuthentications": {
           "type": "array",
           "items": {
@@ -1170,6 +1178,36 @@
       "default": "UNKNOWN_PROXY_MODE",
       "description": "- UNKNOWN_PROXY_MODE: UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode\n - SIDECAR: SIDECAR indicates a sidecar proxy (most common in Istio)\n - GATEWAY: GATEWAY indicates a gateway proxy (ingress/egress gateways)\n - ROUTER: ROUTER indicates a router proxy",
       "title": "ProxyMode indicates the type of proxy (extracted from node ID)"
+    },
+    "v1alpha1RequestAuthentication": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the request authentication."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the request authentication."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the request authentication spec as a JSON string."
+        },
+        "selector": {
+          "$ref": "#/definitions/v1alpha1WorkloadSelector",
+          "description": "selector is the criteria used to select the specific set of pods/VMs."
+        },
+        "targetRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1PolicyTargetReference"
+          },
+          "description": "target_refs is the list of resources that this request authentication applies to."
+        }
+      },
+      "description": "RequestAuthentication represents an Istio RequestAuthentication resource."
     },
     "v1alpha1RouteActionInfo": {
       "type": "object",

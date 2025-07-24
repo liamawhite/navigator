@@ -95,6 +95,7 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	var podsByName map[string]*corev1.Pod
 	var protoDestinationRules []*typesv1alpha1.DestinationRule
 	var protoEnvoyFilters []*typesv1alpha1.EnvoyFilter
+	var protoRequestAuthentications []*typesv1alpha1.RequestAuthentication
 	var protoGateways []*typesv1alpha1.Gateway
 	var protoSidecars []*typesv1alpha1.Sidecar
 	var protoVirtualServices []*typesv1alpha1.VirtualService
@@ -113,6 +114,7 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	// Fetch and convert Istio resources concurrently
 	go k.fetchDestinationRules(ctx, &wg, &protoDestinationRules, errChan)
 	go k.fetchEnvoyFilters(ctx, &wg, &protoEnvoyFilters, errChan)
+	go k.fetchRequestAuthentications(ctx, &wg, &protoRequestAuthentications, errChan)
 	go k.fetchGateways(ctx, &wg, &protoGateways, errChan)
 	go k.fetchSidecars(ctx, &wg, &protoSidecars, errChan)
 	go k.fetchVirtualServices(ctx, &wg, &protoVirtualServices, errChan)
@@ -147,6 +149,7 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 		Services:                protoServices,
 		DestinationRules:        protoDestinationRules,
 		EnvoyFilters:            protoEnvoyFilters,
+		RequestAuthentications:  protoRequestAuthentications,
 		Gateways:                protoGateways,
 		Sidecars:                protoSidecars,
 		VirtualServices:         protoVirtualServices,

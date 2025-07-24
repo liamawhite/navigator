@@ -44,6 +44,7 @@ ClusterState contains the current state of a cluster.
 | services | [Service](#navigator-backend-v1alpha1-Service) | repeated | services is the list of all services in the cluster. |
 | destination_rules | [navigator.types.v1alpha1.DestinationRule](#navigator-types-v1alpha1-DestinationRule) | repeated | destination_rules is the list of all destination rules in the cluster. |
 | envoy_filters | [navigator.types.v1alpha1.EnvoyFilter](#navigator-types-v1alpha1-EnvoyFilter) | repeated | envoy_filters is the list of all envoy filters in the cluster. |
+| request_authentications | [navigator.types.v1alpha1.RequestAuthentication](#navigator-types-v1alpha1-RequestAuthentication) | repeated | request_authentications is the list of all request authentications in the cluster. |
 | gateways | [navigator.types.v1alpha1.Gateway](#navigator-types-v1alpha1-Gateway) | repeated | gateways is the list of all gateways in the cluster. |
 | sidecars | [navigator.types.v1alpha1.Sidecar](#navigator-types-v1alpha1-Sidecar) | repeated | sidecars is the list of all sidecars in the cluster. |
 | virtual_services | [navigator.types.v1alpha1.VirtualService](#navigator-types-v1alpha1-VirtualService) | repeated | virtual_services is the list of all virtual services in the cluster. |

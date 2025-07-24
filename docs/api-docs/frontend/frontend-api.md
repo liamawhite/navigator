@@ -106,6 +106,7 @@ GetIstioResourcesResponse contains the Istio resources for the requested service
 | gateways | [navigator.types.v1alpha1.Gateway](#navigator-types-v1alpha1-Gateway) | repeated | gateways are Gateway resources affecting this instance. |
 | sidecars | [navigator.types.v1alpha1.Sidecar](#navigator-types-v1alpha1-Sidecar) | repeated | sidecars are Sidecar resources affecting this instance. |
 | envoy_filters | [navigator.types.v1alpha1.EnvoyFilter](#navigator-types-v1alpha1-EnvoyFilter) | repeated | envoy_filters are EnvoyFilter resources affecting this instance. |
+| request_authentications | [navigator.types.v1alpha1.RequestAuthentication](#navigator-types-v1alpha1-RequestAuthentication) | repeated | request_authentications are RequestAuthentication resources affecting this instance. |
 | peer_authentications | [navigator.types.v1alpha1.PeerAuthentication](#navigator-types-v1alpha1-PeerAuthentication) | repeated | peer_authentications are PeerAuthentication resources affecting this instance. |
 
 

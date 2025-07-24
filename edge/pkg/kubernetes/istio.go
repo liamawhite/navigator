@@ -72,6 +72,28 @@ func (k *Client) fetchEnvoyFilters(ctx context.Context, wg *sync.WaitGroup, resu
 	*result = protoEnvoyFilters
 }
 
+// fetchRequestAuthentications fetches and converts all request authentications from the cluster
+func (k *Client) fetchRequestAuthentications(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.RequestAuthentication, errChan chan<- error) {
+	defer wg.Done()
+	raList, err := k.istioClient.SecurityV1beta1().RequestAuthentications("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list request authentications: %w", err)
+		return
+	}
+
+	var protoRequestAuthentications []*typesv1alpha1.RequestAuthentication
+	for i := range raList.Items {
+		ra := raList.Items[i]
+		protoRA, convertErr := k.convertRequestAuthentication(ra)
+		if convertErr != nil {
+			k.logger.Warn("failed to convert request authentication", "name", ra.Name, "namespace", ra.Namespace, "error", convertErr)
+			continue
+		}
+		protoRequestAuthentications = append(protoRequestAuthentications, protoRA)
+	}
+	*result = protoRequestAuthentications
+}
+
 // fetchGateways fetches and converts all gateways from the cluster
 func (k *Client) fetchGateways(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.Gateway, errChan chan<- error) {
 	defer wg.Done()
@@ -258,6 +280,48 @@ func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*t
 		RawSpec:          string(specBytes),
 		WorkloadSelector: workloadSelector,
 		TargetRefs:       targetRefs,
+	}, nil
+}
+
+// convertRequestAuthentication converts an Istio RequestAuthentication to a protobuf RequestAuthentication
+func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAuthentication) (*typesv1alpha1.RequestAuthentication, error) {
+	specBytes, err := json.Marshal(&ra.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request authentication spec: %w", err)
+	}
+
+	// Extract selector from the spec
+	var selector *typesv1alpha1.WorkloadSelector
+	if ra.Spec.Selector != nil && ra.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range ra.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	// Extract target refs from the spec
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
+	for _, targetRef := range ra.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
+	return &typesv1alpha1.RequestAuthentication{
+		Name:       ra.Name,
+		Namespace:  ra.Namespace,
+		RawSpec:    string(specBytes),
+		Selector:   selector,
+		TargetRefs: targetRefs,
 	}, nil
 }
 
