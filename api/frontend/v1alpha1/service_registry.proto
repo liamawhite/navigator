@@ -57,7 +57,7 @@ message ListServicesRequest {
   // namespace is the Kubernetes namespace to list services from.
   // If not specified, services from all namespaces are returned.
   optional string namespace = 1;
-  
+
   // cluster_id filters services to only those from the specified cluster.
   // If not specified, services from all connected clusters are returned.
   optional string cluster_id = 2;
@@ -206,7 +206,7 @@ message GetProxyConfigRequest {
   // service_id is the unique identifier of the service.
   // Format: namespace:service-name (e.g., "default:nginx-service")
   string service_id = 1;
-  
+
   // instance_id is the unique identifier of the service instance.
   // Format: cluster_id:namespace:pod_name (e.g., "cluster1:default:nginx-pod-123")
   string instance_id = 2;
@@ -233,16 +233,16 @@ message ListClustersResponse {
 message ClusterSyncInfo {
   // cluster_id is the unique identifier for the edge cluster.
   string cluster_id = 1;
-  
+
   // connected_at is when the connection was established (RFC3339 format).
   string connected_at = 2;
-  
+
   // last_update is when the last sync occurred (RFC3339 format).
   string last_update = 3;
-  
+
   // service_count is the number of services currently synced from this cluster.
   int32 service_count = 4;
-  
+
   // sync_status indicates the health of the sync based on last_update timing.
   SyncStatus sync_status = 5;
 }
@@ -250,7 +250,7 @@ message ClusterSyncInfo {
 // SyncStatus represents the health of cluster synchronization.
 enum SyncStatus {
   SYNC_STATUS_UNSPECIFIED = 0;
-  SYNC_STATUS_HEALTHY = 1;    // Recent updates within expected timeframe
-  SYNC_STATUS_STALE = 2;      // No recent updates, potentially problematic
+  SYNC_STATUS_HEALTHY = 1; // Recent updates within expected timeframe
+  SYNC_STATUS_STALE = 2; // No recent updates, potentially problematic
   SYNC_STATUS_DISCONNECTED = 3; // Connection lost
 }

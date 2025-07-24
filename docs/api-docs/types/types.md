@@ -3,6 +3,20 @@
 
 ## Table of Contents
 
+- [types/v1alpha1/istio_resources.proto](#types_v1alpha1_istio_resources-proto)
+    - [DestinationRule](#navigator-types-v1alpha1-DestinationRule)
+    - [DestinationRuleSubset](#navigator-types-v1alpha1-DestinationRuleSubset)
+    - [DestinationRuleSubset.LabelsEntry](#navigator-types-v1alpha1-DestinationRuleSubset-LabelsEntry)
+    - [EnvoyFilter](#navigator-types-v1alpha1-EnvoyFilter)
+    - [Gateway](#navigator-types-v1alpha1-Gateway)
+    - [Gateway.SelectorEntry](#navigator-types-v1alpha1-Gateway-SelectorEntry)
+    - [IstioControlPlaneConfig](#navigator-types-v1alpha1-IstioControlPlaneConfig)
+    - [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference)
+    - [Sidecar](#navigator-types-v1alpha1-Sidecar)
+    - [VirtualService](#navigator-types-v1alpha1-VirtualService)
+    - [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector)
+    - [WorkloadSelector.MatchLabelsEntry](#navigator-types-v1alpha1-WorkloadSelector-MatchLabelsEntry)
+  
 - [types/v1alpha1/proxy_types.proto](#types_v1alpha1_proxy_types-proto)
     - [BootstrapSummary](#navigator-types-v1alpha1-BootstrapSummary)
     - [ClusterManagerInfo](#navigator-types-v1alpha1-ClusterManagerInfo)
@@ -43,6 +57,230 @@
     - [RouteType](#navigator-types-v1alpha1-RouteType)
   
 - [Scalar Value Types](#scalar-value-types)
+
+
+
+<a name="types_v1alpha1_istio_resources-proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## types/v1alpha1/istio_resources.proto
+
+
+
+<a name="navigator-types-v1alpha1-DestinationRule"></a>
+
+### DestinationRule
+DestinationRule represents an Istio DestinationRule resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the destination rule. |
+| namespace | [string](#string) |  | namespace is the namespace of the destination rule. |
+| raw_spec | [string](#string) |  | raw_spec is the destination rule spec as a JSON string. |
+| host | [string](#string) |  | host is the name of a service from the service registry. |
+| subsets | [DestinationRuleSubset](#navigator-types-v1alpha1-DestinationRuleSubset) | repeated | subsets is the list of named subsets for traffic routing. |
+| export_to | [string](#string) | repeated | export_to controls the visibility of this destination rule to other namespaces. |
+| workload_selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-DestinationRuleSubset"></a>
+
+### DestinationRuleSubset
+DestinationRuleSubset represents a named subset for destination rule traffic routing.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the subset. |
+| labels | [DestinationRuleSubset.LabelsEntry](#navigator-types-v1alpha1-DestinationRuleSubset-LabelsEntry) | repeated | labels are the key-value pairs that define the subset. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-DestinationRuleSubset-LabelsEntry"></a>
+
+### DestinationRuleSubset.LabelsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-EnvoyFilter"></a>
+
+### EnvoyFilter
+EnvoyFilter represents an Istio EnvoyFilter resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the envoy filter. |
+| namespace | [string](#string) |  | namespace is the namespace of the envoy filter. |
+| raw_spec | [string](#string) |  | raw_spec is the envoy filter spec as a JSON string. |
+| workload_selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
+| target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this envoy filter applies to. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-Gateway"></a>
+
+### Gateway
+Gateway represents an Istio Gateway resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the gateway. |
+| namespace | [string](#string) |  | namespace is the namespace of the gateway. |
+| raw_spec | [string](#string) |  | raw_spec is the gateway spec as a JSON string. |
+| selector | [Gateway.SelectorEntry](#navigator-types-v1alpha1-Gateway-SelectorEntry) | repeated | selector is the workload selector for the gateway. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-Gateway-SelectorEntry"></a>
+
+### Gateway.SelectorEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-IstioControlPlaneConfig"></a>
+
+### IstioControlPlaneConfig
+IstioControlPlaneConfig represents configuration from the Istio control plane.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| pilot_scope_gateway_to_namespace | [bool](#bool) |  | pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace. When true, gateway selectors only match workloads in the same namespace as the gateway. When false (default), gateway selectors match workloads across all namespaces. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-PolicyTargetReference"></a>
+
+### PolicyTargetReference
+PolicyTargetReference represents a reference to a specific resource based on Istio&#39;s PolicyTargetReference.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| group | [string](#string) |  | group specifies the group of the target resource. |
+| kind | [string](#string) |  | kind indicates the kind of target resource (required). |
+| name | [string](#string) |  | name provides the name of the target resource (required). |
+| namespace | [string](#string) |  | namespace defines the namespace of the referenced resource. When unspecified, the local namespace is inferred. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-Sidecar"></a>
+
+### Sidecar
+Sidecar represents an Istio Sidecar resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the sidecar. |
+| namespace | [string](#string) |  | namespace is the namespace of the sidecar. |
+| raw_spec | [string](#string) |  | raw_spec is the sidecar spec as a JSON string. |
+| workload_selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-VirtualService"></a>
+
+### VirtualService
+VirtualService represents an Istio VirtualService resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the virtual service. |
+| namespace | [string](#string) |  | namespace is the namespace of the virtual service. |
+| raw_spec | [string](#string) |  | raw_spec is the virtual service spec as a JSON string. |
+| hosts | [string](#string) | repeated | hosts is the list of destination hosts that these routing rules apply to. |
+| gateways | [string](#string) | repeated | gateways is the list of gateway names that should apply these routes. |
+| export_to | [string](#string) | repeated | export_to controls the visibility of this virtual service to other namespaces. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-WorkloadSelector"></a>
+
+### WorkloadSelector
+WorkloadSelector represents the workload selector criteria used across Istio resources.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| match_labels | [WorkloadSelector.MatchLabelsEntry](#navigator-types-v1alpha1-WorkloadSelector-MatchLabelsEntry) | repeated | match_labels are the labels used to select pods/VMs. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-WorkloadSelector-MatchLabelsEntry"></a>
+
+### WorkloadSelector.MatchLabelsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
+
+
+
+
+
+ 
+
+ 
+
+ 
+
+ 
 
 
 

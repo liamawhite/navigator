@@ -31,13 +31,15 @@ Navigator is an edge computing platform that provides Kubernetes service discove
 **API Definitions (`api/`)**
 - Frontend APIs in `api/frontend/v1alpha1/` for service registry
 - Backend APIs in `api/backend/v1alpha1/` for manager-edge communication
+- Types APIs in `api/types/v1alpha1/` for Istio resource definitions
 - Protocol buffer definitions with HTTP annotations for REST gateway
-- Uses buf for code generation and linting
+- Uses buf for code generation and linting with separate documentation generation
 
 **UI (`ui/`)**
 - React TypeScript application for service visualization
 - Service list and detail views with proxy sidecar detection
 - Real-time updates via TanStack Query
+- Code editor integration with CodeMirror for JSON/YAML viewing
 - Embedded into navctl binary for local development
 
 ### Data Flow
@@ -64,6 +66,9 @@ make build
 
 ### Build Commands
 ```bash
+# Build and start all services locally (quick start)
+make local
+
 # Build all binaries and UI assets
 make build
 
@@ -76,7 +81,7 @@ make build-ui        # Build UI assets only
 
 ### Code Quality Commands
 ```bash
-# Format both Go and UI code
+# Format both Go and UI code (includes license headers)
 make format
 
 # Lint both Go and UI code (with auto-fix)
@@ -84,6 +89,9 @@ make lint
 
 # Run all quality checks (used in CI)
 make check
+
+# Check git cleanliness after generation
+make dirty
 
 # Clean up development environment
 make clean
@@ -138,11 +146,11 @@ cd ui && npm run dev  # Uses Vite proxy to localhost:8081
 # Frontend only (connects to existing backend via proxy)
 cd ui && npm run dev
 
-# Full stack with backend build
-cd ui && npm run dev:full
+# Build UI assets for embedding
+cd ui && npm run build
 
-# Full stack with Go hot reloading
-cd ui && npm run dev:air
+# Preview built UI
+cd ui && npm run preview
 ```
 
 #### Environment Configuration
@@ -170,7 +178,6 @@ go test -tags=test -v ./...
 go test -short ./...
 ```
 
-
 ### Protocol Buffer Generation
 ```bash
 # Generate all protobuf code (included in make generate)
@@ -179,6 +186,9 @@ make generate
 # Manual generation
 cd api && buf generate  # Backend APIs
 cd api && buf generate --template buf.gen.frontend.yaml  # Frontend APIs
+cd api && buf generate --template buf.gen.backend-docs.yaml  # Backend docs
+cd api && buf generate --template buf.gen.frontend-docs.yaml  # Frontend docs
+cd api && buf generate --template buf.gen.types-docs.yaml  # Types docs
 
 # Lint proto files
 cd api && buf lint
@@ -198,6 +208,9 @@ go fmt ./...
 # Check Go modules
 go mod tidy
 go mod verify
+
+# Apply license headers
+licenser apply -r "Navigator Authors"
 ```
 
 ## Development Environment
@@ -218,8 +231,9 @@ nix develop
 # - docker (Container runtime)
 # - air (Go hot reloading)
 # - golangci-lint (Go linting)
+# - gosec (Go security analysis)
+# - licenser (License header management)
 ```
-
 
 ## Key Directory Structure
 
@@ -242,54 +256,77 @@ navctl/               # CLI tool for orchestration
 api/                  # Protocol buffer definitions
   backend/v1alpha1/   # Manager-edge communication APIs
   frontend/v1alpha1/  # Frontend service registry APIs
+  types/v1alpha1/     # Istio resource type definitions
   buf.yaml           # Buf configuration
   buf.gen.yaml       # Backend code generation
   buf.gen.frontend.yaml # Frontend code generation
+  buf.gen.backend-docs.yaml # Backend documentation
+  buf.gen.frontend-docs.yaml # Frontend documentation
+  buf.gen.types-docs.yaml # Types documentation
 pkg/api/             # Generated protobuf code (do not edit)
   backend/           # Generated backend APIs
   frontend/          # Generated frontend APIs
+  types/             # Generated Istio resource types
 pkg/envoy/           # Envoy proxy analysis utilities
   admin/             # Envoy admin API clients
   configdump/        # Configuration dump parsing
+  clusters/          # Cluster configuration analysis
+pkg/istio/           # Istio-specific functionality
+  proxy/client/      # Proxy client interfaces and implementations
+  proxy/enrich/      # Proxy configuration enrichment
 pkg/logging/         # Structured logging with slog
   logger.go         # Centralized logger configuration
   interceptors.go   # gRPC request logging interceptors
   http.go           # HTTP middleware for request logging
   request.go        # Request context and correlation IDs
+pkg/localenv/        # Local environment utilities
+pkg/ui/             # UI embedding utilities
+pkg/version/        # Version information
 ui/                  # React frontend application
   src/              # TypeScript React source code
   components/ui/    # shadcn/ui components (do not edit directly)
+  components/envoy/ # Envoy-specific UI components
+  components/serviceregistry/ # Service registry components
+  types/generated/  # Generated TypeScript API clients
+  types/openapi/    # OpenAPI specifications
   package.json      # UI dependencies and scripts
   vite.config.ts    # Vite dev server with proxy configuration
 docs/               # Documentation (Docusaurus)
   development-docs/ # Architecture and development guides
+  api-docs/         # Generated API documentation
 ```
 
 ## UI Frontend
 
-The Navigator UI is a React application built with TypeScript and Vite, providing a web interface for service discovery.
+The Navigator UI is a React application built with TypeScript and Vite, providing a web interface for service discovery and proxy configuration viewing.
 
 ### Features
 - **Service List View**: Browse all Kubernetes services with instance counts
 - **Service Detail View**: Detailed information about service instances and endpoints
 - **Proxy Sidecar Detection**: Visual indication of services with Istio/Envoy sidecars
+- **Configuration Viewing**: CodeMirror-based JSON/YAML editor for proxy configurations
 - **Real-time Updates**: Auto-refresh every 5 seconds
 - **Responsive Design**: Works on mobile and desktop
+- **Dark/Light Themes**: Theme toggle with system preference support
 
 ### Technology Stack
 - **React 19** with TypeScript
 - **Vite** for fast development and builds
-- **Tailwind CSS** for styling
+- **Tailwind CSS** for styling with typography extensions
 - **shadcn/ui** for component library
 - **TanStack Query** for API state management
 - **React Router** for navigation
 - **Lucide React** for icons
+- **CodeMirror** for code editing with JSON/YAML syntax highlighting
+- **js-yaml** for YAML processing
+- **Axios** for HTTP client (generated from OpenAPI specs)
 
 ### Development Workflow
 - **Hot reloading** for instant feedback
 - **Vite proxy** to avoid CORS issues
 - **ESLint + Prettier** for code quality
 - **4-space indentation** for consistency
+- **OpenAPI code generation** for type-safe API clients
 
 ### shadcn/ui Components
 - **NEVER edit shadcn/ui components directly** in `ui/src/components/ui/`
@@ -343,6 +380,7 @@ All HTTP and gRPC requests automatically receive:
 - All protobuf code is generated, never edit files in `pkg/api/`
 - Frontend APIs generate both Go code and OpenAPI specs for TypeScript client generation
 - Use `make generate` to regenerate all protobuf and OpenAPI code
+- TypeScript API clients are generated from OpenAPI specs using `openapi-typescript-codegen`
 
 **Configuration Management**
 - Each component (manager, edge, navctl) has its own config package
@@ -360,12 +398,19 @@ All HTTP and gRPC requests automatically receive:
 - gRPC status codes for API errors
 - Graceful shutdown handling in all services
 
-### Proxy Configuration Analysis
-Navigator includes comprehensive Envoy proxy analysis capabilities:
-- **Admin API Access**: Multiple client types (kubectl port-forward, pilot-agent)
-- **Configuration Parsing**: Bootstrap, clusters, listeners, routes, endpoints
+**License Management**
+- Automatic license header application using `licenser` tool
+- Headers applied during `make format` command
+- Uses "Navigator Authors" as copyright holder
+
+### Istio Integration
+
+Navigator includes deep Istio integration capabilities:
+- **Proxy Client Abstraction**: Multiple client types (kubectl port-forward, pilot-agent)
+- **Configuration Enrichment**: Sophisticated proxy configuration analysis and enhancement
 - **Sidecar Detection**: Automatic Istio/Envoy proxy identification
 - **Config Dump Processing**: Structured parsing of Envoy configuration dumps
+- **Resource Type Definitions**: Dedicated protobuf definitions for Istio resources
 
 ## Continuous Integration
 
@@ -381,3 +426,8 @@ Navigator uses GitHub Actions for automated quality assurance:
 - **Unit Tests**: Runs `make test-unit` with build tags for all Go packages
 - **Release Build Test**: Tests GoReleaser snapshot builds
 - Uses Nix development environment for consistent tooling
+
+### Release Workflow (`.github/workflows/release.yml`)
+- **Automated Releases**: Uses GoReleaser for cross-platform binary builds
+- **Version Management**: Git tag-based versioning
+- **Asset Publishing**: Distributes binaries via GitHub releases
