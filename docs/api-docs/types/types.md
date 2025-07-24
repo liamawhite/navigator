@@ -11,6 +11,7 @@
     - [Gateway](#navigator-types-v1alpha1-Gateway)
     - [Gateway.SelectorEntry](#navigator-types-v1alpha1-Gateway-SelectorEntry)
     - [IstioControlPlaneConfig](#navigator-types-v1alpha1-IstioControlPlaneConfig)
+    - [PeerAuthentication](#navigator-types-v1alpha1-PeerAuthentication)
     - [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference)
     - [Sidecar](#navigator-types-v1alpha1-Sidecar)
     - [VirtualService](#navigator-types-v1alpha1-VirtualService)
@@ -183,6 +184,24 @@ IstioControlPlaneConfig represents configuration from the Istio control plane.
 | ----- | ---- | ----- | ----------- |
 | pilot_scope_gateway_to_namespace | [bool](#bool) |  | pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace. When true, gateway selectors only match workloads in the same namespace as the gateway. When false (default), gateway selectors match workloads across all namespaces. |
 | root_namespace | [string](#string) |  | root_namespace is the namespace where the Istio control plane is installed. This is typically &#34;istio-system&#34; but can be customized in multi-cluster or external control plane deployments. Resources in the root namespace have special behavior (e.g., EnvoyFilters apply globally). |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-PeerAuthentication"></a>
+
+### PeerAuthentication
+PeerAuthentication represents an Istio PeerAuthentication resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the peer authentication. |
+| namespace | [string](#string) |  | namespace is the namespace of the peer authentication. |
+| raw_spec | [string](#string) |  | raw_spec is the peer authentication spec as a JSON string. |
+| selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
 
 
 

@@ -24,34 +24,37 @@ option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 message ClusterState {
   // services is the list of all services in the cluster.
   repeated Service services = 1;
-  
+
   // destination_rules is the list of all destination rules in the cluster.
   repeated navigator.types.v1alpha1.DestinationRule destination_rules = 2;
-  
+
   // envoy_filters is the list of all envoy filters in the cluster.
   repeated navigator.types.v1alpha1.EnvoyFilter envoy_filters = 3;
-  
+
   // gateways is the list of all gateways in the cluster.
   repeated navigator.types.v1alpha1.Gateway gateways = 4;
-  
+
   // sidecars is the list of all sidecars in the cluster.
   repeated navigator.types.v1alpha1.Sidecar sidecars = 5;
-  
+
   // virtual_services is the list of all virtual services in the cluster.
   repeated navigator.types.v1alpha1.VirtualService virtual_services = 6;
-  
+
   // istio_control_plane_config contains Istio control plane configuration.
   navigator.types.v1alpha1.IstioControlPlaneConfig istio_control_plane_config = 7;
+
+  // peer_authentications is the list of all peer authentications in the cluster.
+  repeated navigator.types.v1alpha1.PeerAuthentication peer_authentications = 8;
 }
 
 // Service represents a Kubernetes Service.
 message Service {
   // name is the name of the service.
   string name = 1;
-  
+
   // namespace is the namespace of the service.
   string namespace = 2;
-  
+
   // instances is the list of service instances backing this service.
   repeated ServiceInstance instances = 3;
 }
@@ -60,16 +63,16 @@ message Service {
 message Container {
   // name is the name of the container.
   string name = 1;
-  
+
   // image is the container image.
   string image = 2;
-  
+
   // status is the current status of the container (e.g., "Running", "Waiting", "Terminated").
   string status = 3;
-  
+
   // ready indicates whether the container is ready to serve requests.
   bool ready = 4;
-  
+
   // restart_count is the number of times the container has been restarted.
   int32 restart_count = 5;
 }
@@ -78,29 +81,28 @@ message Container {
 message ServiceInstance {
   // ip is the IP address of the service instance.
   string ip = 1;
-  
+
   // pod_name is the name of the pod backing this service instance.
   string pod_name = 2;
-  
+
   // envoy_present indicates whether an Envoy proxy is present in this instance.
   bool envoy_present = 3;
-  
+
   // containers is the list of containers running in this pod.
   repeated Container containers = 4;
-  
+
   // pod_status is the current status of the pod (e.g., "Running", "Pending").
   string pod_status = 5;
-  
+
   // node_name is the name of the Kubernetes node hosting this pod.
   string node_name = 6;
-  
+
   // created_at is the timestamp when the pod was created.
   string created_at = 7;
-  
+
   // labels are the Kubernetes labels assigned to the pod.
   map<string, string> labels = 8;
-  
+
   // annotations are the Kubernetes annotations assigned to the pod.
   map<string, string> annotations = 9;
 }
-

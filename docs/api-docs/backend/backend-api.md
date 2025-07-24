@@ -48,6 +48,7 @@ ClusterState contains the current state of a cluster.
 | sidecars | [navigator.types.v1alpha1.Sidecar](#navigator-types-v1alpha1-Sidecar) | repeated | sidecars is the list of all sidecars in the cluster. |
 | virtual_services | [navigator.types.v1alpha1.VirtualService](#navigator-types-v1alpha1-VirtualService) | repeated | virtual_services is the list of all virtual services in the cluster. |
 | istio_control_plane_config | [navigator.types.v1alpha1.IstioControlPlaneConfig](#navigator-types-v1alpha1-IstioControlPlaneConfig) |  | istio_control_plane_config contains Istio control plane configuration. |
+| peer_authentications | [navigator.types.v1alpha1.PeerAuthentication](#navigator-types-v1alpha1-PeerAuthentication) | repeated | peer_authentications is the list of all peer authentications in the cluster. |
 
 
 

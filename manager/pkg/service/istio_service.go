@@ -25,6 +25,7 @@ import (
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/istio/envoyfilter"
 	"github.com/liamawhite/navigator/pkg/istio/gateway"
+	"github.com/liamawhite/navigator/pkg/istio/peerauthentication"
 	"github.com/liamawhite/navigator/pkg/istio/sidecar"
 )
 
@@ -77,8 +78,9 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	var matchingGateways []*typesv1alpha1.Gateway
 	var matchingSidecars []*typesv1alpha1.Sidecar
 	var matchingEnvoyFilters []*typesv1alpha1.EnvoyFilter
+	var matchingPeerAuthentications []*typesv1alpha1.PeerAuthentication
 
-	wg.Add(3)
+	wg.Add(4)
 
 	// Filter gateways concurrently
 	go func() {
@@ -98,6 +100,12 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		matchingEnvoyFilters = envoyfilter.FilterEnvoyFiltersForWorkload(clusterState.EnvoyFilters, instance, namespace, rootNamespace)
 	}()
 
+	// Filter peer authentications concurrently
+	go func() {
+		defer wg.Done()
+		matchingPeerAuthentications = peerauthentication.FilterPeerAuthenticationsForWorkload(clusterState.PeerAuthentications, instance, namespace, rootNamespace)
+	}()
+
 	// Wait for all filtering operations to complete
 	wg.Wait()
 
@@ -109,15 +117,18 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		"matching_sidecars", len(matchingSidecars),
 		"total_envoyfilters", len(clusterState.EnvoyFilters),
 		"matching_envoyfilters", len(matchingEnvoyFilters),
+		"total_peer_authentications", len(clusterState.PeerAuthentications),
+		"matching_peer_authentications", len(matchingPeerAuthentications),
 		"scope_to_namespace", scopeToNamespace)
 
 	// For now, return all other resources - in a more sophisticated implementation,
 	// we would filter these based on relevance to the workload
 	return &frontendv1alpha1.GetIstioResourcesResponse{
-		VirtualServices:  clusterState.VirtualServices,
-		DestinationRules: clusterState.DestinationRules,
-		Gateways:         matchingGateways,
-		Sidecars:         matchingSidecars,
-		EnvoyFilters:     matchingEnvoyFilters,
+		VirtualServices:      clusterState.VirtualServices,
+		DestinationRules:     clusterState.DestinationRules,
+		Gateways:             matchingGateways,
+		Sidecars:             matchingSidecars,
+		EnvoyFilters:         matchingEnvoyFilters,
+		PeerAuthentications:  matchingPeerAuthentications,
 	}, nil
 }

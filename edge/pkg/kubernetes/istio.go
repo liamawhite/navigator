@@ -23,6 +23,7 @@ import (
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	istionetworkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -135,6 +136,28 @@ func (k *Client) fetchVirtualServices(ctx context.Context, wg *sync.WaitGroup, r
 		protoVirtualServices = append(protoVirtualServices, protoVS)
 	}
 	*result = protoVirtualServices
+}
+
+// fetchPeerAuthentications fetches and converts all peer authentications from the cluster
+func (k *Client) fetchPeerAuthentications(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.PeerAuthentication, errChan chan<- error) {
+	defer wg.Done()
+	paList, err := k.istioClient.SecurityV1beta1().PeerAuthentications("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list peer authentications: %w", err)
+		return
+	}
+
+	var protoPeerAuthentications []*typesv1alpha1.PeerAuthentication
+	for i := range paList.Items {
+		pa := paList.Items[i]
+		protoPA, convertErr := k.convertPeerAuthentication(pa)
+		if convertErr != nil {
+			k.logger.Warn("failed to convert peer authentication", "name", pa.Name, "namespace", pa.Namespace, "error", convertErr)
+			continue
+		}
+		protoPeerAuthentications = append(protoPeerAuthentications, protoPA)
+	}
+	*result = protoPeerAuthentications
 }
 
 // convertDestinationRule converts an Istio DestinationRule to a protobuf DestinationRule
@@ -324,6 +347,33 @@ func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService
 		Hosts:     hosts,
 		Gateways:  gateways,
 		ExportTo:  exportTo,
+	}, nil
+}
+
+// convertPeerAuthentication converts an Istio PeerAuthentication to a protobuf PeerAuthentication
+func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthentication) (*typesv1alpha1.PeerAuthentication, error) {
+	specBytes, err := json.Marshal(&pa.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal peer authentication spec: %w", err)
+	}
+
+	// Extract selector from the spec
+	var selector *typesv1alpha1.WorkloadSelector
+	if pa.Spec.Selector != nil && pa.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range pa.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	return &typesv1alpha1.PeerAuthentication{
+		Name:      pa.Name,
+		Namespace: pa.Namespace,
+		RawSpec:   string(specBytes),
+		Selector:  selector,
 	}, nil
 }
 
