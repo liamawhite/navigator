@@ -141,6 +141,22 @@ message WorkloadSelector {
   map<string, string> match_labels = 1;
 }
 
+// PolicyTargetReference represents a reference to a specific resource based on Istio's PolicyTargetReference.
+message PolicyTargetReference {
+  // group specifies the group of the target resource.
+  string group = 1;
+  
+  // kind indicates the kind of target resource (required).
+  string kind = 2;
+  
+  // name provides the name of the target resource (required).
+  string name = 3;
+  
+  // namespace defines the namespace of the referenced resource.
+  // When unspecified, the local namespace is inferred.
+  string namespace = 4;
+}
+
 // EnvoyFilter represents an Istio EnvoyFilter resource.
 message EnvoyFilter {
   // name is the name of the envoy filter.
@@ -151,6 +167,12 @@ message EnvoyFilter {
   
   // raw_spec is the envoy filter spec as a JSON string.
   string raw_spec = 3;
+  
+  // workload_selector is the criteria used to select the specific set of pods/VMs.
+  WorkloadSelector workload_selector = 4;
+  
+  // target_refs is the list of resources that this envoy filter applies to.
+  repeated PolicyTargetReference target_refs = 5;
 }
 
 // Gateway represents an Istio Gateway resource.

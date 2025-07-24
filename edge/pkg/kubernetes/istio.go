@@ -203,10 +203,38 @@ func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*v
 		return nil, fmt.Errorf("failed to marshal envoy filter spec: %w", err)
 	}
 
+	// Extract workload selector from the spec
+	var workloadSelector *v1alpha1.WorkloadSelector
+	if ef.Spec.WorkloadSelector != nil && ef.Spec.WorkloadSelector.Labels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range ef.Spec.WorkloadSelector.Labels {
+			matchLabels[key] = value
+		}
+		workloadSelector = &v1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	// Extract target refs from the spec
+	var targetRefs []*v1alpha1.PolicyTargetReference
+	for _, targetRef := range ef.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &v1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
 	return &v1alpha1.EnvoyFilter{
-		Name:      ef.Name,
-		Namespace: ef.Namespace,
-		RawSpec:   string(specBytes),
+		Name:             ef.Name,
+		Namespace:        ef.Namespace,
+		RawSpec:          string(specBytes),
+		WorkloadSelector: workloadSelector,
+		TargetRefs:       targetRefs,
 	}, nil
 }
 
