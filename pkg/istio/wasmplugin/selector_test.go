@@ -309,11 +309,11 @@ func TestFilterWasmPluginsForWorkload(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                   string
-		instance               *backendv1alpha1.ServiceInstance
-		workloadNamespace      string
-		rootNamespace          string
-		expectedWasmPlugins    []string // WasmPlugin names that should match
+		name                string
+		instance            *backendv1alpha1.ServiceInstance
+		workloadNamespace   string
+		rootNamespace       string
+		expectedWasmPlugins []string // WasmPlugin names that should match
 	}{
 		{
 			name:              "workload matches multiple wasm plugins in same namespace",

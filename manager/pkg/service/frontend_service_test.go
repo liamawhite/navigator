@@ -575,9 +575,9 @@ func TestFrontendService_GetIstioResources_WithWasmPlugins(t *testing.T) {
 				},
 			},
 			{
-				Name:      "global-wasm-plugin",
-				Namespace: "istio-system",
-				Selector:  nil,
+				Name:       "global-wasm-plugin",
+				Namespace:  "istio-system",
+				Selector:   nil,
 				TargetRefs: nil,
 			},
 		},
@@ -600,14 +600,14 @@ func TestFrontendService_GetIstioResources_WithWasmPlugins(t *testing.T) {
 
 	// Mock istio service to filter WasmPlugins for the workload
 	mockIstioService := new(MockIstioService)
-	mockIstioService.On("GetIstioResourcesForWorkload", 
-		context.Background(), 
-		"cluster1", 
-		"production", 
+	mockIstioService.On("GetIstioResourcesForWorkload",
+		context.Background(),
+		"cluster1",
+		"production",
 		mock.MatchedBy(func(instance *backendv1alpha1.ServiceInstance) bool {
-			return instance.Labels["app"] == "web" && 
-				   instance.Labels["version"] == "v1" && 
-				   instance.Labels["tier"] == "frontend"
+			return instance.Labels["app"] == "web" &&
+				instance.Labels["version"] == "v1" &&
+				instance.Labels["tier"] == "frontend"
 		})).Return(testIstioResources, nil)
 
 	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
