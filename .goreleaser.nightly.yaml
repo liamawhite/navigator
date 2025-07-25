@@ -1,0 +1,60 @@
+# GoReleaser configuration for nightly builds
+# This configuration is specifically for automated nightly releases from main branch
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - sh -c 'cd ui && npm ci && npm run build'
+
+builds:
+  - id: navctl
+    main: ./navctl/main.go
+    binary: navctl
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/liamawhite/navigator/pkg/version.version={{.Version}}
+      - -X github.com/liamawhite/navigator/pkg/version.commit={{.FullCommit}}
+      - -X github.com/liamawhite/navigator/pkg/version.date={{.Date}}
+
+archives:
+  - id: navctl
+    ids: [navctl]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ .Env.NIGHTLY_VERSION }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+# Release is handled manually via GitHub CLI in the workflow
+release:
+  disable: true
