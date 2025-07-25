@@ -28,6 +28,7 @@ import (
 	"github.com/liamawhite/navigator/pkg/istio/peerauthentication"
 	"github.com/liamawhite/navigator/pkg/istio/requestauthentication"
 	"github.com/liamawhite/navigator/pkg/istio/sidecar"
+	"github.com/liamawhite/navigator/pkg/istio/wasmplugin"
 )
 
 // ClusterStateProvider defines the interface for accessing cluster state
@@ -81,8 +82,9 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	var matchingEnvoyFilters []*typesv1alpha1.EnvoyFilter
 	var matchingRequestAuthentications []*typesv1alpha1.RequestAuthentication
 	var matchingPeerAuthentications []*typesv1alpha1.PeerAuthentication
+	var matchingWasmPlugins []*typesv1alpha1.WasmPlugin
 
-	wg.Add(5)
+	wg.Add(6)
 
 	// Filter gateways concurrently
 	go func() {
@@ -114,6 +116,12 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		matchingPeerAuthentications = peerauthentication.FilterPeerAuthenticationsForWorkload(clusterState.PeerAuthentications, instance, namespace, rootNamespace)
 	}()
 
+	// Filter wasm plugins concurrently
+	go func() {
+		defer wg.Done()
+		matchingWasmPlugins = wasmplugin.FilterWasmPluginsForWorkload(clusterState.WasmPlugins, instance, namespace, rootNamespace)
+	}()
+
 	// Wait for all filtering operations to complete
 	wg.Wait()
 
@@ -129,6 +137,8 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		"matching_request_authentications", len(matchingRequestAuthentications),
 		"total_peer_authentications", len(clusterState.PeerAuthentications),
 		"matching_peer_authentications", len(matchingPeerAuthentications),
+		"total_wasm_plugins", len(clusterState.WasmPlugins),
+		"matching_wasm_plugins", len(matchingWasmPlugins),
 		"scope_to_namespace", scopeToNamespace)
 
 	// For now, return all other resources - in a more sophisticated implementation,
@@ -141,5 +151,6 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		EnvoyFilters:           matchingEnvoyFilters,
 		RequestAuthentications: matchingRequestAuthentications,
 		PeerAuthentications:    matchingPeerAuthentications,
+		WasmPlugins:            matchingWasmPlugins,
 	}, nil
 }

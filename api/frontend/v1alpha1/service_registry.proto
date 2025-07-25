@@ -257,6 +257,9 @@ message GetIstioResourcesResponse {
   
   // peer_authentications are PeerAuthentication resources affecting this instance.
   repeated navigator.types.v1alpha1.PeerAuthentication peer_authentications = 7;
+  
+  // wasm_plugins are WasmPlugin resources affecting this instance.
+  repeated navigator.types.v1alpha1.WasmPlugin wasm_plugins = 8;
 }
 
 // ListClustersRequest for retrieving cluster sync information.

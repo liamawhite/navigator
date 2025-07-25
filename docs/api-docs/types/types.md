@@ -16,6 +16,7 @@
     - [RequestAuthentication](#navigator-types-v1alpha1-RequestAuthentication)
     - [Sidecar](#navigator-types-v1alpha1-Sidecar)
     - [VirtualService](#navigator-types-v1alpha1-VirtualService)
+    - [WasmPlugin](#navigator-types-v1alpha1-WasmPlugin)
     - [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector)
     - [WorkloadSelector.MatchLabelsEntry](#navigator-types-v1alpha1-WorkloadSelector-MatchLabelsEntry)
   
@@ -278,6 +279,25 @@ VirtualService represents an Istio VirtualService resource.
 | hosts | [string](#string) | repeated | hosts is the list of destination hosts that these routing rules apply to. |
 | gateways | [string](#string) | repeated | gateways is the list of gateway names that should apply these routes. |
 | export_to | [string](#string) | repeated | export_to controls the visibility of this virtual service to other namespaces. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-WasmPlugin"></a>
+
+### WasmPlugin
+WasmPlugin represents an Istio WasmPlugin resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the wasm plugin. |
+| namespace | [string](#string) |  | namespace is the namespace of the wasm plugin. |
+| raw_spec | [string](#string) |  | raw_spec is the wasm plugin spec as a JSON string. |
+| selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
+| target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this wasm plugin applies to. |
 
 
 

@@ -9,6 +9,7 @@ import type { v1alpha1PeerAuthentication } from './v1alpha1PeerAuthentication';
 import type { v1alpha1RequestAuthentication } from './v1alpha1RequestAuthentication';
 import type { v1alpha1Sidecar } from './v1alpha1Sidecar';
 import type { v1alpha1VirtualService } from './v1alpha1VirtualService';
+import type { v1alpha1WasmPlugin } from './v1alpha1WasmPlugin';
 /**
  * GetIstioResourcesResponse contains the Istio resources for the requested service instance.
  */
@@ -41,5 +42,9 @@ export type v1alpha1GetIstioResourcesResponse = {
      * peer_authentications are PeerAuthentication resources affecting this instance.
      */
     peerAuthentications?: Array<v1alpha1PeerAuthentication>;
+    /**
+     * wasm_plugins are WasmPlugin resources affecting this instance.
+     */
+    wasmPlugins?: Array<v1alpha1WasmPlugin>;
 };
 

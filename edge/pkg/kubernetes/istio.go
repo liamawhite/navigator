@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	istioextensionsv1alpha1 "istio.io/client-go/pkg/apis/extensions/v1alpha1"
 	istionetworkingv1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
@@ -114,6 +115,28 @@ func (k *Client) fetchPeerAuthentications(ctx context.Context, wg *sync.WaitGrou
 		protoPeerAuthentications = append(protoPeerAuthentications, protoPA)
 	}
 	*result = protoPeerAuthentications
+}
+
+// fetchWasmPlugins fetches and converts all wasm plugins from the cluster
+func (k *Client) fetchWasmPlugins(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.WasmPlugin, errChan chan<- error) {
+	defer wg.Done()
+	wpList, err := k.istioClient.ExtensionsV1alpha1().WasmPlugins("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list wasm plugins: %w", err)
+		return
+	}
+
+	var protoWasmPlugins []*typesv1alpha1.WasmPlugin
+	for i := range wpList.Items {
+		wp := wpList.Items[i]
+		protoWP, convertErr := k.convertWasmPlugin(wp)
+		if convertErr != nil {
+			k.logger.Warn("failed to convert wasm plugin", "name", wp.Name, "namespace", wp.Namespace, "error", convertErr)
+			continue
+		}
+		protoWasmPlugins = append(protoWasmPlugins, protoWP)
+	}
+	*result = protoWasmPlugins
 }
 
 // fetchGateways fetches and converts all gateways from the cluster
@@ -349,6 +372,48 @@ func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthenti
 		Namespace: pa.Namespace,
 		RawSpec:   string(specBytes),
 		Selector:  selector,
+	}, nil
+}
+
+// convertWasmPlugin converts an Istio WasmPlugin to a protobuf WasmPlugin
+func (k *Client) convertWasmPlugin(wp *istioextensionsv1alpha1.WasmPlugin) (*typesv1alpha1.WasmPlugin, error) {
+	specBytes, err := json.Marshal(&wp.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal wasm plugin spec: %w", err)
+	}
+
+	// Extract selector from the spec
+	var selector *typesv1alpha1.WorkloadSelector
+	if wp.Spec.Selector != nil && wp.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range wp.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	// Extract target refs from the spec
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
+	for _, targetRef := range wp.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
+	return &typesv1alpha1.WasmPlugin{
+		Name:       wp.Name,
+		Namespace:  wp.Namespace,
+		RawSpec:    string(specBytes),
+		Selector:   selector,
+		TargetRefs: targetRefs,
 	}, nil
 }
 

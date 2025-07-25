@@ -19,7 +19,9 @@
       "Bash(gh pr view:*)",
       "Bash(git add:*)",
       "Bash(sed:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(go list:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

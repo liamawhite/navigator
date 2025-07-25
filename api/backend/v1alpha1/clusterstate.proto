@@ -48,6 +48,9 @@ message ClusterState {
   
   // peer_authentications is the list of all peer authentications in the cluster.
   repeated navigator.types.v1alpha1.PeerAuthentication peer_authentications = 9;
+  
+  // wasm_plugins is the list of all wasm plugins in the cluster.
+  repeated navigator.types.v1alpha1.WasmPlugin wasm_plugins = 10;
 }
 
 // Service represents a Kubernetes Service.

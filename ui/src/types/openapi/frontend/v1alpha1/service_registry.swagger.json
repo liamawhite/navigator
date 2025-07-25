@@ -791,6 +791,14 @@
             "$ref": "#/definitions/v1alpha1PeerAuthentication"
           },
           "description": "peer_authentications are PeerAuthentication resources affecting this instance."
+        },
+        "wasmPlugins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1WasmPlugin"
+          },
+          "description": "wasm_plugins are WasmPlugin resources affecting this instance."
         }
       },
       "description": "GetIstioResourcesResponse contains the Istio resources for the requested service instance."
@@ -1534,6 +1542,36 @@
         }
       },
       "description": "VirtualService represents an Istio VirtualService resource."
+    },
+    "v1alpha1WasmPlugin": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the wasm plugin."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the wasm plugin."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the wasm plugin spec as a JSON string."
+        },
+        "selector": {
+          "$ref": "#/definitions/v1alpha1WorkloadSelector",
+          "description": "selector is the criteria used to select the specific set of pods/VMs."
+        },
+        "targetRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1PolicyTargetReference"
+          },
+          "description": "target_refs is the list of resources that this wasm plugin applies to."
+        }
+      },
+      "description": "WasmPlugin represents an Istio WasmPlugin resource."
     },
     "v1alpha1WeightedClusterInfo": {
       "type": "object",
