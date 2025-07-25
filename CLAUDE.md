@@ -49,6 +49,29 @@ Navigator is an edge computing platform that provides Kubernetes service discove
 4. UI queries manager's HTTP gateway for service information
 5. On-demand proxy analysis: Manager requests detailed config from specific edges
 
+## Installation
+
+### Stable Release (Recommended)
+Download the latest stable release from [GitHub Releases](https://github.com/liamawhite/navigator/releases/latest).
+
+### Nightly Builds (Development)
+For early access to new features, use nightly builds which are automatically generated daily from the main branch:
+
+```bash
+# Linux (x86_64)
+curl -L https://github.com/liamawhite/navigator/releases/download/$(curl -s https://api.github.com/repos/liamawhite/navigator/releases | jq -r '.[] | select(.prerelease == true and (.tag_name | contains("nightly"))) | .tag_name' | head -1)/navigator_Linux_x86_64.tar.gz | tar xz
+chmod +x navctl && sudo mv navctl /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -L https://github.com/liamawhite/navigator/releases/download/$(curl -s https://api.github.com/repos/liamawhite/navigator/releases | jq -r '.[] | select(.prerelease == true and (.tag_name | contains("nightly"))) | .tag_name' | head -1)/navigator_Darwin_arm64.tar.gz | tar xz
+chmod +x navctl && sudo mv navctl /usr/local/bin/
+
+# Verify installation
+navctl version
+```
+
+**⚠️ Nightly Build Notice**: Nightly builds contain the latest features but may be unstable. Use stable releases for production.
+
 ## Development Commands
 
 ### Quick Start
