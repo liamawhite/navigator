@@ -379,6 +379,142 @@ func TestFrontendService_GetIstioResources(t *testing.T) {
 	mockIstioService.AssertExpectations(t)
 }
 
+func TestFrontendService_GetIstioResources_WithPeerAuthentications(t *testing.T) {
+	logger := logging.For("test")
+	mockConnManager := new(MockConnectionManager)
+
+	// Create test data with peer authentications
+	testInstance := &connections.AggregatedServiceInstance{
+		InstanceID:   "cluster1:production:web-pod",
+		IP:           "10.0.0.2",
+		PodName:      "web-pod",
+		Namespace:    "production",
+		ClusterName:  "cluster1",
+		EnvoyPresent: true,
+		Labels:       map[string]string{"app": "web", "version": "v1", "tier": "frontend"},
+	}
+
+	testIstioResources := &frontendv1alpha1.GetIstioResourcesResponse{
+		VirtualServices: []*types.VirtualService{
+			{
+				Name:      "web-vs",
+				Namespace: "production",
+				Hosts:     []string{"web.production.svc.cluster.local"},
+			},
+		},
+		Gateways: []*types.Gateway{
+			{
+				Name:      "web-gateway",
+				Namespace: "production",
+				Selector:  map[string]string{"app": "web"},
+			},
+		},
+		RequestAuthentications: []*types.RequestAuthentication{
+			{
+				Name:      "web-request-auth",
+				Namespace: "production",
+				Selector: &types.WorkloadSelector{
+					MatchLabels: map[string]string{"app": "web"},
+				},
+			},
+		},
+		PeerAuthentications: []*types.PeerAuthentication{
+			{
+				Name:      "web-peer-auth-strict",
+				Namespace: "production",
+				Selector: &types.WorkloadSelector{
+					MatchLabels: map[string]string{"app": "web", "version": "v1"},
+				},
+			},
+			{
+				Name:      "frontend-tier-peer-auth",
+				Namespace: "production",
+				Selector: &types.WorkloadSelector{
+					MatchLabels: map[string]string{"tier": "frontend"},
+				},
+			},
+			{
+				Name:      "default-peer-auth",
+				Namespace: "production",
+				Selector:  nil, // nil selector matches all workloads in namespace
+			},
+		},
+	}
+
+	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:production:web-pod").Return(testInstance, true)
+	mockProxyService := new(MockProxyService)
+	mockIstioService := new(MockIstioService)
+	mockIstioService.On("GetIstioResourcesForWorkload", mock.Anything, "cluster1", "production", mock.MatchedBy(func(instance *backendv1alpha1.ServiceInstance) bool {
+		return instance.Labels["app"] == "web" && instance.Labels["version"] == "v1" && instance.Labels["tier"] == "frontend"
+	})).Return(testIstioResources, nil)
+
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
+
+	// Test GetIstioResources
+	req := &frontendv1alpha1.GetIstioResourcesRequest{
+		ServiceId:  "production:web-service",
+		InstanceId: "cluster1:production:web-pod",
+	}
+	resp, err := frontendService.GetIstioResources(context.Background(), req)
+
+	// Verify the response
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+
+	// Verify VirtualServices
+	assert.Len(t, resp.VirtualServices, 1)
+	assert.Equal(t, "web-vs", resp.VirtualServices[0].Name)
+
+	// Verify Gateways
+	assert.Len(t, resp.Gateways, 1)
+	assert.Equal(t, "web-gateway", resp.Gateways[0].Name)
+
+	// Verify RequestAuthentications
+	assert.Len(t, resp.RequestAuthentications, 1)
+	assert.Equal(t, "web-request-auth", resp.RequestAuthentications[0].Name)
+	assert.Equal(t, "production", resp.RequestAuthentications[0].Namespace)
+	assert.NotNil(t, resp.RequestAuthentications[0].Selector)
+	assert.Equal(t, "web", resp.RequestAuthentications[0].Selector.MatchLabels["app"])
+
+	// Verify PeerAuthentications - this is the key test for our new functionality
+	assert.Len(t, resp.PeerAuthentications, 3)
+
+	// Find specific peer authentications by name
+	var strictPeerAuth, tierPeerAuth, defaultPeerAuth *types.PeerAuthentication
+	for _, pa := range resp.PeerAuthentications {
+		switch pa.Name {
+		case "web-peer-auth-strict":
+			strictPeerAuth = pa
+		case "frontend-tier-peer-auth":
+			tierPeerAuth = pa
+		case "default-peer-auth":
+			defaultPeerAuth = pa
+		}
+	}
+
+	// Verify specific peer authentication with multi-label selector
+	assert.NotNil(t, strictPeerAuth)
+	assert.Equal(t, "production", strictPeerAuth.Namespace)
+	assert.NotNil(t, strictPeerAuth.Selector)
+	assert.Equal(t, "web", strictPeerAuth.Selector.MatchLabels["app"])
+	assert.Equal(t, "v1", strictPeerAuth.Selector.MatchLabels["version"])
+
+	// Verify tier-based peer authentication
+	assert.NotNil(t, tierPeerAuth)
+	assert.Equal(t, "production", tierPeerAuth.Namespace)
+	assert.NotNil(t, tierPeerAuth.Selector)
+	assert.Equal(t, "frontend", tierPeerAuth.Selector.MatchLabels["tier"])
+
+	// Verify default peer authentication (nil selector)
+	assert.NotNil(t, defaultPeerAuth)
+	assert.Equal(t, "production", defaultPeerAuth.Namespace)
+	assert.Nil(t, defaultPeerAuth.Selector) // nil selector matches all workloads
+
+	// Verify all mocks were called as expected
+	mockConnManager.AssertExpectations(t)
+	mockIstioService.AssertExpectations(t)
+}
+
 func TestFrontendService_GetIstioResources_InstanceNotFound(t *testing.T) {
 	logger := logging.For("test")
 	mockConnManager := new(MockConnectionManager)

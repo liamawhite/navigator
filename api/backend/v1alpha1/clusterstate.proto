@@ -45,6 +45,9 @@ message ClusterState {
   
   // istio_control_plane_config contains Istio control plane configuration.
   navigator.types.v1alpha1.IstioControlPlaneConfig istio_control_plane_config = 8;
+  
+  // peer_authentications is the list of all peer authentications in the cluster.
+  repeated navigator.types.v1alpha1.PeerAuthentication peer_authentications = 9;
 }
 
 // Service represents a Kubernetes Service.

@@ -94,6 +94,28 @@ func (k *Client) fetchRequestAuthentications(ctx context.Context, wg *sync.WaitG
 	*result = protoRequestAuthentications
 }
 
+// fetchPeerAuthentications fetches and converts all peer authentications from the cluster
+func (k *Client) fetchPeerAuthentications(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.PeerAuthentication, errChan chan<- error) {
+	defer wg.Done()
+	paList, err := k.istioClient.SecurityV1beta1().PeerAuthentications("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list peer authentications: %w", err)
+		return
+	}
+
+	var protoPeerAuthentications []*typesv1alpha1.PeerAuthentication
+	for i := range paList.Items {
+		pa := paList.Items[i]
+		protoPA, convertErr := k.convertPeerAuthentication(pa)
+		if convertErr != nil {
+			k.logger.Warn("failed to convert peer authentication", "name", pa.Name, "namespace", pa.Namespace, "error", convertErr)
+			continue
+		}
+		protoPeerAuthentications = append(protoPeerAuthentications, protoPA)
+	}
+	*result = protoPeerAuthentications
+}
+
 // fetchGateways fetches and converts all gateways from the cluster
 func (k *Client) fetchGateways(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.Gateway, errChan chan<- error) {
 	defer wg.Done()
@@ -300,6 +322,33 @@ func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAu
 		RawSpec:    string(specBytes),
 		Selector:   selector,
 		TargetRefs: targetRefs,
+	}, nil
+}
+
+// convertPeerAuthentication converts an Istio PeerAuthentication to a protobuf PeerAuthentication
+func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthentication) (*typesv1alpha1.PeerAuthentication, error) {
+	specBytes, err := json.Marshal(&pa.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal peer authentication spec: %w", err)
+	}
+
+	// Extract selector from the spec
+	var selector *typesv1alpha1.WorkloadSelector
+	if pa.Spec.Selector != nil && pa.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range pa.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	return &typesv1alpha1.PeerAuthentication{
+		Name:      pa.Name,
+		Namespace: pa.Namespace,
+		RawSpec:   string(specBytes),
+		Selector:  selector,
 	}, nil
 }
 

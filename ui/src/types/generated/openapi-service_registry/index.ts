@@ -44,6 +44,7 @@ export type { v1alpha1ListServicesResponse } from './models/v1alpha1ListServices
 export type { v1alpha1LocalityInfo } from './models/v1alpha1LocalityInfo';
 export type { v1alpha1NodeSummary } from './models/v1alpha1NodeSummary';
 export type { v1alpha1PathMatchInfo } from './models/v1alpha1PathMatchInfo';
+export type { v1alpha1PeerAuthentication } from './models/v1alpha1PeerAuthentication';
 export type { v1alpha1PolicyTargetReference } from './models/v1alpha1PolicyTargetReference';
 export type { v1alpha1ProxyConfig } from './models/v1alpha1ProxyConfig';
 export { v1alpha1ProxyMode } from './models/v1alpha1ProxyMode';
