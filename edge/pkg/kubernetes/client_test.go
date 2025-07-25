@@ -22,8 +22,13 @@ import (
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	extensionsapi "istio.io/api/extensions/v1alpha1"
 	istioapi "istio.io/api/networking/v1alpha3"
+	securityapi "istio.io/api/security/v1beta1"
+	istiotype "istio.io/api/type/v1beta1"
+	istioextensionsv1alpha1 "istio.io/client-go/pkg/apis/extensions/v1alpha1"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
 	istiofake "istio.io/client-go/pkg/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
@@ -245,4 +250,76 @@ func TestClient_GetClusterStateWithIstio(t *testing.T) {
 	assert.Len(t, result.DestinationRules, 1)
 	assert.Equal(t, "test-dr", result.DestinationRules[0].Name)
 	assert.Contains(t, result.DestinationRules[0].RawSpec, "test-service")
+}
+
+func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
+	// Create test Kubernetes resources
+	service := corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "default",
+		},
+	}
+
+	// Create test WasmPlugin
+	wasmPlugin := &istioextensionsv1alpha1.WasmPlugin{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-wasm-plugin",
+			Namespace: "default",
+		},
+		Spec: extensionsapi.WasmPlugin{
+			Selector: &istiotype.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app": "test-service",
+				},
+			},
+			Url: "oci://docker.io/istio/test-plugin:latest",
+		},
+	}
+
+	// Create test RequestAuthentication for comparison
+	requestAuth := &istiosecurityv1beta1.RequestAuthentication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-request-auth",
+			Namespace: "default",
+		},
+		Spec: securityapi.RequestAuthentication{
+			Selector: &istiotype.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app": "test-service",
+				},
+			},
+		},
+	}
+
+	// Create fake clients
+	k8sClient := fake.NewSimpleClientset(&service)
+	istioClient := istiofake.NewSimpleClientset(wasmPlugin, requestAuth)
+
+	client := &Client{
+		clientset:   k8sClient,
+		istioClient: istioClient,
+		logger:      logging.For("test"),
+	}
+
+	result, err := client.GetClusterState(context.Background())
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// Verify Kubernetes resources
+	assert.Len(t, result.Services, 1)
+	assert.Equal(t, "test-service", result.Services[0].Name)
+
+	// Verify WasmPlugin resources
+	assert.Len(t, result.WasmPlugins, 1)
+	assert.Equal(t, "test-wasm-plugin", result.WasmPlugins[0].Name)
+	assert.Equal(t, "default", result.WasmPlugins[0].Namespace)
+	assert.NotNil(t, result.WasmPlugins[0].Selector)
+	assert.Equal(t, "test-service", result.WasmPlugins[0].Selector.MatchLabels["app"])
+	assert.Contains(t, result.WasmPlugins[0].RawSpec, "oci://docker.io/istio/test-plugin:latest")
+
+	// Verify RequestAuthentication is still working (regression test)
+	assert.Len(t, result.RequestAuthentications, 1)
+	assert.Equal(t, "test-request-auth", result.RequestAuthentications[0].Name)
 }

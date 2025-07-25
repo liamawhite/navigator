@@ -515,6 +515,178 @@ func TestFrontendService_GetIstioResources_WithPeerAuthentications(t *testing.T)
 	mockIstioService.AssertExpectations(t)
 }
 
+func TestFrontendService_GetIstioResources_WithWasmPlugins(t *testing.T) {
+	logger := logging.For("test")
+	mockConnManager := new(MockConnectionManager)
+
+	// Create test data with WasmPlugins
+	testInstance := &connections.AggregatedServiceInstance{
+		InstanceID:   "cluster1:production:web-pod",
+		IP:           "10.0.0.2",
+		PodName:      "web-pod",
+		Namespace:    "production",
+		ClusterName:  "cluster1",
+		EnvoyPresent: true,
+		Labels:       map[string]string{"app": "web", "version": "v1", "tier": "frontend"},
+	}
+
+	testIstioResources := &frontendv1alpha1.GetIstioResourcesResponse{
+		VirtualServices: []*types.VirtualService{
+			{
+				Name:      "web-vs",
+				Namespace: "production",
+				Hosts:     []string{"web.production.svc.cluster.local"},
+			},
+		},
+		Gateways: []*types.Gateway{
+			{
+				Name:      "web-gateway",
+				Namespace: "production",
+				Selector:  map[string]string{"app": "web"},
+			},
+		},
+		WasmPlugins: []*types.WasmPlugin{
+			{
+				Name:      "auth-wasm-plugin",
+				Namespace: "production",
+				Selector: &types.WorkloadSelector{
+					MatchLabels: map[string]string{"app": "web"},
+				},
+				TargetRefs: nil,
+			},
+			{
+				Name:      "metrics-wasm-plugin",
+				Namespace: "production",
+				Selector: &types.WorkloadSelector{
+					MatchLabels: map[string]string{"tier": "frontend"},
+				},
+				TargetRefs: nil,
+			},
+			{
+				Name:      "gateway-wasm-plugin",
+				Namespace: "istio-system",
+				Selector:  nil,
+				TargetRefs: []*types.PolicyTargetReference{
+					{
+						Group: "gateway.networking.k8s.io",
+						Kind:  "Gateway",
+						Name:  "web-gateway",
+					},
+				},
+			},
+			{
+				Name:      "global-wasm-plugin",
+				Namespace: "istio-system",
+				Selector:  nil,
+				TargetRefs: nil,
+			},
+		},
+		RequestAuthentications: []*types.RequestAuthentication{
+			{
+				Name:      "web-request-auth",
+				Namespace: "production",
+				Selector: &types.WorkloadSelector{
+					MatchLabels: map[string]string{"app": "web"},
+				},
+			},
+		},
+	}
+
+	// Set up mock expectations
+	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:production:web-pod").Return(testInstance, true)
+
+	// Mock proxy service (not called by GetIstioResources)
+	mockProxyService := new(MockProxyService)
+
+	// Mock istio service to filter WasmPlugins for the workload
+	mockIstioService := new(MockIstioService)
+	mockIstioService.On("GetIstioResourcesForWorkload", 
+		context.Background(), 
+		"cluster1", 
+		"production", 
+		mock.MatchedBy(func(instance *backendv1alpha1.ServiceInstance) bool {
+			return instance.Labels["app"] == "web" && 
+				   instance.Labels["version"] == "v1" && 
+				   instance.Labels["tier"] == "frontend"
+		})).Return(testIstioResources, nil)
+
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
+
+	// Test GetIstioResources
+	req := &frontendv1alpha1.GetIstioResourcesRequest{
+		ServiceId:  "production:web-service",
+		InstanceId: "cluster1:production:web-pod",
+	}
+	resp, err := frontendService.GetIstioResources(context.Background(), req)
+
+	// Verify the response
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+
+	// Verify VirtualServices
+	assert.Len(t, resp.VirtualServices, 1)
+	assert.Equal(t, "web-vs", resp.VirtualServices[0].Name)
+
+	// Verify Gateways
+	assert.Len(t, resp.Gateways, 1)
+	assert.Equal(t, "web-gateway", resp.Gateways[0].Name)
+
+	// Verify RequestAuthentications (regression test)
+	assert.Len(t, resp.RequestAuthentications, 1)
+	assert.Equal(t, "web-request-auth", resp.RequestAuthentications[0].Name)
+
+	// Verify WasmPlugins - this is the key test for our new functionality
+	assert.Len(t, resp.WasmPlugins, 4)
+
+	// Find specific wasm plugins by name
+	var authPlugin, metricsPlugin, gatewayPlugin, globalPlugin *types.WasmPlugin
+	for _, wp := range resp.WasmPlugins {
+		switch wp.Name {
+		case "auth-wasm-plugin":
+			authPlugin = wp
+		case "metrics-wasm-plugin":
+			metricsPlugin = wp
+		case "gateway-wasm-plugin":
+			gatewayPlugin = wp
+		case "global-wasm-plugin":
+			globalPlugin = wp
+		}
+	}
+
+	// Verify app-specific wasm plugin
+	assert.NotNil(t, authPlugin)
+	assert.Equal(t, "production", authPlugin.Namespace)
+	assert.NotNil(t, authPlugin.Selector)
+	assert.Equal(t, "web", authPlugin.Selector.MatchLabels["app"])
+	assert.Nil(t, authPlugin.TargetRefs)
+
+	// Verify tier-specific wasm plugin
+	assert.NotNil(t, metricsPlugin)
+	assert.Equal(t, "production", metricsPlugin.Namespace)
+	assert.NotNil(t, metricsPlugin.Selector)
+	assert.Equal(t, "frontend", metricsPlugin.Selector.MatchLabels["tier"])
+	assert.Nil(t, metricsPlugin.TargetRefs)
+
+	// Verify gateway-targeted wasm plugin from istio-system
+	assert.NotNil(t, gatewayPlugin)
+	assert.Equal(t, "istio-system", gatewayPlugin.Namespace)
+	assert.Nil(t, gatewayPlugin.Selector)
+	assert.Len(t, gatewayPlugin.TargetRefs, 1)
+	assert.Equal(t, "Gateway", gatewayPlugin.TargetRefs[0].Kind)
+	assert.Equal(t, "web-gateway", gatewayPlugin.TargetRefs[0].Name)
+
+	// Verify global wasm plugin from root namespace
+	assert.NotNil(t, globalPlugin)
+	assert.Equal(t, "istio-system", globalPlugin.Namespace)
+	assert.Nil(t, globalPlugin.Selector)
+	assert.Nil(t, globalPlugin.TargetRefs)
+
+	// Verify all mocks were called as expected
+	mockConnManager.AssertExpectations(t)
+	mockProxyService.AssertExpectations(t)
+	mockIstioService.AssertExpectations(t)
+}
+
 func TestFrontendService_GetIstioResources_InstanceNotFound(t *testing.T) {
 	logger := logging.For("test")
 	mockConnManager := new(MockConnectionManager)

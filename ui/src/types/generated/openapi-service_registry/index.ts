@@ -62,6 +62,7 @@ export { v1alpha1SyncStatus } from './models/v1alpha1SyncStatus';
 export type { v1alpha1TcpProxyMatch } from './models/v1alpha1TcpProxyMatch';
 export type { v1alpha1VirtualHostInfo } from './models/v1alpha1VirtualHostInfo';
 export type { v1alpha1VirtualService } from './models/v1alpha1VirtualService';
+export type { v1alpha1WasmPlugin } from './models/v1alpha1WasmPlugin';
 export type { v1alpha1WeightedClusterInfo } from './models/v1alpha1WeightedClusterInfo';
 export type { v1alpha1WorkloadSelector } from './models/v1alpha1WorkloadSelector';
 

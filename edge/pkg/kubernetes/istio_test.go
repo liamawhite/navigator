@@ -24,9 +24,11 @@ import (
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	extensionsapi "istio.io/api/extensions/v1alpha1"
 	istioapi "istio.io/api/networking/v1alpha3"
 	securityapi "istio.io/api/security/v1beta1"
 	istiotype "istio.io/api/type/v1beta1"
+	istioextensionsv1alpha1 "istio.io/client-go/pkg/apis/extensions/v1alpha1"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1047,6 +1049,282 @@ func TestClient_convertPeerAuthentication_ErrorCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := client.convertPeerAuthentication(tt.peerAuthentication)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
+}
+
+func TestClient_convertWasmPlugin(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name                 string
+		wasmPlugin           *istioextensionsv1alpha1.WasmPlugin
+		wantName             string
+		wantNamespace        string
+		wantWorkloadSelector *typesv1alpha1.WorkloadSelector
+		wantTargetRefs       []*typesv1alpha1.PolicyTargetReference
+	}{
+		{
+			name: "wasm plugin with workload selector",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-wasm-plugin",
+					Namespace: "production",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"app":     "web",
+							"version": "v1",
+							"tier":    "frontend",
+						},
+					},
+					Url: "oci://docker.io/istio/wasm-plugin:v1.0.0",
+				},
+			},
+			wantName:      "test-wasm-plugin",
+			wantNamespace: "production",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app":     "web",
+					"version": "v1",
+					"tier":    "frontend",
+				},
+			},
+			wantTargetRefs: nil,
+		},
+		{
+			name: "wasm plugin without workload selector",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default-wasm-plugin",
+					Namespace: "default",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Url: "oci://docker.io/istio/auth-plugin:latest",
+				},
+			},
+			wantName:             "default-wasm-plugin",
+			wantNamespace:        "default",
+			wantWorkloadSelector: nil,
+			wantTargetRefs:       nil,
+		},
+		{
+			name: "wasm plugin with nil workload selector",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nil-selector-wasm-plugin",
+					Namespace: "istio-system",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Selector: nil,
+					Url:      "oci://docker.io/istio/logging-plugin:v2.0.0",
+				},
+			},
+			wantName:             "nil-selector-wasm-plugin",
+			wantNamespace:        "istio-system",
+			wantWorkloadSelector: nil,
+			wantTargetRefs:       nil,
+		},
+		{
+			name: "wasm plugin with empty workload selector labels",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "empty-labels-wasm-plugin",
+					Namespace: "test",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{}, // empty labels
+					},
+					Url: "oci://docker.io/istio/metrics-plugin:v1.5.0",
+				},
+			},
+			wantName:      "empty-labels-wasm-plugin",
+			wantNamespace: "test",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{},
+			},
+			wantTargetRefs: nil,
+		},
+		{
+			name: "wasm plugin with nil workload selector labels",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nil-labels-wasm-plugin",
+					Namespace: "staging",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: nil,
+					},
+					Url: "oci://docker.io/istio/security-plugin:latest",
+				},
+			},
+			wantName:             "nil-labels-wasm-plugin",
+			wantNamespace:        "staging",
+			wantWorkloadSelector: nil,
+			wantTargetRefs:       nil,
+		},
+		{
+			name: "wasm plugin with single label",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "single-label-wasm-plugin",
+					Namespace: "development",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"environment": "dev",
+						},
+					},
+					Url: "oci://docker.io/istio/debug-plugin:dev",
+				},
+			},
+			wantName:      "single-label-wasm-plugin",
+			wantNamespace: "development",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"environment": "dev",
+				},
+			},
+			wantTargetRefs: nil,
+		},
+		{
+			name: "wasm plugin with target refs",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "gateway-wasm-plugin",
+					Namespace: "istio-ingress",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					TargetRefs: []*istiotype.PolicyTargetReference{
+						{
+							Group: "gateway.networking.k8s.io",
+							Kind:  "Gateway",
+							Name:  "istio-gateway",
+						},
+						{
+							Group:     "",
+							Kind:      "Service",
+							Name:      "web-service",
+							Namespace: "production",
+						},
+					},
+					Url: "oci://docker.io/istio/gateway-plugin:v1.0.0",
+				},
+			},
+			wantName:             "gateway-wasm-plugin",
+			wantNamespace:        "istio-ingress",
+			wantWorkloadSelector: nil,
+			wantTargetRefs: []*typesv1alpha1.PolicyTargetReference{
+				{
+					Group:     "gateway.networking.k8s.io",
+					Kind:      "Gateway",
+					Name:      "istio-gateway",
+					Namespace: "",
+				},
+				{
+					Group:     "",
+					Kind:      "Service",
+					Name:      "web-service",
+					Namespace: "production",
+				},
+			},
+		},
+		{
+			name: "minimal wasm plugin configuration",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "minimal-wasm-plugin",
+					Namespace: "default",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Url: "oci://docker.io/istio/minimal-plugin:latest",
+				},
+			},
+			wantName:             "minimal-wasm-plugin",
+			wantNamespace:        "default",
+			wantWorkloadSelector: nil,
+			wantTargetRefs:       nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertWasmPlugin(tt.wasmPlugin)
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			assert.Equal(t, tt.wantName, result.Name)
+			assert.Equal(t, tt.wantNamespace, result.Namespace)
+
+			// Verify that RawSpec is valid JSON
+			var spec map[string]interface{}
+			err = json.Unmarshal([]byte(result.RawSpec), &spec)
+			assert.NoError(t, err, "RawSpec should be valid JSON")
+
+			if tt.wantWorkloadSelector == nil {
+				assert.Nil(t, result.Selector)
+			} else {
+				require.NotNil(t, result.Selector)
+				assert.Equal(t, tt.wantWorkloadSelector.MatchLabels, result.Selector.MatchLabels)
+			}
+
+			if tt.wantTargetRefs == nil {
+				assert.Nil(t, result.TargetRefs)
+			} else {
+				require.Equal(t, len(tt.wantTargetRefs), len(result.TargetRefs))
+				for i, expectedRef := range tt.wantTargetRefs {
+					actualRef := result.TargetRefs[i]
+					assert.Equal(t, expectedRef.Group, actualRef.Group)
+					assert.Equal(t, expectedRef.Kind, actualRef.Kind)
+					assert.Equal(t, expectedRef.Name, actualRef.Name)
+					assert.Equal(t, expectedRef.Namespace, actualRef.Namespace)
+				}
+			}
+		})
+	}
+}
+
+func TestClient_convertWasmPlugin_ErrorCases(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name        string
+		wasmPlugin  *istioextensionsv1alpha1.WasmPlugin
+		expectError bool
+	}{
+		{
+			name: "valid wasm plugin should not error",
+			wasmPlugin: &istioextensionsv1alpha1.WasmPlugin{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-wasm-plugin",
+					Namespace: "default",
+				},
+				Spec: extensionsapi.WasmPlugin{
+					Url: "oci://docker.io/istio/test-plugin:latest",
+				},
+			},
+			expectError: false,
+		},
+		// Note: It's hard to create a scenario where JSON marshaling fails for WasmPlugin
+		// since the Istio types are well-defined, but we include this test structure for completeness
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertWasmPlugin(tt.wasmPlugin)
 
 			if tt.expectError {
 				assert.Error(t, err)
