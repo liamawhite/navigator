@@ -25,8 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	istioapi "istio.io/api/networking/v1alpha3"
+	securityapi "istio.io/api/security/v1beta1"
 	istiotype "istio.io/api/type/v1beta1"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
+	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -767,6 +769,292 @@ func TestClient_convertSidecar(t *testing.T) {
 			var spec map[string]interface{}
 			err = json.Unmarshal([]byte(result.RawSpec), &spec)
 			assert.NoError(t, err, "RawSpec should be valid JSON")
+		})
+	}
+}
+
+func TestClient_convertPeerAuthentication(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name                 string
+		peerAuthentication   *istiosecurityv1beta1.PeerAuthentication
+		wantName             string
+		wantNamespace        string
+		wantWorkloadSelector *typesv1alpha1.WorkloadSelector
+	}{
+		{
+			name: "peer authentication with workload selector",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-peer-auth",
+					Namespace: "production",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"app":     "web",
+							"version": "v1",
+							"tier":    "frontend",
+						},
+					},
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_STRICT,
+					},
+				},
+			},
+			wantName:      "test-peer-auth",
+			wantNamespace: "production",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app":     "web",
+					"version": "v1",
+					"tier":    "frontend",
+				},
+			},
+		},
+		{
+			name: "peer authentication without workload selector",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default-peer-auth",
+					Namespace: "default",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_PERMISSIVE,
+					},
+				},
+			},
+			wantName:             "default-peer-auth",
+			wantNamespace:        "default",
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "peer authentication with nil workload selector",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nil-selector-peer-auth",
+					Namespace: "istio-system",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Selector: nil,
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_STRICT,
+					},
+				},
+			},
+			wantName:             "nil-selector-peer-auth",
+			wantNamespace:        "istio-system",
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "peer authentication with empty workload selector labels",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "empty-labels-peer-auth",
+					Namespace: "test",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{}, // empty labels
+					},
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_DISABLE,
+					},
+				},
+			},
+			wantName:      "empty-labels-peer-auth",
+			wantNamespace: "test",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{},
+			},
+		},
+		{
+			name: "peer authentication with nil workload selector labels",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "nil-labels-peer-auth",
+					Namespace: "default",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: nil, // nil labels
+					},
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_STRICT,
+					},
+				},
+			},
+			wantName:             "nil-labels-peer-auth",
+			wantNamespace:        "default",
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "peer authentication with single label",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "single-label-peer-auth",
+					Namespace: "bookinfo",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"app": "ratings",
+						},
+					},
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_PERMISSIVE,
+					},
+				},
+			},
+			wantName:      "single-label-peer-auth",
+			wantNamespace: "bookinfo",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app": "ratings",
+				},
+			},
+		},
+		{
+			name: "minimal peer authentication configuration",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "minimal-peer-auth",
+					Namespace: "minimal",
+				},
+				Spec: securityapi.PeerAuthentication{
+					// Minimal spec with no additional configuration
+				},
+			},
+			wantName:             "minimal-peer-auth",
+			wantNamespace:        "minimal",
+			wantWorkloadSelector: nil,
+		},
+		{
+			name: "peer authentication with port-specific mTLS",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "port-specific-peer-auth",
+					Namespace: "secure",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"app":      "secure-service",
+							"security": "strict",
+						},
+					},
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_STRICT,
+					},
+					PortLevelMtls: map[uint32]*securityapi.PeerAuthentication_MutualTLS{
+						8080: {Mode: securityapi.PeerAuthentication_MutualTLS_PERMISSIVE},
+						9090: {Mode: securityapi.PeerAuthentication_MutualTLS_DISABLE},
+					},
+				},
+			},
+			wantName:      "port-specific-peer-auth",
+			wantNamespace: "secure",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app":      "secure-service",
+					"security": "strict",
+				},
+			},
+		},
+		{
+			name: "peer authentication with complex selector",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "complex-selector-peer-auth",
+					Namespace: "enterprise",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"app":         "payment-service",
+							"version":     "v2",
+							"tier":        "backend",
+							"environment": "production",
+							"security":    "pci-compliant",
+						},
+					},
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_STRICT,
+					},
+				},
+			},
+			wantName:      "complex-selector-peer-auth",
+			wantNamespace: "enterprise",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app":         "payment-service",
+					"version":     "v2",
+					"tier":        "backend",
+					"environment": "production",
+					"security":    "pci-compliant",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertPeerAuthentication(tt.peerAuthentication)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantName, result.Name)
+			assert.Equal(t, tt.wantNamespace, result.Namespace)
+			assert.Equal(t, tt.wantWorkloadSelector, result.Selector)
+			assert.NotEmpty(t, result.RawSpec)
+
+			// Verify RawSpec contains valid JSON
+			var spec map[string]interface{}
+			err = json.Unmarshal([]byte(result.RawSpec), &spec)
+			assert.NoError(t, err, "RawSpec should be valid JSON")
+		})
+	}
+}
+
+func TestClient_convertPeerAuthentication_ErrorCases(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name               string
+		peerAuthentication *istiosecurityv1beta1.PeerAuthentication
+		expectError        bool
+	}{
+		{
+			name: "valid peer authentication should not error",
+			peerAuthentication: &istiosecurityv1beta1.PeerAuthentication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-peer-auth",
+					Namespace: "default",
+				},
+				Spec: securityapi.PeerAuthentication{
+					Mtls: &securityapi.PeerAuthentication_MutualTLS{
+						Mode: securityapi.PeerAuthentication_MutualTLS_STRICT,
+					},
+				},
+			},
+			expectError: false,
+		},
+		// Note: It's hard to create a scenario where JSON marshaling fails for PeerAuthentication
+		// since the Istio types are well-defined, but we include this test structure for completeness
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertPeerAuthentication(tt.peerAuthentication)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
 		})
 	}
 }

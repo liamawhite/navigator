@@ -160,6 +160,21 @@ message RequestAuthentication {
   repeated PolicyTargetReference target_refs = 5;
 }
 
+// PeerAuthentication represents an Istio PeerAuthentication resource.
+message PeerAuthentication {
+  // name is the name of the peer authentication.
+  string name = 1;
+  
+  // namespace is the namespace of the peer authentication.
+  string namespace = 2;
+  
+  // raw_spec is the peer authentication spec as a JSON string.
+  string raw_spec = 3;
+  
+  // selector is the criteria used to select the specific set of pods/VMs.
+  WorkloadSelector selector = 4;
+}
+
 // IstioControlPlaneConfig represents configuration from the Istio control plane.
 message IstioControlPlaneConfig {
   // pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace.

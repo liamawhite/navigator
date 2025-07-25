@@ -254,6 +254,9 @@ message GetIstioResourcesResponse {
   
   // request_authentications are RequestAuthentication resources affecting this instance.
   repeated navigator.types.v1alpha1.RequestAuthentication request_authentications = 6;
+  
+  // peer_authentications are PeerAuthentication resources affecting this instance.
+  repeated navigator.types.v1alpha1.PeerAuthentication peer_authentications = 7;
 }
 
 // ListClustersRequest for retrieving cluster sync information.

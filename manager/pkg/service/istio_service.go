@@ -25,6 +25,7 @@ import (
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/istio/envoyfilter"
 	"github.com/liamawhite/navigator/pkg/istio/gateway"
+	"github.com/liamawhite/navigator/pkg/istio/peerauthentication"
 	"github.com/liamawhite/navigator/pkg/istio/requestauthentication"
 	"github.com/liamawhite/navigator/pkg/istio/sidecar"
 )
@@ -79,8 +80,9 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	var matchingSidecars []*typesv1alpha1.Sidecar
 	var matchingEnvoyFilters []*typesv1alpha1.EnvoyFilter
 	var matchingRequestAuthentications []*typesv1alpha1.RequestAuthentication
+	var matchingPeerAuthentications []*typesv1alpha1.PeerAuthentication
 
-	wg.Add(4)
+	wg.Add(5)
 
 	// Filter gateways concurrently
 	go func() {
@@ -106,6 +108,12 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		matchingRequestAuthentications = requestauthentication.FilterRequestAuthenticationsForWorkload(clusterState.RequestAuthentications, instance, namespace, rootNamespace)
 	}()
 
+	// Filter peer authentications concurrently
+	go func() {
+		defer wg.Done()
+		matchingPeerAuthentications = peerauthentication.FilterPeerAuthenticationsForWorkload(clusterState.PeerAuthentications, instance, namespace, rootNamespace)
+	}()
+
 	// Wait for all filtering operations to complete
 	wg.Wait()
 
@@ -119,6 +127,8 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		"matching_envoyfilters", len(matchingEnvoyFilters),
 		"total_request_authentications", len(clusterState.RequestAuthentications),
 		"matching_request_authentications", len(matchingRequestAuthentications),
+		"total_peer_authentications", len(clusterState.PeerAuthentications),
+		"matching_peer_authentications", len(matchingPeerAuthentications),
 		"scope_to_namespace", scopeToNamespace)
 
 	// For now, return all other resources - in a more sophisticated implementation,
@@ -130,5 +140,6 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		Sidecars:               matchingSidecars,
 		EnvoyFilters:           matchingEnvoyFilters,
 		RequestAuthentications: matchingRequestAuthentications,
+		PeerAuthentications:    matchingPeerAuthentications,
 	}, nil
 }
