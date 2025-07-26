@@ -35,4 +35,4 @@ jobs:
       uses: cachix/install-nix-action@v25
     
     - name: Test release build
-      run: nix develop --command goreleaser release --snapshot --clean
+      run: nix develop --command goreleaser release --snapshot --clean --parallelism 2

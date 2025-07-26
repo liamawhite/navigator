@@ -1,4 +1,4 @@
-name: Nightly Build
+name: nightly
 
 on:
   schedule:
@@ -12,8 +12,9 @@ permissions:
 
 jobs:
   cleanup:
-    name: cleanup old nightly releases
+    name: cleanup
     runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,8 +25,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get all nightly releases older than 7 days
-          CUTOFF_DATE=$(date -d '7 days ago' --iso-8601)
+          # Get all nightly releases older than 3 days
+          CUTOFF_DATE=$(date -d '3 days ago' --iso-8601)
           
           # List all releases and filter for nightly ones older than cutoff
           gh api repos/${{ github.repository }}/releases \
@@ -35,10 +36,9 @@ jobs:
               gh api -X DELETE repos/${{ github.repository }}/releases/$release_id || true
             done
 
-  nightly:
-    name: nightly build
+  build:
+    name: nightly
     runs-on: ubuntu-latest
-    needs: cleanup
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,13 +53,14 @@ jobs:
       - name: Generate nightly version
         id: version
         run: |
-          # Generate nightly version in format: v0.0.0-nightly.YYYYMMDD
-          NIGHTLY_VERSION="v0.0.0-nightly.$(date +%Y%m%d)"
+          # Generate nightly version in format: v0.0.0-nightly.YYYYMMDD.SHORT_SHA
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          NIGHTLY_VERSION="v0.0.0-nightly.$(date +%Y%m%d).${SHORT_SHA}"
           echo "version=$NIGHTLY_VERSION" >> $GITHUB_OUTPUT
           echo "Generated nightly version: $NIGHTLY_VERSION"
 
       - name: Build with GoReleaser
-        run: nix develop --command goreleaser build --config .goreleaser.nightly.yaml --snapshot --clean
+        run: nix develop --command goreleaser release --config .goreleaser.nightly.yaml --snapshot --clean --parallelism 2
         env:
           NIGHTLY_VERSION: ${{ steps.version.outputs.version }}
 
@@ -67,9 +68,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create release with proper nightly description
+          # Create release using gh CLI with the archives created by GoReleaser
           gh release create ${{ steps.version.outputs.version }} \
-            --title "🌙 Nightly Build - ${{ steps.version.outputs.version }}" \
+            --title "🌙 ${{ steps.version.outputs.version }}" \
             --notes "**⚠️ This is a nightly development build from the latest main branch.**
 
           Nightly builds are:
@@ -143,3 +144,4 @@ jobs:
           Released by [GoReleaser](https://github.com/goreleaser/goreleaser) | 🌙 Nightly Build Pipeline" \
             --prerelease \
             dist/*.tar.gz dist/*.zip dist/checksums.txt
+
