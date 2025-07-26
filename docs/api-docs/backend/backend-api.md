@@ -11,6 +11,8 @@
     - [ServiceInstance.AnnotationsEntry](#navigator-backend-v1alpha1-ServiceInstance-AnnotationsEntry)
     - [ServiceInstance.LabelsEntry](#navigator-backend-v1alpha1-ServiceInstance-LabelsEntry)
   
+    - [ProxyType](#navigator-backend-v1alpha1-ProxyType)
+  
 - [backend/v1alpha1/manager_service.proto](#backend_v1alpha1_manager_service-proto)
     - [ClusterIdentification](#navigator-backend-v1alpha1-ClusterIdentification)
     - [ConnectRequest](#navigator-backend-v1alpha1-ConnectRequest)
@@ -110,6 +112,7 @@ ServiceInstance represents a single instance of a service.
 | created_at | [string](#string) |  | created_at is the timestamp when the pod was created. |
 | labels | [ServiceInstance.LabelsEntry](#navigator-backend-v1alpha1-ServiceInstance-LabelsEntry) | repeated | labels are the Kubernetes labels assigned to the pod. |
 | annotations | [ServiceInstance.AnnotationsEntry](#navigator-backend-v1alpha1-ServiceInstance-AnnotationsEntry) | repeated | annotations are the Kubernetes annotations assigned to the pod. |
+| proxy_type | [ProxyType](#navigator-backend-v1alpha1-ProxyType) |  | proxy_type indicates the type of Istio proxy running in this instance. |
 
 
 
@@ -148,6 +151,20 @@ ServiceInstance represents a single instance of a service.
 
 
  
+
+
+<a name="navigator-backend-v1alpha1-ProxyType"></a>
+
+### ProxyType
+ProxyType indicates the type of Istio proxy running in a service instance.
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| UNSPECIFIED | 0 | UNSPECIFIED indicates the proxy type is not specified or unknown. |
+| NONE | 1 | NONE indicates no Istio proxy is present. |
+| SIDECAR | 2 | SIDECAR indicates an Istio sidecar proxy is present. |
+| GATEWAY | 3 | GATEWAY indicates an Istio gateway proxy is present. |
+
 
  
 
