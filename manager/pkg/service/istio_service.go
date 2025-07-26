@@ -28,6 +28,7 @@ import (
 	"github.com/liamawhite/navigator/pkg/istio/peerauthentication"
 	"github.com/liamawhite/navigator/pkg/istio/requestauthentication"
 	"github.com/liamawhite/navigator/pkg/istio/sidecar"
+	"github.com/liamawhite/navigator/pkg/istio/virtualservice"
 	"github.com/liamawhite/navigator/pkg/istio/wasmplugin"
 )
 
@@ -83,8 +84,9 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	var matchingRequestAuthentications []*typesv1alpha1.RequestAuthentication
 	var matchingPeerAuthentications []*typesv1alpha1.PeerAuthentication
 	var matchingWasmPlugins []*typesv1alpha1.WasmPlugin
+	var matchingVirtualServices []*typesv1alpha1.VirtualService
 
-	wg.Add(6)
+	wg.Add(7)
 
 	// Filter gateways concurrently
 	go func() {
@@ -122,6 +124,12 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		matchingWasmPlugins = wasmplugin.FilterWasmPluginsForWorkload(clusterState.WasmPlugins, instance, namespace, rootNamespace)
 	}()
 
+	// Filter virtual services concurrently
+	go func() {
+		defer wg.Done()
+		matchingVirtualServices = virtualservice.FilterVirtualServicesForWorkload(clusterState.VirtualServices, instance, namespace)
+	}()
+
 	// Wait for all filtering operations to complete
 	wg.Wait()
 
@@ -139,12 +147,14 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		"matching_peer_authentications", len(matchingPeerAuthentications),
 		"total_wasm_plugins", len(clusterState.WasmPlugins),
 		"matching_wasm_plugins", len(matchingWasmPlugins),
+		"total_virtual_services", len(clusterState.VirtualServices),
+		"matching_virtual_services", len(matchingVirtualServices),
 		"scope_to_namespace", scopeToNamespace)
 
 	// For now, return all other resources - in a more sophisticated implementation,
 	// we would filter these based on relevance to the workload
 	return &frontendv1alpha1.GetIstioResourcesResponse{
-		VirtualServices:        clusterState.VirtualServices,
+		VirtualServices:        matchingVirtualServices,
 		DestinationRules:       clusterState.DestinationRules,
 		Gateways:               matchingGateways,
 		Sidecars:               matchingSidecars,

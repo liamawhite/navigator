@@ -35,6 +35,63 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ProxyType indicates the type of Istio proxy running in a service instance.
+type ProxyType int32
+
+const (
+	// UNSPECIFIED indicates the proxy type is not specified or unknown.
+	ProxyType_UNSPECIFIED ProxyType = 0
+	// NONE indicates no Istio proxy is present.
+	ProxyType_NONE ProxyType = 1
+	// SIDECAR indicates an Istio sidecar proxy is present.
+	ProxyType_SIDECAR ProxyType = 2
+	// GATEWAY indicates an Istio gateway proxy is present.
+	ProxyType_GATEWAY ProxyType = 3
+)
+
+// Enum value maps for ProxyType.
+var (
+	ProxyType_name = map[int32]string{
+		0: "UNSPECIFIED",
+		1: "NONE",
+		2: "SIDECAR",
+		3: "GATEWAY",
+	}
+	ProxyType_value = map[string]int32{
+		"UNSPECIFIED": 0,
+		"NONE":        1,
+		"SIDECAR":     2,
+		"GATEWAY":     3,
+	}
+)
+
+func (x ProxyType) Enum() *ProxyType {
+	p := new(ProxyType)
+	*p = x
+	return p
+}
+
+func (x ProxyType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ProxyType) Descriptor() protoreflect.EnumDescriptor {
+	return file_backend_v1alpha1_clusterstate_proto_enumTypes[0].Descriptor()
+}
+
+func (ProxyType) Type() protoreflect.EnumType {
+	return &file_backend_v1alpha1_clusterstate_proto_enumTypes[0]
+}
+
+func (x ProxyType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ProxyType.Descriptor instead.
+func (ProxyType) EnumDescriptor() ([]byte, []int) {
+	return file_backend_v1alpha1_clusterstate_proto_rawDescGZIP(), []int{0}
+}
+
 // ClusterState contains the current state of a cluster.
 type ClusterState struct {
 	state         protoimpl.MessageState
@@ -341,6 +398,8 @@ type ServiceInstance struct {
 	Labels map[string]string `protobuf:"bytes,8,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	// annotations are the Kubernetes annotations assigned to the pod.
 	Annotations map[string]string `protobuf:"bytes,9,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// proxy_type indicates the type of Istio proxy running in this instance.
+	ProxyType ProxyType `protobuf:"varint,10,opt,name=proxy_type,json=proxyType,proto3,enum=navigator.backend.v1alpha1.ProxyType" json:"proxy_type,omitempty"`
 }
 
 func (x *ServiceInstance) Reset() {
@@ -438,6 +497,13 @@ func (x *ServiceInstance) GetAnnotations() map[string]string {
 	return nil
 }
 
+func (x *ServiceInstance) GetProxyType() ProxyType {
+	if x != nil {
+		return x.ProxyType
+	}
+	return ProxyType_UNSPECIFIED
+}
+
 var File_backend_v1alpha1_clusterstate_proto protoreflect.FileDescriptor
 
 var file_backend_v1alpha1_clusterstate_proto_rawDesc = []byte{
@@ -517,7 +583,7 @@ var file_backend_v1alpha1_clusterstate_proto_rawDesc = []byte{
 	0x05, 0x72, 0x65, 0x61, 0x64, 0x79, 0x18, 0x04, 0x20, 0x01, 0x28, 0x08, 0x52, 0x05, 0x72, 0x65,
 	0x61, 0x64, 0x79, 0x12, 0x23, 0x0a, 0x0d, 0x72, 0x65, 0x73, 0x74, 0x61, 0x72, 0x74, 0x5f, 0x63,
 	0x6f, 0x75, 0x6e, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0c, 0x72, 0x65, 0x73, 0x74,
-	0x61, 0x72, 0x74, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x22, 0xaf, 0x04, 0x0a, 0x0f, 0x53, 0x65, 0x72,
+	0x61, 0x72, 0x74, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x22, 0xf5, 0x04, 0x0a, 0x0f, 0x53, 0x65, 0x72,
 	0x76, 0x69, 0x63, 0x65, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x63, 0x65, 0x12, 0x0e, 0x0a, 0x02,
 	0x69, 0x70, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x70, 0x12, 0x19, 0x0a, 0x08,
 	0x70, 0x6f, 0x64, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07,
@@ -544,19 +610,28 @@ var file_backend_v1alpha1_clusterstate_proto_rawDesc = []byte{
 	0x2e, 0x62, 0x61, 0x63, 0x6b, 0x65, 0x6e, 0x64, 0x2e, 0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61,
 	0x31, 0x2e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x63,
 	0x65, 0x2e, 0x41, 0x6e, 0x6e, 0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x45, 0x6e, 0x74,
-	0x72, 0x79, 0x52, 0x0b, 0x61, 0x6e, 0x6e, 0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x1a,
-	0x39, 0x0a, 0x0b, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10,
-	0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79,
-	0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x1a, 0x3e, 0x0a, 0x10, 0x41, 0x6e,
-	0x6e, 0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10,
-	0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79,
-	0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x42, 0x3a, 0x5a, 0x38, 0x67, 0x69,
-	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6c, 0x69, 0x61, 0x6d, 0x61, 0x77, 0x68,
-	0x69, 0x74, 0x65, 0x2f, 0x6e, 0x61, 0x76, 0x69, 0x67, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x70, 0x6b,
-	0x67, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x62, 0x61, 0x63, 0x6b, 0x65, 0x6e, 0x64, 0x2f, 0x76, 0x31,
-	0x61, 0x6c, 0x70, 0x68, 0x61, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x72, 0x79, 0x52, 0x0b, 0x61, 0x6e, 0x6e, 0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12,
+	0x44, 0x0a, 0x0a, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x0a, 0x20,
+	0x01, 0x28, 0x0e, 0x32, 0x25, 0x2e, 0x6e, 0x61, 0x76, 0x69, 0x67, 0x61, 0x74, 0x6f, 0x72, 0x2e,
+	0x62, 0x61, 0x63, 0x6b, 0x65, 0x6e, 0x64, 0x2e, 0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61, 0x31,
+	0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x54, 0x79, 0x70, 0x65, 0x52, 0x09, 0x70, 0x72, 0x6f, 0x78,
+	0x79, 0x54, 0x79, 0x70, 0x65, 0x1a, 0x39, 0x0a, 0x0b, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x73, 0x45,
+	0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01,
+	0x1a, 0x3e, 0x0a, 0x10, 0x41, 0x6e, 0x6e, 0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x45,
+	0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01,
+	0x2a, 0x40, 0x0a, 0x09, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x54, 0x79, 0x70, 0x65, 0x12, 0x0f, 0x0a,
+	0x0b, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x08,
+	0x0a, 0x04, 0x4e, 0x4f, 0x4e, 0x45, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x07, 0x53, 0x49, 0x44, 0x45,
+	0x43, 0x41, 0x52, 0x10, 0x02, 0x12, 0x0b, 0x0a, 0x07, 0x47, 0x41, 0x54, 0x45, 0x57, 0x41, 0x59,
+	0x10, 0x03, 0x42, 0x3a, 0x5a, 0x38, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d,
+	0x2f, 0x6c, 0x69, 0x61, 0x6d, 0x61, 0x77, 0x68, 0x69, 0x74, 0x65, 0x2f, 0x6e, 0x61, 0x76, 0x69,
+	0x67, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x62, 0x61,
+	0x63, 0x6b, 0x65, 0x6e, 0x64, 0x2f, 0x76, 0x31, 0x61, 0x6c, 0x70, 0x68, 0x61, 0x31, 0x62, 0x06,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -571,44 +646,47 @@ func file_backend_v1alpha1_clusterstate_proto_rawDescGZIP() []byte {
 	return file_backend_v1alpha1_clusterstate_proto_rawDescData
 }
 
+var file_backend_v1alpha1_clusterstate_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_backend_v1alpha1_clusterstate_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_backend_v1alpha1_clusterstate_proto_goTypes = []any{
-	(*ClusterState)(nil),                     // 0: navigator.backend.v1alpha1.ClusterState
-	(*Service)(nil),                          // 1: navigator.backend.v1alpha1.Service
-	(*Container)(nil),                        // 2: navigator.backend.v1alpha1.Container
-	(*ServiceInstance)(nil),                  // 3: navigator.backend.v1alpha1.ServiceInstance
-	nil,                                      // 4: navigator.backend.v1alpha1.ServiceInstance.LabelsEntry
-	nil,                                      // 5: navigator.backend.v1alpha1.ServiceInstance.AnnotationsEntry
-	(*v1alpha1.DestinationRule)(nil),         // 6: navigator.types.v1alpha1.DestinationRule
-	(*v1alpha1.EnvoyFilter)(nil),             // 7: navigator.types.v1alpha1.EnvoyFilter
-	(*v1alpha1.RequestAuthentication)(nil),   // 8: navigator.types.v1alpha1.RequestAuthentication
-	(*v1alpha1.Gateway)(nil),                 // 9: navigator.types.v1alpha1.Gateway
-	(*v1alpha1.Sidecar)(nil),                 // 10: navigator.types.v1alpha1.Sidecar
-	(*v1alpha1.VirtualService)(nil),          // 11: navigator.types.v1alpha1.VirtualService
-	(*v1alpha1.IstioControlPlaneConfig)(nil), // 12: navigator.types.v1alpha1.IstioControlPlaneConfig
-	(*v1alpha1.PeerAuthentication)(nil),      // 13: navigator.types.v1alpha1.PeerAuthentication
-	(*v1alpha1.WasmPlugin)(nil),              // 14: navigator.types.v1alpha1.WasmPlugin
+	(ProxyType)(0),                           // 0: navigator.backend.v1alpha1.ProxyType
+	(*ClusterState)(nil),                     // 1: navigator.backend.v1alpha1.ClusterState
+	(*Service)(nil),                          // 2: navigator.backend.v1alpha1.Service
+	(*Container)(nil),                        // 3: navigator.backend.v1alpha1.Container
+	(*ServiceInstance)(nil),                  // 4: navigator.backend.v1alpha1.ServiceInstance
+	nil,                                      // 5: navigator.backend.v1alpha1.ServiceInstance.LabelsEntry
+	nil,                                      // 6: navigator.backend.v1alpha1.ServiceInstance.AnnotationsEntry
+	(*v1alpha1.DestinationRule)(nil),         // 7: navigator.types.v1alpha1.DestinationRule
+	(*v1alpha1.EnvoyFilter)(nil),             // 8: navigator.types.v1alpha1.EnvoyFilter
+	(*v1alpha1.RequestAuthentication)(nil),   // 9: navigator.types.v1alpha1.RequestAuthentication
+	(*v1alpha1.Gateway)(nil),                 // 10: navigator.types.v1alpha1.Gateway
+	(*v1alpha1.Sidecar)(nil),                 // 11: navigator.types.v1alpha1.Sidecar
+	(*v1alpha1.VirtualService)(nil),          // 12: navigator.types.v1alpha1.VirtualService
+	(*v1alpha1.IstioControlPlaneConfig)(nil), // 13: navigator.types.v1alpha1.IstioControlPlaneConfig
+	(*v1alpha1.PeerAuthentication)(nil),      // 14: navigator.types.v1alpha1.PeerAuthentication
+	(*v1alpha1.WasmPlugin)(nil),              // 15: navigator.types.v1alpha1.WasmPlugin
 }
 var file_backend_v1alpha1_clusterstate_proto_depIdxs = []int32{
-	1,  // 0: navigator.backend.v1alpha1.ClusterState.services:type_name -> navigator.backend.v1alpha1.Service
-	6,  // 1: navigator.backend.v1alpha1.ClusterState.destination_rules:type_name -> navigator.types.v1alpha1.DestinationRule
-	7,  // 2: navigator.backend.v1alpha1.ClusterState.envoy_filters:type_name -> navigator.types.v1alpha1.EnvoyFilter
-	8,  // 3: navigator.backend.v1alpha1.ClusterState.request_authentications:type_name -> navigator.types.v1alpha1.RequestAuthentication
-	9,  // 4: navigator.backend.v1alpha1.ClusterState.gateways:type_name -> navigator.types.v1alpha1.Gateway
-	10, // 5: navigator.backend.v1alpha1.ClusterState.sidecars:type_name -> navigator.types.v1alpha1.Sidecar
-	11, // 6: navigator.backend.v1alpha1.ClusterState.virtual_services:type_name -> navigator.types.v1alpha1.VirtualService
-	12, // 7: navigator.backend.v1alpha1.ClusterState.istio_control_plane_config:type_name -> navigator.types.v1alpha1.IstioControlPlaneConfig
-	13, // 8: navigator.backend.v1alpha1.ClusterState.peer_authentications:type_name -> navigator.types.v1alpha1.PeerAuthentication
-	14, // 9: navigator.backend.v1alpha1.ClusterState.wasm_plugins:type_name -> navigator.types.v1alpha1.WasmPlugin
-	3,  // 10: navigator.backend.v1alpha1.Service.instances:type_name -> navigator.backend.v1alpha1.ServiceInstance
-	2,  // 11: navigator.backend.v1alpha1.ServiceInstance.containers:type_name -> navigator.backend.v1alpha1.Container
-	4,  // 12: navigator.backend.v1alpha1.ServiceInstance.labels:type_name -> navigator.backend.v1alpha1.ServiceInstance.LabelsEntry
-	5,  // 13: navigator.backend.v1alpha1.ServiceInstance.annotations:type_name -> navigator.backend.v1alpha1.ServiceInstance.AnnotationsEntry
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	2,  // 0: navigator.backend.v1alpha1.ClusterState.services:type_name -> navigator.backend.v1alpha1.Service
+	7,  // 1: navigator.backend.v1alpha1.ClusterState.destination_rules:type_name -> navigator.types.v1alpha1.DestinationRule
+	8,  // 2: navigator.backend.v1alpha1.ClusterState.envoy_filters:type_name -> navigator.types.v1alpha1.EnvoyFilter
+	9,  // 3: navigator.backend.v1alpha1.ClusterState.request_authentications:type_name -> navigator.types.v1alpha1.RequestAuthentication
+	10, // 4: navigator.backend.v1alpha1.ClusterState.gateways:type_name -> navigator.types.v1alpha1.Gateway
+	11, // 5: navigator.backend.v1alpha1.ClusterState.sidecars:type_name -> navigator.types.v1alpha1.Sidecar
+	12, // 6: navigator.backend.v1alpha1.ClusterState.virtual_services:type_name -> navigator.types.v1alpha1.VirtualService
+	13, // 7: navigator.backend.v1alpha1.ClusterState.istio_control_plane_config:type_name -> navigator.types.v1alpha1.IstioControlPlaneConfig
+	14, // 8: navigator.backend.v1alpha1.ClusterState.peer_authentications:type_name -> navigator.types.v1alpha1.PeerAuthentication
+	15, // 9: navigator.backend.v1alpha1.ClusterState.wasm_plugins:type_name -> navigator.types.v1alpha1.WasmPlugin
+	4,  // 10: navigator.backend.v1alpha1.Service.instances:type_name -> navigator.backend.v1alpha1.ServiceInstance
+	3,  // 11: navigator.backend.v1alpha1.ServiceInstance.containers:type_name -> navigator.backend.v1alpha1.Container
+	5,  // 12: navigator.backend.v1alpha1.ServiceInstance.labels:type_name -> navigator.backend.v1alpha1.ServiceInstance.LabelsEntry
+	6,  // 13: navigator.backend.v1alpha1.ServiceInstance.annotations:type_name -> navigator.backend.v1alpha1.ServiceInstance.AnnotationsEntry
+	0,  // 14: navigator.backend.v1alpha1.ServiceInstance.proxy_type:type_name -> navigator.backend.v1alpha1.ProxyType
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_backend_v1alpha1_clusterstate_proto_init() }
@@ -671,13 +749,14 @@ func file_backend_v1alpha1_clusterstate_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_backend_v1alpha1_clusterstate_proto_rawDesc,
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_backend_v1alpha1_clusterstate_proto_goTypes,
 		DependencyIndexes: file_backend_v1alpha1_clusterstate_proto_depIdxs,
+		EnumInfos:         file_backend_v1alpha1_clusterstate_proto_enumTypes,
 		MessageInfos:      file_backend_v1alpha1_clusterstate_proto_msgTypes,
 	}.Build()
 	File_backend_v1alpha1_clusterstate_proto = out.File
