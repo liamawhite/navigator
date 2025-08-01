@@ -23,15 +23,7 @@ import (
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
-	"github.com/liamawhite/navigator/pkg/istio/destinationrule"
-	"github.com/liamawhite/navigator/pkg/istio/envoyfilter"
-	"github.com/liamawhite/navigator/pkg/istio/gateway"
-	"github.com/liamawhite/navigator/pkg/istio/peerauthentication"
-	"github.com/liamawhite/navigator/pkg/istio/requestauthentication"
-	"github.com/liamawhite/navigator/pkg/istio/serviceentry"
-	"github.com/liamawhite/navigator/pkg/istio/sidecar"
-	"github.com/liamawhite/navigator/pkg/istio/virtualservice"
-	"github.com/liamawhite/navigator/pkg/istio/wasmplugin"
+	"github.com/liamawhite/navigator/pkg/istio/filters"
 )
 
 // ClusterStateProvider defines the interface for accessing cluster state
@@ -95,55 +87,55 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	// Filter gateways concurrently
 	go func() {
 		defer wg.Done()
-		matchingGateways = gateway.FilterGatewaysForWorkload(clusterState.Gateways, instance, namespace, scopeToNamespace)
+		matchingGateways = filters.FilterGatewaysForWorkload(clusterState.Gateways, instance, namespace, scopeToNamespace)
 	}()
 
 	// Filter sidecars concurrently
 	go func() {
 		defer wg.Done()
-		matchingSidecars = sidecar.FilterSidecarsForWorkload(clusterState.Sidecars, instance, namespace)
+		matchingSidecars = filters.FilterSidecarsForWorkload(clusterState.Sidecars, instance, namespace)
 	}()
 
 	// Filter envoy filters concurrently
 	go func() {
 		defer wg.Done()
-		matchingEnvoyFilters = envoyfilter.FilterEnvoyFiltersForWorkload(clusterState.EnvoyFilters, instance, namespace, rootNamespace)
+		matchingEnvoyFilters = filters.FilterEnvoyFiltersForWorkload(clusterState.EnvoyFilters, instance, namespace, rootNamespace)
 	}()
 
 	// Filter request authentications concurrently
 	go func() {
 		defer wg.Done()
-		matchingRequestAuthentications = requestauthentication.FilterRequestAuthenticationsForWorkload(clusterState.RequestAuthentications, instance, namespace, rootNamespace)
+		matchingRequestAuthentications = filters.FilterRequestAuthenticationsForWorkload(clusterState.RequestAuthentications, instance, namespace, rootNamespace)
 	}()
 
 	// Filter peer authentications concurrently
 	go func() {
 		defer wg.Done()
-		matchingPeerAuthentications = peerauthentication.FilterPeerAuthenticationsForWorkload(clusterState.PeerAuthentications, instance, namespace, rootNamespace)
+		matchingPeerAuthentications = filters.FilterPeerAuthenticationsForWorkload(clusterState.PeerAuthentications, instance, namespace, rootNamespace)
 	}()
 
 	// Filter wasm plugins concurrently
 	go func() {
 		defer wg.Done()
-		matchingWasmPlugins = wasmplugin.FilterWasmPluginsForWorkload(clusterState.WasmPlugins, instance, namespace, rootNamespace)
+		matchingWasmPlugins = filters.FilterWasmPluginsForWorkload(clusterState.WasmPlugins, instance, namespace, rootNamespace)
 	}()
 
 	// Filter virtual services concurrently
 	go func() {
 		defer wg.Done()
-		matchingVirtualServices = virtualservice.FilterVirtualServicesForWorkload(clusterState.VirtualServices, instance, namespace)
+		matchingVirtualServices = filters.FilterVirtualServicesForWorkload(clusterState.VirtualServices, instance, namespace)
 	}()
 
 	// Filter service entries concurrently
 	go func() {
 		defer wg.Done()
-		matchingServiceEntries = serviceentry.FilterServiceEntriesForWorkload(clusterState.ServiceEntries, instance, namespace)
+		matchingServiceEntries = filters.FilterServiceEntriesForWorkload(clusterState.ServiceEntries, instance, namespace)
 	}()
 
 	// Filter destination rules concurrently
 	go func() {
 		defer wg.Done()
-		matchingDestinationRules = destinationrule.FilterDestinationRulesForWorkload(clusterState.DestinationRules, instance, namespace)
+		matchingDestinationRules = filters.FilterDestinationRulesForWorkload(clusterState.DestinationRules, instance, namespace)
 	}()
 
 	// Wait for all filtering operations to complete

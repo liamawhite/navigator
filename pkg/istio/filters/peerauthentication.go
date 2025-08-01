@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Navigator Authors
+// Copyright 2025 Navigator Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package peerauthentication
+package filters
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
-// MatchesWorkload determines if a PeerAuthentication applies to a specific workload based on its
+// peerAuthenticationMatchesWorkload determines if a PeerAuthentication applies to a specific workload based on its
 // selector configuration.
 //
 // PeerAuthentication selection rules:
@@ -32,7 +30,7 @@ import (
 //
 // This is simpler than RequestAuthentication as PeerAuthentication only supports WorkloadSelector,
 // not targetRefs.
-func matchesWorkload(peerAuthentication *typesv1alpha1.PeerAuthentication, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
+func peerAuthenticationMatchesWorkload(peerAuthentication *typesv1alpha1.PeerAuthentication, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
 	// Use default root namespace if not provided
 	if rootNamespace == "" {
 		rootNamespace = "istio-system"
@@ -60,10 +58,8 @@ func matchesWorkload(peerAuthentication *typesv1alpha1.PeerAuthentication, insta
 		return true
 	}
 
-	// Use Kubernetes label selector matching for selector
-	peerAuthenticationSelector := labels.Set(peerAuthentication.Selector.MatchLabels).AsSelector()
-	workloadLabelSet := labels.Set(workloadLabels)
-	return peerAuthenticationSelector.Matches(workloadLabelSet)
+	// Use common label selector matching
+	return matchesLabelSelector(peerAuthentication.Selector.MatchLabels, workloadLabels)
 }
 
 // FilterPeerAuthenticationsForWorkload returns all PeerAuthentications that apply to a specific workload instance.
@@ -73,7 +69,7 @@ func FilterPeerAuthenticationsForWorkload(peerAuthentications []*typesv1alpha1.P
 	var matchingPeerAuthentications []*typesv1alpha1.PeerAuthentication
 
 	for _, peerAuthentication := range peerAuthentications {
-		if matchesWorkload(peerAuthentication, instance, workloadNamespace, rootNamespace) {
+		if peerAuthenticationMatchesWorkload(peerAuthentication, instance, workloadNamespace, rootNamespace) {
 			matchingPeerAuthentications = append(matchingPeerAuthentications, peerAuthentication)
 		}
 	}

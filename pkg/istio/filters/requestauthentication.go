@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Navigator Authors
+// Copyright 2025 Navigator Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package requestauthentication
+package filters
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
-// MatchesWorkload determines if a RequestAuthentication applies to a specific workload based on its
+// requestAuthenticationMatchesWorkload determines if a RequestAuthentication applies to a specific workload based on its
 // selector and targetRefs configuration.
 //
 // RequestAuthentication selection rules:
@@ -32,7 +30,7 @@ import (
 // 5. At most one of selector and targetRefs can be set
 //
 // This function handles both selector and targetRefs matching internally.
-func matchesWorkload(requestAuthentication *typesv1alpha1.RequestAuthentication, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
+func requestAuthenticationMatchesWorkload(requestAuthentication *typesv1alpha1.RequestAuthentication, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
 	// Use default root namespace if not provided
 	if rootNamespace == "" {
 		rootNamespace = "istio-system"
@@ -60,7 +58,7 @@ func matchesWorkload(requestAuthentication *typesv1alpha1.RequestAuthentication,
 	// Note: Service and gateway context would need to be provided by the caller
 	// For now, we use empty context as these are not available in ServiceInstance
 	if len(requestAuthentication.TargetRefs) > 0 {
-		return matchesWorkloadWithTargetRefs(
+		return requestAuthenticationMatchesWorkloadWithTargetRefs(
 			requestAuthentication,
 			workloadLabels,
 			namespace,
@@ -75,13 +73,11 @@ func matchesWorkload(requestAuthentication *typesv1alpha1.RequestAuthentication,
 		return true
 	}
 
-	// Use Kubernetes label selector matching for selector
-	requestAuthenticationSelector := labels.Set(requestAuthentication.Selector.MatchLabels).AsSelector()
-	workloadLabelSet := labels.Set(workloadLabels)
-	return requestAuthenticationSelector.Matches(workloadLabelSet)
+	// Use common label selector matching
+	return matchesLabelSelector(requestAuthentication.Selector.MatchLabels, workloadLabels)
 }
 
-// matchesWorkloadWithTargetRefs determines if a RequestAuthentication applies to a workload based on
+// requestAuthenticationMatchesWorkloadWithTargetRefs determines if a RequestAuthentication applies to a workload based on
 // targetRefs configuration. This requires additional context about services, gateways, etc.
 //
 // Supported targetRefs types:
@@ -89,7 +85,7 @@ func matchesWorkload(requestAuthentication *typesv1alpha1.RequestAuthentication,
 // - GatewayClass (gateway.networking.k8s.io) in root namespace
 // - Service ("") in same namespace (waypoints only)
 // - ServiceEntry (networking.istio.io) in same namespace
-func matchesWorkloadWithTargetRefs(
+func requestAuthenticationMatchesWorkloadWithTargetRefs(
 	requestAuthentication *typesv1alpha1.RequestAuthentication,
 	workloadLabels map[string]string,
 	workloadNamespace string,
@@ -106,7 +102,7 @@ func matchesWorkloadWithTargetRefs(
 	if len(requestAuthentication.TargetRefs) == 0 {
 		// Create a temporary ServiceInstance for the recursive call
 		tempInstance := &backendv1alpha1.ServiceInstance{Labels: workloadLabels}
-		return matchesWorkload(requestAuthentication, tempInstance, workloadNamespace, rootNamespace)
+		return requestAuthenticationMatchesWorkload(requestAuthentication, tempInstance, workloadNamespace, rootNamespace)
 	}
 
 	// Check each targetRef to see if it applies to this workload
@@ -186,7 +182,7 @@ func FilterRequestAuthenticationsForWorkload(requestAuthentications []*typesv1al
 	var matchingRequestAuthentications []*typesv1alpha1.RequestAuthentication
 
 	for _, requestAuthentication := range requestAuthentications {
-		if matchesWorkload(requestAuthentication, instance, workloadNamespace, rootNamespace) {
+		if requestAuthenticationMatchesWorkload(requestAuthentication, instance, workloadNamespace, rootNamespace) {
 			matchingRequestAuthentications = append(matchingRequestAuthentications, requestAuthentication)
 		}
 	}

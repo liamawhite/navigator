@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Navigator Authors
+// Copyright 2025 Navigator Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package envoyfilter
+package filters
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
-// MatchesWorkload determines if an EnvoyFilter applies to a specific workload based on its
+// envoyFilterMatchesWorkload determines if an EnvoyFilter applies to a specific workload based on its
 // workloadSelector and targetRefs configuration.
 //
 // EnvoyFilter selection rules:
@@ -32,7 +30,7 @@ import (
 // 5. At most one of workloadSelector and targetRefs can be set
 //
 // This function handles both workloadSelector and targetRefs matching internally.
-func matchesWorkload(envoyFilter *typesv1alpha1.EnvoyFilter, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
+func envoyFilterMatchesWorkload(envoyFilter *typesv1alpha1.EnvoyFilter, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
 	// Use default root namespace if not provided
 	if rootNamespace == "" {
 		rootNamespace = "istio-system"
@@ -60,7 +58,7 @@ func matchesWorkload(envoyFilter *typesv1alpha1.EnvoyFilter, instance *backendv1
 	// Note: Service and gateway context would need to be provided by the caller
 	// For now, we use empty context as these are not available in ServiceInstance
 	if len(envoyFilter.TargetRefs) > 0 {
-		return matchesWorkloadWithTargetRefs(
+		return envoyFilterMatchesWorkloadWithTargetRefs(
 			envoyFilter,
 			workloadLabels,
 			namespace,
@@ -75,21 +73,15 @@ func matchesWorkload(envoyFilter *typesv1alpha1.EnvoyFilter, instance *backendv1
 		return true
 	}
 
-	// Use Kubernetes label selector matching for workloadSelector
-	envoyFilterSelector := labels.Set(envoyFilter.WorkloadSelector.MatchLabels).AsSelector()
-	workloadLabelSet := labels.Set(workloadLabels)
-	return envoyFilterSelector.Matches(workloadLabelSet)
+	// Use common label selector matching
+	return matchesLabelSelector(envoyFilter.WorkloadSelector.MatchLabels, workloadLabels)
 }
 
-// matchesWorkloadWithTargetRefs determines if an EnvoyFilter applies to a workload based on
+// envoyFilterMatchesWorkloadWithTargetRefs determines if an EnvoyFilter applies to a workload based on
 // targetRefs configuration. This requires additional context about services, gateways, etc.
 //
-// Supported targetRefs types:
-// - Gateway (gateway.networking.k8s.io) in same namespace
-// - GatewayClass (gateway.networking.k8s.io) in root namespace
-// - Service ("") in same namespace (waypoints only)
-// - ServiceEntry (networking.istio.io) in same namespace
-func matchesWorkloadWithTargetRefs(
+// Supported targetRefs types are similar to RequestAuthentication.
+func envoyFilterMatchesWorkloadWithTargetRefs(
 	envoyFilter *typesv1alpha1.EnvoyFilter,
 	workloadLabels map[string]string,
 	workloadNamespace string,
@@ -106,7 +98,7 @@ func matchesWorkloadWithTargetRefs(
 	if len(envoyFilter.TargetRefs) == 0 {
 		// Create a temporary ServiceInstance for the recursive call
 		tempInstance := &backendv1alpha1.ServiceInstance{Labels: workloadLabels}
-		return matchesWorkload(envoyFilter, tempInstance, workloadNamespace, rootNamespace)
+		return envoyFilterMatchesWorkload(envoyFilter, tempInstance, workloadNamespace, rootNamespace)
 	}
 
 	// Check each targetRef to see if it applies to this workload
@@ -131,21 +123,8 @@ func matchesWorkloadWithTargetRefs(
 				}
 			}
 
-		case targetRef.Kind == "GatewayClass" && targetRef.Group == "gateway.networking.k8s.io":
-			// GatewayClass must be in root namespace
-			targetNamespace := targetRef.Namespace
-			if targetNamespace == "" {
-				targetNamespace = envoyFilter.Namespace
-			}
-			if targetNamespace == rootNamespace {
-				// For GatewayClass, we'd need to check if any of the workload's gateways
-				// use this GatewayClass. This requires additional context not available here.
-				// For now, we conservatively return false.
-				continue
-			}
-
 		case targetRef.Kind == "Service" && targetRef.Group == "":
-			// Service must be in same namespace (waypoints only)
+			// Service must be in same namespace
 			targetNamespace := targetRef.Namespace
 			if targetNamespace == "" {
 				targetNamespace = envoyFilter.Namespace
@@ -157,20 +136,6 @@ func matchesWorkloadWithTargetRefs(
 						return true
 					}
 				}
-			}
-
-		case targetRef.Kind == "ServiceEntry" && targetRef.Group == "networking.istio.io":
-			// ServiceEntry must be in same namespace
-			targetNamespace := targetRef.Namespace
-			if targetNamespace == "" {
-				targetNamespace = envoyFilter.Namespace
-			}
-			if targetNamespace == workloadNamespace {
-				// ServiceEntry matching requires checking if the workload communicates
-				// with the external service defined by the ServiceEntry.
-				// This requires additional context not available here.
-				// For now, we conservatively return false.
-				continue
 			}
 		}
 	}
@@ -186,7 +151,7 @@ func FilterEnvoyFiltersForWorkload(envoyFilters []*typesv1alpha1.EnvoyFilter, in
 	var matchingEnvoyFilters []*typesv1alpha1.EnvoyFilter
 
 	for _, envoyFilter := range envoyFilters {
-		if matchesWorkload(envoyFilter, instance, workloadNamespace, rootNamespace) {
+		if envoyFilterMatchesWorkload(envoyFilter, instance, workloadNamespace, rootNamespace) {
 			matchingEnvoyFilters = append(matchingEnvoyFilters, envoyFilter)
 		}
 	}

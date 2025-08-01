@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Navigator Authors
+// Copyright 2025 Navigator Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wasmplugin
+package filters
 
 import (
-	"k8s.io/apimachinery/pkg/labels"
-
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
-// MatchesWorkload determines if a WasmPlugin applies to a specific workload based on its
+// wasmPluginMatchesWorkload determines if a WasmPlugin applies to a specific workload based on its
 // selector and targetRefs configuration.
 //
 // WasmPlugin selection rules:
@@ -32,7 +30,7 @@ import (
 // 5. At most one of selector and targetRefs can be set
 //
 // This function handles both selector and targetRefs matching internally.
-func matchesWorkload(wasmPlugin *typesv1alpha1.WasmPlugin, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
+func wasmPluginMatchesWorkload(wasmPlugin *typesv1alpha1.WasmPlugin, instance *backendv1alpha1.ServiceInstance, namespace, rootNamespace string) bool {
 	// Use default root namespace if not provided
 	if rootNamespace == "" {
 		rootNamespace = "istio-system"
@@ -60,7 +58,7 @@ func matchesWorkload(wasmPlugin *typesv1alpha1.WasmPlugin, instance *backendv1al
 	// Note: Service and gateway context would need to be provided by the caller
 	// For now, we use empty context as these are not available in ServiceInstance
 	if len(wasmPlugin.TargetRefs) > 0 {
-		return matchesWorkloadWithTargetRefs(
+		return wasmPluginMatchesWorkloadWithTargetRefs(
 			wasmPlugin,
 			workloadLabels,
 			namespace,
@@ -75,21 +73,15 @@ func matchesWorkload(wasmPlugin *typesv1alpha1.WasmPlugin, instance *backendv1al
 		return true
 	}
 
-	// Use Kubernetes label selector matching for selector
-	wasmPluginSelector := labels.Set(wasmPlugin.Selector.MatchLabels).AsSelector()
-	workloadLabelSet := labels.Set(workloadLabels)
-	return wasmPluginSelector.Matches(workloadLabelSet)
+	// Use common label selector matching
+	return matchesLabelSelector(wasmPlugin.Selector.MatchLabels, workloadLabels)
 }
 
-// matchesWorkloadWithTargetRefs determines if a WasmPlugin applies to a workload based on
+// wasmPluginMatchesWorkloadWithTargetRefs determines if a WasmPlugin applies to a workload based on
 // targetRefs configuration. This requires additional context about services, gateways, etc.
 //
-// Supported targetRefs types:
-// - Gateway (gateway.networking.k8s.io) in same namespace
-// - GatewayClass (gateway.networking.k8s.io) in root namespace
-// - Service ("") in same namespace (waypoints only)
-// - ServiceEntry (networking.istio.io) in same namespace
-func matchesWorkloadWithTargetRefs(
+// Supported targetRefs types are similar to RequestAuthentication.
+func wasmPluginMatchesWorkloadWithTargetRefs(
 	wasmPlugin *typesv1alpha1.WasmPlugin,
 	workloadLabels map[string]string,
 	workloadNamespace string,
@@ -106,7 +98,7 @@ func matchesWorkloadWithTargetRefs(
 	if len(wasmPlugin.TargetRefs) == 0 {
 		// Create a temporary ServiceInstance for the recursive call
 		tempInstance := &backendv1alpha1.ServiceInstance{Labels: workloadLabels}
-		return matchesWorkload(wasmPlugin, tempInstance, workloadNamespace, rootNamespace)
+		return wasmPluginMatchesWorkload(wasmPlugin, tempInstance, workloadNamespace, rootNamespace)
 	}
 
 	// Check each targetRef to see if it applies to this workload
@@ -131,21 +123,8 @@ func matchesWorkloadWithTargetRefs(
 				}
 			}
 
-		case targetRef.Kind == "GatewayClass" && targetRef.Group == "gateway.networking.k8s.io":
-			// GatewayClass must be in root namespace
-			targetNamespace := targetRef.Namespace
-			if targetNamespace == "" {
-				targetNamespace = wasmPlugin.Namespace
-			}
-			if targetNamespace == rootNamespace {
-				// For GatewayClass, we'd need to check if any of the workload's gateways
-				// use this GatewayClass. This requires additional context not available here.
-				// For now, we conservatively return false.
-				continue
-			}
-
 		case targetRef.Kind == "Service" && targetRef.Group == "":
-			// Service must be in same namespace (waypoints only)
+			// Service must be in same namespace
 			targetNamespace := targetRef.Namespace
 			if targetNamespace == "" {
 				targetNamespace = wasmPlugin.Namespace
@@ -157,20 +136,6 @@ func matchesWorkloadWithTargetRefs(
 						return true
 					}
 				}
-			}
-
-		case targetRef.Kind == "ServiceEntry" && targetRef.Group == "networking.istio.io":
-			// ServiceEntry must be in same namespace
-			targetNamespace := targetRef.Namespace
-			if targetNamespace == "" {
-				targetNamespace = wasmPlugin.Namespace
-			}
-			if targetNamespace == workloadNamespace {
-				// ServiceEntry matching requires checking if the workload communicates
-				// with the external service defined by the ServiceEntry.
-				// This requires additional context not available here.
-				// For now, we conservatively return false.
-				continue
 			}
 		}
 	}
@@ -186,7 +151,7 @@ func FilterWasmPluginsForWorkload(wasmPlugins []*typesv1alpha1.WasmPlugin, insta
 	var matchingWasmPlugins []*typesv1alpha1.WasmPlugin
 
 	for _, wasmPlugin := range wasmPlugins {
-		if matchesWorkload(wasmPlugin, instance, workloadNamespace, rootNamespace) {
+		if wasmPluginMatchesWorkload(wasmPlugin, instance, workloadNamespace, rootNamespace) {
 			matchingWasmPlugins = append(matchingWasmPlugins, wasmPlugin)
 		}
 	}

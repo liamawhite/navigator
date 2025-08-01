@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gateway
+package filters
 
 import (
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
-// MatchesWorkload determines if a gateway applies to a specific workload instance.
+// gatewayMatchesWorkload determines if a gateway applies to a specific workload instance.
 // It implements Istio's gateway selector matching logic, respecting namespace scoping
 // based on the PILOT_SCOPE_GATEWAY_TO_NAMESPACE control plane configuration.
 //
@@ -29,7 +28,7 @@ import (
 // - If gateway selector has labels, they must match the workload labels
 // - If scopeToNamespace is true, gateway and workload must be in the same namespace
 // - If scopeToNamespace is false (default), gateway can match workloads across namespaces
-func matchesWorkload(gateway *typesv1alpha1.Gateway, instance *backendv1alpha1.ServiceInstance, namespace string, scopeToNamespace bool) bool {
+func gatewayMatchesWorkload(gateway *typesv1alpha1.Gateway, instance *backendv1alpha1.ServiceInstance, namespace string, scopeToNamespace bool) bool {
 	if gateway == nil {
 		return false
 	}
@@ -50,14 +49,8 @@ func matchesWorkload(gateway *typesv1alpha1.Gateway, instance *backendv1alpha1.S
 		return true
 	}
 
-	// Convert gateway selector to Kubernetes label selector
-	gatewaySelector := labels.Set(gateway.Selector).AsSelector()
-
-	// Convert workload labels to Kubernetes labels
-	workloadLabelSet := labels.Set(workloadLabels)
-
-	// Check if gateway selector matches workload labels
-	return gatewaySelector.Matches(workloadLabelSet)
+	// Use common label selector matching
+	return matchesLabelSelector(gateway.Selector, workloadLabels)
 }
 
 // FilterGatewaysForWorkload returns all gateways that apply to a specific workload instance.
@@ -67,7 +60,7 @@ func FilterGatewaysForWorkload(gateways []*typesv1alpha1.Gateway, instance *back
 	var matchingGateways []*typesv1alpha1.Gateway
 
 	for _, gateway := range gateways {
-		if matchesWorkload(gateway, instance, workloadNamespace, scopeToNamespace) {
+		if gatewayMatchesWorkload(gateway, instance, workloadNamespace, scopeToNamespace) {
 			matchingGateways = append(matchingGateways, gateway)
 		}
 	}
