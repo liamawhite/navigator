@@ -193,6 +193,21 @@ message WasmPlugin {
   repeated PolicyTargetReference target_refs = 5;
 }
 
+// ServiceEntry represents an Istio ServiceEntry resource.
+message ServiceEntry {
+  // name is the name of the service entry.
+  string name = 1;
+  
+  // namespace is the namespace of the service entry.
+  string namespace = 2;
+  
+  // raw_spec is the service entry spec as a JSON string.
+  string raw_spec = 3;
+  
+  // export_to controls the visibility of this service entry to other namespaces.
+  repeated string export_to = 4;
+}
+
 // IstioControlPlaneConfig represents configuration from the Istio control plane.
 message IstioControlPlaneConfig {
   // pilot_scope_gateway_to_namespace indicates whether gateway selector scope is restricted to namespace.

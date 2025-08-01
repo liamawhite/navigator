@@ -205,6 +205,28 @@ func (k *Client) fetchVirtualServices(ctx context.Context, wg *sync.WaitGroup, r
 	*result = protoVirtualServices
 }
 
+// fetchServiceEntries fetches and converts all service entries from the cluster
+func (k *Client) fetchServiceEntries(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.ServiceEntry, errChan chan<- error) {
+	defer wg.Done()
+	seList, err := k.istioClient.NetworkingV1beta1().ServiceEntries("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list service entries: %w", err)
+		return
+	}
+
+	var protoServiceEntries []*typesv1alpha1.ServiceEntry
+	for i := range seList.Items {
+		se := seList.Items[i]
+		protoSE, convertErr := k.convertServiceEntry(se)
+		if convertErr != nil {
+			k.logger.Warn("failed to convert service entry", "name", se.Name, "namespace", se.Namespace, "error", convertErr)
+			continue
+		}
+		protoServiceEntries = append(protoServiceEntries, protoSE)
+	}
+	*result = protoServiceEntries
+}
+
 // convertDestinationRule converts an Istio DestinationRule to a protobuf DestinationRule
 func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRule) (*typesv1alpha1.DestinationRule, error) {
 	specBytes, err := json.Marshal(&dr.Spec)
@@ -673,4 +695,27 @@ func (k *Client) extractPilotConfiguration(deployment *appsv1.Deployment, config
 			break
 		}
 	}
+}
+
+// convertServiceEntry converts an Istio ServiceEntry to a protobuf ServiceEntry
+func (k *Client) convertServiceEntry(se *istionetworkingv1beta1.ServiceEntry) (*typesv1alpha1.ServiceEntry, error) {
+	specBytes, err := json.Marshal(&se.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal service entry spec: %w", err)
+	}
+
+	// Default for exportTo is ["*"] if not specified or empty
+	var exportTo []string
+	if len(se.Spec.ExportTo) > 0 {
+		exportTo = se.Spec.ExportTo
+	} else {
+		exportTo = []string{"*"}
+	}
+
+	return &typesv1alpha1.ServiceEntry{
+		Name:      se.Name,
+		Namespace: se.Namespace,
+		RawSpec:   string(specBytes),
+		ExportTo:  exportTo,
+	}, nil
 }

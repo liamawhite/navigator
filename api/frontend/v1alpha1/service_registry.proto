@@ -260,6 +260,9 @@ message GetIstioResourcesResponse {
   
   // wasm_plugins are WasmPlugin resources affecting this instance.
   repeated navigator.types.v1alpha1.WasmPlugin wasm_plugins = 8;
+  
+  // service_entries are ServiceEntry resources affecting this instance.
+  repeated navigator.types.v1alpha1.ServiceEntry service_entries = 9;
 }
 
 // ListClustersRequest for retrieving cluster sync information.

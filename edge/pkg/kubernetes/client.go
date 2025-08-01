@@ -101,11 +101,12 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	var protoGateways []*typesv1alpha1.Gateway
 	var protoSidecars []*typesv1alpha1.Sidecar
 	var protoVirtualServices []*typesv1alpha1.VirtualService
+	var protoServiceEntries []*typesv1alpha1.ServiceEntry
 	var protoIstioControlPlaneConfig *typesv1alpha1.IstioControlPlaneConfig
 
 	// Create error channel to collect errors from all goroutines
-	errChan := make(chan error, 12)
-	wg.Add(12)
+	errChan := make(chan error, 13)
+	wg.Add(13)
 
 	// Fetch Kubernetes resources concurrently
 	go k.fetchServices(ctx, &wg, &servicesResult, errChan)
@@ -121,6 +122,7 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 	go k.fetchGateways(ctx, &wg, &protoGateways, errChan)
 	go k.fetchSidecars(ctx, &wg, &protoSidecars, errChan)
 	go k.fetchVirtualServices(ctx, &wg, &protoVirtualServices, errChan)
+	go k.fetchServiceEntries(ctx, &wg, &protoServiceEntries, errChan)
 	go k.fetchIstioControlPlaneConfig(ctx, &wg, &protoIstioControlPlaneConfig, errChan)
 
 	// Wait for all goroutines to complete
@@ -158,6 +160,7 @@ func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, e
 		IstioControlPlaneConfig: protoIstioControlPlaneConfig,
 		PeerAuthentications:     protoPeerAuthentications,
 		WasmPlugins:             protoWasmPlugins,
+		ServiceEntries:          protoServiceEntries,
 	}, nil
 }
 
