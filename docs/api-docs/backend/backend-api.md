@@ -53,6 +53,7 @@ ClusterState contains the current state of a cluster.
 | istio_control_plane_config | [navigator.types.v1alpha1.IstioControlPlaneConfig](#navigator-types-v1alpha1-IstioControlPlaneConfig) |  | istio_control_plane_config contains Istio control plane configuration. |
 | peer_authentications | [navigator.types.v1alpha1.PeerAuthentication](#navigator-types-v1alpha1-PeerAuthentication) | repeated | peer_authentications is the list of all peer authentications in the cluster. |
 | wasm_plugins | [navigator.types.v1alpha1.WasmPlugin](#navigator-types-v1alpha1-WasmPlugin) | repeated | wasm_plugins is the list of all wasm plugins in the cluster. |
+| service_entries | [navigator.types.v1alpha1.ServiceEntry](#navigator-types-v1alpha1-ServiceEntry) | repeated | service_entries is the list of all service entries in the cluster. |
 
 
 

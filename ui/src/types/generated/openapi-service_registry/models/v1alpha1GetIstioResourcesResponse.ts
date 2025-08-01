@@ -7,6 +7,7 @@ import type { v1alpha1EnvoyFilter } from './v1alpha1EnvoyFilter';
 import type { v1alpha1Gateway } from './v1alpha1Gateway';
 import type { v1alpha1PeerAuthentication } from './v1alpha1PeerAuthentication';
 import type { v1alpha1RequestAuthentication } from './v1alpha1RequestAuthentication';
+import type { v1alpha1ServiceEntry } from './v1alpha1ServiceEntry';
 import type { v1alpha1Sidecar } from './v1alpha1Sidecar';
 import type { v1alpha1VirtualService } from './v1alpha1VirtualService';
 import type { v1alpha1WasmPlugin } from './v1alpha1WasmPlugin';
@@ -46,5 +47,9 @@ export type v1alpha1GetIstioResourcesResponse = {
      * wasm_plugins are WasmPlugin resources affecting this instance.
      */
     wasmPlugins?: Array<v1alpha1WasmPlugin>;
+    /**
+     * service_entries are ServiceEntry resources affecting this instance.
+     */
+    serviceEntries?: Array<v1alpha1ServiceEntry>;
 };
 
