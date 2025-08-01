@@ -23,6 +23,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -44,6 +46,7 @@ import (
 
 var (
 	kubeconfig     string
+	contexts       []string
 	managerPort    int
 	managerHost    string
 	maxMessageSize int
@@ -56,11 +59,8 @@ var (
 var localCmd = &cobra.Command{
 	Use:   "local",
 	Short: "Run manager and edge services locally",
-	Long: `Run both Navigator manager and edge services locally.
-This command starts the manager service first, then connects an edge service to it.
-Both services will use the same kubeconfig file to discover and serve services
-from the local Kubernetes cluster.`,
-	RunE: runLocal,
+	Long:  "", // Will be set in init()
+	RunE:  runLocal,
 }
 
 func runLocal(cmd *cobra.Command, args []string) error {
@@ -71,16 +71,20 @@ func runLocal(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("kubeconfig validation failed: %w", err)
 	}
 
-	// Extract cluster ID to show in startup logs
-	clusterID, err := extractClusterIDFromKubeconfig()
+	// Validate contexts
+	if err := validateContexts(logger); err != nil {
+		return fmt.Errorf("context validation failed: %w", err)
+	}
+
+	// Get contexts to use
+	contextsToUse, err := getContextsToUse(logger)
 	if err != nil {
-		logger.Warn("failed to extract cluster ID from kubeconfig, using fallback", "error", err)
-		clusterID = "local-cluster"
+		return fmt.Errorf("failed to determine contexts: %w", err)
 	}
 
 	logger.Info("starting Navigator services",
 		"kubeconfig", kubeconfig,
-		"cluster_id", clusterID,
+		"contexts", contextsToUse,
 		"manager_port", managerPort,
 		"manager_host", managerHost)
 
@@ -103,15 +107,24 @@ func runLocal(cmd *cobra.Command, args []string) error {
 	// Wait a moment for manager to start
 	time.Sleep(2 * time.Second)
 
-	// Start edge service
-	edgeSvc, err := startEdgeService(ctx, logger)
-	if err != nil {
-		return fmt.Errorf("failed to start edge service: %w", err)
+	// Start edge services for each context
+	var edgeServices []*edgeService.EdgeService
+	for _, contextName := range contextsToUse {
+		logger.Info("starting edge service for context", "context", contextName)
+		edgeSvc, err := startEdgeServiceForContext(ctx, contextName, logger)
+		if err != nil {
+			return fmt.Errorf("failed to start edge service for context '%s': %w", contextName, err)
+		}
+		edgeServices = append(edgeServices, edgeSvc)
 	}
+
+	// Setup cleanup for all edge services
 	defer func() {
-		logger.Info("stopping edge service")
-		if err := edgeSvc.Stop(); err != nil {
-			logger.Error("error stopping edge service", "error", err)
+		logger.Info("stopping edge services", "count", len(edgeServices))
+		for i, edgeSvc := range edgeServices {
+			if err := edgeSvc.Stop(); err != nil {
+				logger.Error("error stopping edge service", "service_index", i, "error", err)
+			}
 		}
 	}()
 
@@ -137,6 +150,7 @@ func runLocal(cmd *cobra.Command, args []string) error {
 	logger.Info("Navigator services started successfully")
 	logger.Info("manager gRPC server listening", "port", managerPort)
 	logger.Info("manager HTTP gateway listening", "port", managerPort+1)
+	logger.Info("edge services running", "contexts", contextsToUse, "count", len(edgeServices))
 
 	if !disableUI {
 		logger.Info("UI server listening", "port", uiPort)
@@ -196,17 +210,22 @@ func startManagerService(ctx context.Context, logger *slog.Logger) (*managerServ
 	return managerSvc, nil
 }
 
-func startEdgeService(ctx context.Context, logger *slog.Logger) (*edgeService.EdgeService, error) {
-	// Extract cluster ID from kubeconfig
-	clusterID, err := extractClusterIDFromKubeconfig()
+func startEdgeServiceForContext(ctx context.Context, contextName string, logger *slog.Logger) (*edgeService.EdgeService, error) {
+	// Extract cluster ID from kubeconfig for the specific context
+	clusterID, err := extractClusterIDFromKubeconfig(contextName)
 	if err != nil {
-		logger.Warn("failed to extract cluster ID from kubeconfig, using fallback", "error", err)
-		clusterID = "local-cluster"
+		fallbackID := fmt.Sprintf("local-cluster-%s", contextName)
+		if contextName == "" {
+			fallbackID = "local-cluster"
+		}
+		logger.Warn("failed to extract cluster ID from kubeconfig, using fallback",
+			"context", contextName, "error", err, "fallback_id", fallbackID)
+		clusterID = fallbackID
 	} else {
-		logger.Info("extracted cluster ID from kubeconfig", "cluster_id", clusterID)
+		logger.Info("extracted cluster ID from kubeconfig", "context", contextName, "cluster_id", clusterID)
 	}
 
-	// Create edge config
+	// Create edge config with context-specific kubeconfig overrides
 	cfg := &config.Config{
 		KubeconfigPath:  kubeconfig,
 		ManagerEndpoint: fmt.Sprintf("%s:%d", managerHost, managerPort),
@@ -217,28 +236,31 @@ func startEdgeService(ctx context.Context, logger *slog.Logger) (*edgeService.Ed
 		MaxMessageSize:  maxMessageSize,
 	}
 
-	// Create Kubernetes client
-	k8sClient, err := kubernetes.NewClient(cfg.KubeconfigPath, logging.For("edge-k8s"))
+	// Create Kubernetes client with specific context
+	k8sLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "k8s")
+	k8sClient, err := kubernetes.NewClientWithContext(cfg.KubeconfigPath, contextName, k8sLogger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+		return nil, fmt.Errorf("failed to create kubernetes client for context '%s': %w", contextName, err)
 	}
 
 	// Create admin client for proxy configuration access
 	adminClient := client.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
 
 	// Create proxy service
-	proxyService := proxy.NewProxyService(adminClient, logging.For("edge-proxy"))
+	proxyLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "proxy")
+	proxyService := proxy.NewProxyService(adminClient, proxyLogger)
 
 	// Create edge service
-	edgeSvc, err := edgeService.NewEdgeService(cfg, k8sClient, proxyService, logging.For("edge"))
+	edgeLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "edge")
+	edgeSvc, err := edgeService.NewEdgeService(cfg, k8sClient, proxyService, edgeLogger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create edge service: %w", err)
+		return nil, fmt.Errorf("failed to create edge service for context '%s': %w", contextName, err)
 	}
 
 	// Start edge service in goroutine
 	go func() {
 		if err := edgeSvc.Start(); err != nil {
-			logger.Error("edge service error", "error", err)
+			logger.Error("edge service error", "context", contextName, "error", err)
 		}
 	}()
 
@@ -296,33 +318,243 @@ func validateKubeconfig() error {
 	return nil
 }
 
-// extractClusterIDFromKubeconfig extracts the cluster name from the current context in kubeconfig
-func extractClusterIDFromKubeconfig() (string, error) {
+// validateContexts validates that all specified contexts exist in the kubeconfig
+// Expands patterns and validates that all resolved contexts exist
+func validateContexts(logger *slog.Logger) error {
+	if len(contexts) == 0 {
+		return nil // No contexts specified, will use current context
+	}
+
+	// Expand patterns to actual context names
+	expandedContexts, err := expandContextPatterns(contexts, logger)
+	if err != nil {
+		return fmt.Errorf("failed to expand context patterns: %w", err)
+	}
+
+	if len(expandedContexts) == 0 {
+		return fmt.Errorf("no contexts matched the specified patterns: %v", contexts)
+	}
+
+	// Load the kubeconfig
+	config, err := clientcmd.LoadFromFile(kubeconfig)
+	if err != nil {
+		return fmt.Errorf("failed to load kubeconfig: %w", err)
+	}
+
+	// Validate each resolved context exists
+	for _, contextName := range expandedContexts {
+		if _, exists := config.Contexts[contextName]; !exists {
+			return fmt.Errorf("context '%s' not found in kubeconfig", contextName)
+		}
+	}
+
+	return nil
+}
+
+// getContextsToUse returns the list of contexts to use, defaulting to current context if none specified
+// Expands patterns if any are provided
+func getContextsToUse(logger *slog.Logger) ([]string, error) {
+	if len(contexts) > 0 {
+		// Expand patterns to actual context names
+		expandedContexts, err := expandContextPatterns(contexts, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand context patterns: %w", err)
+		}
+		return expandedContexts, nil
+	}
+
+	// Load the kubeconfig to get current context
+	config, err := clientcmd.LoadFromFile(kubeconfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
+	}
+
+	if config.CurrentContext == "" {
+		return nil, fmt.Errorf("no current context set in kubeconfig and no contexts specified")
+	}
+
+	return []string{config.CurrentContext}, nil
+}
+
+// getAvailableContexts returns all available contexts from kubeconfig
+func getAvailableContexts(kubeconfigPath string) ([]string, string, error) {
+	config, err := clientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var contextNames []string
+	for name := range config.Contexts {
+		contextNames = append(contextNames, name)
+	}
+
+	// Sort for consistent output
+	sort.Strings(contextNames)
+
+	return contextNames, config.CurrentContext, nil
+}
+
+// isPattern returns true if the string contains glob pattern characters
+func isPattern(s string) bool {
+	return strings.ContainsAny(s, "*?[")
+}
+
+// expandContextPatterns expands glob patterns in context names to actual context names
+func expandContextPatterns(patterns []string, logger *slog.Logger) ([]string, error) {
+	if len(patterns) == 0 {
+		return nil, nil
+	}
+
+	// Load available contexts
+	availableContexts, _, err := getAvailableContexts(kubeconfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load contexts from kubeconfig: %w", err)
+	}
+
+	var expandedContexts []string
+	var hasPatterns bool
+
+	for _, pattern := range patterns {
+		if !isPattern(pattern) {
+			// Exact match - add as-is
+			expandedContexts = append(expandedContexts, pattern)
+			continue
+		}
+
+		hasPatterns = true
+		var matches []string
+
+		// Find all contexts that match this pattern
+		for _, contextName := range availableContexts {
+			matched, err := filepath.Match(pattern, contextName)
+			if err != nil {
+				return nil, fmt.Errorf("invalid pattern '%s': %w", pattern, err)
+			}
+			if matched {
+				matches = append(matches, contextName)
+			}
+		}
+
+		if len(matches) == 0 {
+			logger.Warn("pattern matched no contexts", "pattern", pattern)
+		} else if logger.Enabled(context.Background(), slog.LevelDebug) {
+			logger.Debug("pattern expanded", "pattern", pattern, "matches", matches, "count", len(matches))
+		}
+
+		expandedContexts = append(expandedContexts, matches...)
+	}
+
+	// Remove duplicates and sort
+	expandedContexts = removeDuplicates(expandedContexts)
+	sort.Strings(expandedContexts)
+
+	// Log summary if patterns were used
+	if hasPatterns && logger.Enabled(context.Background(), slog.LevelInfo) {
+		logger.Info("expanded context patterns", "input_patterns", patterns, "resolved_contexts", expandedContexts, "count", len(expandedContexts))
+	}
+
+	return expandedContexts, nil
+}
+
+// removeDuplicates removes duplicate strings from a slice
+func removeDuplicates(items []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	for _, item := range items {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
+// extractClusterIDFromKubeconfig extracts the cluster name from the specified context in kubeconfig
+// If contextName is empty, uses the current context
+func extractClusterIDFromKubeconfig(contextName string) (string, error) {
 	// Load the kubeconfig
 	config, err := clientcmd.LoadFromFile(kubeconfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to load kubeconfig: %w", err)
 	}
 
-	// Get the current context
-	currentContext := config.CurrentContext
-	if currentContext == "" {
-		return "", fmt.Errorf("no current context set in kubeconfig")
+	// Determine which context to use
+	targetContext := contextName
+	if targetContext == "" {
+		targetContext = config.CurrentContext
+		if targetContext == "" {
+			return "", fmt.Errorf("no current context set in kubeconfig")
+		}
 	}
 
 	// Get the context details
-	context, exists := config.Contexts[currentContext]
+	context, exists := config.Contexts[targetContext]
 	if !exists {
-		return "", fmt.Errorf("current context '%s' not found in kubeconfig", currentContext)
+		return "", fmt.Errorf("context '%s' not found in kubeconfig", targetContext)
 	}
 
 	// Get the cluster name
 	clusterName := context.Cluster
 	if clusterName == "" {
-		return "", fmt.Errorf("no cluster set in current context '%s'", currentContext)
+		return "", fmt.Errorf("no cluster set in context '%s'", targetContext)
 	}
 
 	return clusterName, nil
+}
+
+// generateHelpText creates dynamic help text with available contexts
+func generateHelpText(kubeconfigPath string) string {
+	baseHelp := `Run both Navigator manager and edge services locally.
+This command starts the manager service first, then connects edge services to it.
+By default, it uses the current context from your kubeconfig. You can specify
+multiple contexts using the --contexts flag to monitor multiple clusters simultaneously.
+
+The --contexts flag supports both exact context names and glob patterns:
+  * - matches any sequence of characters
+  ? - matches any single character
+  [abc] - matches any character in brackets
+  [a-z] - matches any character in range
+
+Examples:
+  # Use current context
+  navctl local
+
+  # Use specific contexts
+  navctl local --contexts context1,context2,context3
+
+  # Use glob patterns to select multiple contexts
+  navctl local --contexts "*-prod"
+  navctl local --contexts "team-*"
+  navctl local --contexts "*-prod,*-staging"
+  navctl local --contexts "dev-*,test-?"
+
+  # Mix exact names and patterns
+  navctl local --contexts "production,*-staging"
+
+  # Use custom kubeconfig with patterns
+  navctl local --kube-config ~/.kube/config --contexts "*-prod"`
+
+	// Try to get available contexts
+	availableContexts, currentContext, err := getAvailableContexts(kubeconfigPath)
+	if err != nil {
+		return baseHelp + "\n\n(Note: Could not read kubeconfig to show available contexts)"
+	}
+
+	if len(availableContexts) > 0 {
+		contextInfo := "\n\nAvailable contexts in " + kubeconfigPath + ":"
+		for _, ctx := range availableContexts {
+			if ctx == currentContext {
+				contextInfo += "\n  * " + ctx + " (current)"
+			} else {
+				contextInfo += "\n  - " + ctx
+			}
+		}
+		return baseHelp + contextInfo
+	}
+
+	return baseHelp
 }
 
 func init() {
@@ -332,8 +564,12 @@ func init() {
 		defaultKubeconfig = filepath.Join(home, ".kube", "config")
 	}
 
+	// Set initial help text with available contexts
+	localCmd.Long = generateHelpText(defaultKubeconfig)
+
 	// Command flags
 	localCmd.Flags().StringVarP(&kubeconfig, "kube-config", "k", defaultKubeconfig, "Path to kubeconfig file")
+	localCmd.Flags().StringSliceVar(&contexts, "contexts", nil, "Comma-separated list of kubeconfig contexts to use (uses current context if not specified)")
 	localCmd.Flags().IntVar(&managerPort, "manager-port", 8080, "Port for manager service")
 	localCmd.Flags().StringVar(&managerHost, "manager-host", "localhost", "Host for manager service")
 	localCmd.Flags().IntVar(&maxMessageSize, "max-message-size", 10, "Maximum gRPC message size in MB")

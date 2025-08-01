@@ -41,14 +41,38 @@ type Client struct {
 
 // NewClient creates a new Kubernetes client
 func NewClient(kubeconfigPath string, logger *slog.Logger) (*Client, error) {
+	return NewClientWithContext(kubeconfigPath, "", logger)
+}
+
+// NewClientWithContext creates a new Kubernetes client with a specific context
+func NewClientWithContext(kubeconfigPath string, contextName string, logger *slog.Logger) (*Client, error) {
 	var config *rest.Config
 	var err error
 
 	if kubeconfigPath != "" {
-		// Use kubeconfig file
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
+		// Build config with specific context if provided
+		if contextName != "" {
+			// Load kubeconfig and override context
+			kubeconfig, err := clientcmd.LoadFromFile(kubeconfigPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
+			}
+
+			// Override the current context
+			overrides := &clientcmd.ConfigOverrides{
+				CurrentContext: contextName,
+			}
+
+			config, err = clientcmd.NewDefaultClientConfig(*kubeconfig, overrides).ClientConfig()
+			if err != nil {
+				return nil, fmt.Errorf("failed to build kubeconfig for context '%s': %w", contextName, err)
+			}
+		} else {
+			// Use kubeconfig file with current context
+			config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build kubeconfig: %w", err)
+			}
 		}
 	} else {
 		// Use in-cluster config
