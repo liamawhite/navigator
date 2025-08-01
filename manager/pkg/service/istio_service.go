@@ -23,6 +23,7 @@ import (
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"github.com/liamawhite/navigator/pkg/istio/destinationrule"
 	"github.com/liamawhite/navigator/pkg/istio/envoyfilter"
 	"github.com/liamawhite/navigator/pkg/istio/gateway"
 	"github.com/liamawhite/navigator/pkg/istio/peerauthentication"
@@ -87,8 +88,9 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	var matchingWasmPlugins []*typesv1alpha1.WasmPlugin
 	var matchingVirtualServices []*typesv1alpha1.VirtualService
 	var matchingServiceEntries []*typesv1alpha1.ServiceEntry
+	var matchingDestinationRules []*typesv1alpha1.DestinationRule
 
-	wg.Add(8)
+	wg.Add(9)
 
 	// Filter gateways concurrently
 	go func() {
@@ -138,6 +140,12 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		matchingServiceEntries = serviceentry.FilterServiceEntriesForWorkload(clusterState.ServiceEntries, instance, namespace)
 	}()
 
+	// Filter destination rules concurrently
+	go func() {
+		defer wg.Done()
+		matchingDestinationRules = destinationrule.FilterDestinationRulesForWorkload(clusterState.DestinationRules, instance, namespace)
+	}()
+
 	// Wait for all filtering operations to complete
 	wg.Wait()
 
@@ -159,13 +167,13 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		"matching_virtual_services", len(matchingVirtualServices),
 		"total_service_entries", len(clusterState.ServiceEntries),
 		"matching_service_entries", len(matchingServiceEntries),
+		"total_destination_rules", len(clusterState.DestinationRules),
+		"matching_destination_rules", len(matchingDestinationRules),
 		"scope_to_namespace", scopeToNamespace)
 
-	// For now, return all other resources - in a more sophisticated implementation,
-	// we would filter these based on relevance to the workload
 	return &frontendv1alpha1.GetIstioResourcesResponse{
 		VirtualServices:        matchingVirtualServices,
-		DestinationRules:       clusterState.DestinationRules,
+		DestinationRules:       matchingDestinationRules,
 		Gateways:               matchingGateways,
 		Sidecars:               matchingSidecars,
 		EnvoyFilters:           matchingEnvoyFilters,
