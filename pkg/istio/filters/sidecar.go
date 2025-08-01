@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sidecar
+package filters
 
 import (
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
-// MatchesWorkload determines if a sidecar applies to a specific workload instance.
+// sidecarMatchesWorkload determines if a sidecar applies to a specific workload instance.
 // It implements Istio's sidecar workload selector matching logic.
 //
 // Sidecar selector matching rules (from Istio documentation):
 // - If workload selector is nil/empty, the sidecar applies to all workloads in the same namespace
 // - If workload selector has match_labels, they must match the workload labels
 // - Sidecars are always namespace-scoped (unlike gateways which can be scoped globally)
-func matchesWorkload(sidecar *typesv1alpha1.Sidecar, instance *backendv1alpha1.ServiceInstance, namespace string) bool {
+func sidecarMatchesWorkload(sidecar *typesv1alpha1.Sidecar, instance *backendv1alpha1.ServiceInstance, namespace string) bool {
 	if sidecar == nil {
 		return false
 	}
@@ -48,14 +47,8 @@ func matchesWorkload(sidecar *typesv1alpha1.Sidecar, instance *backendv1alpha1.S
 		return true
 	}
 
-	// Convert sidecar workload selector to Kubernetes label selector
-	sidecarSelector := labels.Set(sidecar.WorkloadSelector.MatchLabels).AsSelector()
-
-	// Convert workload labels to Kubernetes labels
-	workloadLabelSet := labels.Set(workloadLabels)
-
-	// Check if sidecar workload selector matches workload labels
-	return sidecarSelector.Matches(workloadLabelSet)
+	// Use common label selector matching
+	return matchesLabelSelector(sidecar.WorkloadSelector.MatchLabels, workloadLabels)
 }
 
 // FilterSidecarsForWorkload returns all sidecars that apply to a specific workload instance.
@@ -65,7 +58,7 @@ func FilterSidecarsForWorkload(sidecars []*typesv1alpha1.Sidecar, instance *back
 	var matchingSidecars []*typesv1alpha1.Sidecar
 
 	for _, sidecar := range sidecars {
-		if matchesWorkload(sidecar, instance, workloadNamespace) {
+		if sidecarMatchesWorkload(sidecar, instance, workloadNamespace) {
 			matchingSidecars = append(matchingSidecars, sidecar)
 		}
 	}

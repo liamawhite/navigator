@@ -12,47 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package destinationrule
+package filters
 
 import (
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
-// isVisibleToNamespace determines if a destination rule is visible to a specific namespace
-// based on its exportTo field following Istio's visibility rules:
-// - Empty exportTo defaults to ["*"] (visible to all namespaces)
-// - "*" means visible to all namespaces
-// - "." means visible only to the same namespace as the destination rule
-// - Specific namespace names mean visible only to those namespaces
-func isVisibleToNamespace(dr *typesv1alpha1.DestinationRule, workloadNamespace string) bool {
-	if dr == nil {
-		return false
-	}
-
-	// Empty exportTo defaults to ["*"] (visible to all namespaces)
-	if len(dr.ExportTo) == 0 {
-		return true
-	}
-
-	for _, export := range dr.ExportTo {
-		if export == "*" {
-			return true // visible to all namespaces
-		}
-		if export == "." && dr.Namespace == workloadNamespace {
-			return true // visible to same namespace
-		}
-		if export == workloadNamespace {
-			return true // visible to specific namespace
-		}
-	}
-
-	return false
-}
-
 // matchesWorkloadSelector determines if a destination rule's workload selector
 // matches the specific workload instance labels
-func matchesWorkloadSelector(dr *typesv1alpha1.DestinationRule, instance *backendv1alpha1.ServiceInstance) bool {
+func destinationRuleMatchesWorkloadSelector(dr *typesv1alpha1.DestinationRule, instance *backendv1alpha1.ServiceInstance) bool {
 	if dr == nil || instance == nil {
 		return false
 	}
@@ -77,37 +46,37 @@ func matchesWorkloadSelector(dr *typesv1alpha1.DestinationRule, instance *backen
 	return true
 }
 
-// matchesHost determines if a destination rule applies to services that this workload might communicate with.
+// destinationRuleMatchesHost determines if a destination rule applies to services that this workload might communicate with.
 // This is a placeholder for future host-based filtering - currently returns true to include all destination rules
 // regardless of their host field.
-func matchesHost(dr *typesv1alpha1.DestinationRule, instance *backendv1alpha1.ServiceInstance) bool {
+func destinationRuleMatchesHost(dr *typesv1alpha1.DestinationRule, instance *backendv1alpha1.ServiceInstance) bool {
 	// TODO: Implement host-based filtering in the future
 	// For now, we include all destination rules regardless of their host field
 	return true
 }
 
-// matchesWorkload determines if a destination rule applies to a specific workload instance.
+// destinationRuleMatchesWorkload determines if a destination rule applies to a specific workload instance.
 // It implements Istio's destination rule visibility and applicability logic by checking:
 // 1. Namespace visibility (exportTo field)
 // 2. Workload selector matching (workloadSelector field)
 // 3. Host matching (placeholder for future implementation)
-func matchesWorkload(dr *typesv1alpha1.DestinationRule, instance *backendv1alpha1.ServiceInstance, workloadNamespace string) bool {
+func destinationRuleMatchesWorkload(dr *typesv1alpha1.DestinationRule, instance *backendv1alpha1.ServiceInstance, workloadNamespace string) bool {
 	if dr == nil || instance == nil {
 		return false
 	}
 
 	// Stage 1: Check namespace visibility
-	if !isVisibleToNamespace(dr, workloadNamespace) {
+	if !isVisibleToNamespace(destinationRuleExporter(dr), workloadNamespace) {
 		return false
 	}
 
 	// Stage 2: Check workload selector matching
-	if !matchesWorkloadSelector(dr, instance) {
+	if !destinationRuleMatchesWorkloadSelector(dr, instance) {
 		return false
 	}
 
 	// Stage 3: Check host matching (placeholder for future implementation)
-	if !matchesHost(dr, instance) {
+	if !destinationRuleMatchesHost(dr, instance) {
 		return false
 	}
 
@@ -121,7 +90,7 @@ func FilterDestinationRulesForWorkload(destinationRules []*typesv1alpha1.Destina
 	var matchingDestinationRules []*typesv1alpha1.DestinationRule
 
 	for _, dr := range destinationRules {
-		if matchesWorkload(dr, instance, workloadNamespace) {
+		if destinationRuleMatchesWorkload(dr, instance, workloadNamespace) {
 			matchingDestinationRules = append(matchingDestinationRules, dr)
 		}
 	}
