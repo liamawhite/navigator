@@ -55,6 +55,7 @@ export type { v1alpha1RouteInfo } from './models/v1alpha1RouteInfo';
 export type { v1alpha1RouteMatchInfo } from './models/v1alpha1RouteMatchInfo';
 export { v1alpha1RouteType } from './models/v1alpha1RouteType';
 export type { v1alpha1Service } from './models/v1alpha1Service';
+export type { v1alpha1ServiceEntry } from './models/v1alpha1ServiceEntry';
 export type { v1alpha1ServiceInstance } from './models/v1alpha1ServiceInstance';
 export type { v1alpha1ServiceInstanceDetail } from './models/v1alpha1ServiceInstanceDetail';
 export type { v1alpha1Sidecar } from './models/v1alpha1Sidecar';

@@ -14,6 +14,7 @@
     - [PeerAuthentication](#navigator-types-v1alpha1-PeerAuthentication)
     - [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference)
     - [RequestAuthentication](#navigator-types-v1alpha1-RequestAuthentication)
+    - [ServiceEntry](#navigator-types-v1alpha1-ServiceEntry)
     - [Sidecar](#navigator-types-v1alpha1-Sidecar)
     - [VirtualService](#navigator-types-v1alpha1-VirtualService)
     - [WasmPlugin](#navigator-types-v1alpha1-WasmPlugin)
@@ -241,6 +242,24 @@ RequestAuthentication represents an Istio RequestAuthentication resource.
 | raw_spec | [string](#string) |  | raw_spec is the request authentication spec as a JSON string. |
 | selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
 | target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this request authentication applies to. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-ServiceEntry"></a>
+
+### ServiceEntry
+ServiceEntry represents an Istio ServiceEntry resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the service entry. |
+| namespace | [string](#string) |  | namespace is the namespace of the service entry. |
+| raw_spec | [string](#string) |  | raw_spec is the service entry spec as a JSON string. |
+| export_to | [string](#string) | repeated | export_to controls the visibility of this service entry to other namespaces. |
 
 
 

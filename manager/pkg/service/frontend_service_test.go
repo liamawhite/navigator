@@ -716,3 +716,113 @@ func TestFrontendService_GetIstioResources_InstanceNotFound(t *testing.T) {
 	// Verify all mocks were called as expected
 	mockConnManager.AssertExpectations(t)
 }
+
+func TestFrontendService_GetIstioResources_WithServiceEntries(t *testing.T) {
+	logger := logging.For("test")
+	mockConnManager := new(MockConnectionManager)
+
+	// Create test data with ServiceEntries
+	testInstance := &connections.AggregatedServiceInstance{
+		InstanceID:   "cluster1:default:app-pod",
+		IP:           "10.0.0.3",
+		PodName:      "app-pod",
+		Namespace:    "default",
+		ClusterName:  "cluster1",
+		EnvoyPresent: true,
+		Labels:       map[string]string{"app": "myapp", "version": "v1"},
+	}
+
+	testIstioResources := &frontendv1alpha1.GetIstioResourcesResponse{
+		VirtualServices: []*types.VirtualService{
+			{
+				Name:      "app-vs",
+				Namespace: "default",
+				Hosts:     []string{"myapp.default.svc.cluster.local"},
+			},
+		},
+		ServiceEntries: []*types.ServiceEntry{
+			{
+				Name:      "external-api",
+				Namespace: "istio-system",
+				ExportTo:  []string{"*"},
+			},
+			{
+				Name:      "shared-database",
+				Namespace: "default",
+				ExportTo:  []string{".", "production"},
+			},
+			{
+				Name:      "team-service",
+				Namespace: "production",
+				ExportTo:  []string{"default", "staging"},
+			},
+		},
+	}
+
+	// Set up mock expectations
+	mockConnManager.On("GetAggregatedServiceInstance", "cluster1:default:app-pod").Return(testInstance, true)
+
+	// Mock proxy service (not called by GetIstioResources)
+	mockProxyService := new(MockProxyService)
+
+	// Mock istio service to filter ServiceEntries for the workload
+	mockIstioService := new(MockIstioService)
+	mockIstioService.On("GetIstioResourcesForWorkload",
+		context.Background(),
+		"cluster1",
+		"default",
+		mock.MatchedBy(func(instance *backendv1alpha1.ServiceInstance) bool {
+			return instance.Labels["app"] == "myapp" &&
+				instance.Labels["version"] == "v1"
+		})).Return(testIstioResources, nil)
+
+	frontendService := NewFrontendService(mockConnManager, mockProxyService, mockIstioService, logger)
+
+	// Test GetIstioResources
+	req := &frontendv1alpha1.GetIstioResourcesRequest{
+		ServiceId:  "default:myapp-service",
+		InstanceId: "cluster1:default:app-pod",
+	}
+
+	resp, err := frontendService.GetIstioResources(context.Background(), req)
+
+	// Verify the response
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+
+	// Verify VirtualServices
+	assert.Len(t, resp.VirtualServices, 1)
+	assert.Equal(t, "app-vs", resp.VirtualServices[0].Name)
+
+	// Verify ServiceEntries - this is the key test for our new functionality
+	assert.Len(t, resp.ServiceEntries, 3)
+
+	// Test each service entry
+	serviceEntryNames := make([]string, len(resp.ServiceEntries))
+	for i, se := range resp.ServiceEntries {
+		serviceEntryNames[i] = se.Name
+	}
+	assert.Contains(t, serviceEntryNames, "external-api")
+	assert.Contains(t, serviceEntryNames, "shared-database")
+	assert.Contains(t, serviceEntryNames, "team-service")
+
+	// Verify specific ServiceEntry details
+	for _, se := range resp.ServiceEntries {
+		switch se.Name {
+		case "external-api":
+			assert.Equal(t, "istio-system", se.Namespace)
+			assert.Equal(t, []string{"*"}, se.ExportTo)
+		case "shared-database":
+			assert.Equal(t, "default", se.Namespace)
+			assert.Equal(t, []string{".", "production"}, se.ExportTo)
+		case "team-service":
+			assert.Equal(t, "production", se.Namespace)
+			assert.Equal(t, []string{"default", "staging"}, se.ExportTo)
+		}
+	}
+
+	// Verify all mocks were called as expected
+	mockConnManager.AssertExpectations(t)
+	mockProxyService.AssertExpectations(t)
+	mockIstioService.AssertExpectations(t)
+}

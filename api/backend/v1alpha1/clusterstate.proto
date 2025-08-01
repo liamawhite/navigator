@@ -51,6 +51,9 @@ message ClusterState {
   
   // wasm_plugins is the list of all wasm plugins in the cluster.
   repeated navigator.types.v1alpha1.WasmPlugin wasm_plugins = 10;
+  
+  // service_entries is the list of all service entries in the cluster.
+  repeated navigator.types.v1alpha1.ServiceEntry service_entries = 11;
 }
 
 // Service represents a Kubernetes Service.

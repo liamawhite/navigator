@@ -1336,3 +1336,184 @@ func TestClient_convertWasmPlugin_ErrorCases(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_convertServiceEntry(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name         string
+		serviceEntry *istionetworkingv1beta1.ServiceEntry
+		wantName     string
+		wantExportTo []string
+	}{
+		{
+			name: "service entry with all fields",
+			serviceEntry: &istionetworkingv1beta1.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "httpbin",
+					Namespace: "default",
+				},
+				Spec: istioapi.ServiceEntry{
+					Hosts: []string{"httpbin.example.com"},
+					Ports: []*istioapi.ServicePort{
+						{
+							Number:   80,
+							Name:     "http",
+							Protocol: "HTTP",
+						},
+					},
+					Location:   istioapi.ServiceEntry_MESH_EXTERNAL,
+					Resolution: istioapi.ServiceEntry_DNS,
+					ExportTo:   []string{".", "production"},
+				},
+			},
+			wantName:     "httpbin",
+			wantExportTo: []string{".", "production"},
+		},
+		{
+			name: "service entry with empty exportTo defaults to global",
+			serviceEntry: &istionetworkingv1beta1.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "database",
+					Namespace: "production",
+				},
+				Spec: istioapi.ServiceEntry{
+					Hosts:      []string{"database.internal"},
+					Location:   istioapi.ServiceEntry_MESH_INTERNAL,
+					Resolution: istioapi.ServiceEntry_DNS,
+					ExportTo:   []string{},
+				},
+			},
+			wantName:     "database",
+			wantExportTo: []string{"*"},
+		},
+		{
+			name: "service entry with nil exportTo defaults to global",
+			serviceEntry: &istionetworkingv1beta1.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "api-gateway",
+					Namespace: "istio-system",
+				},
+				Spec: istioapi.ServiceEntry{
+					Hosts:      []string{"api.example.com"},
+					Location:   istioapi.ServiceEntry_MESH_EXTERNAL,
+					Resolution: istioapi.ServiceEntry_DNS,
+					ExportTo:   nil,
+				},
+			},
+			wantName:     "api-gateway",
+			wantExportTo: []string{"*"},
+		},
+		{
+			name: "service entry with wildcard export",
+			serviceEntry: &istionetworkingv1beta1.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "external-service",
+					Namespace: "services",
+				},
+				Spec: istioapi.ServiceEntry{
+					Hosts:      []string{"external.service.com"},
+					Location:   istioapi.ServiceEntry_MESH_EXTERNAL,
+					Resolution: istioapi.ServiceEntry_DNS,
+					ExportTo:   []string{"*"},
+				},
+			},
+			wantName:     "external-service",
+			wantExportTo: []string{"*"},
+		},
+		{
+			name: "service entry with dot export (same namespace only)",
+			serviceEntry: &istionetworkingv1beta1.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "local-service",
+					Namespace: "team-a",
+				},
+				Spec: istioapi.ServiceEntry{
+					Hosts:      []string{"local.team-a.internal"},
+					Location:   istioapi.ServiceEntry_MESH_INTERNAL,
+					Resolution: istioapi.ServiceEntry_DNS,
+					ExportTo:   []string{"."},
+				},
+			},
+			wantName:     "local-service",
+			wantExportTo: []string{"."},
+		},
+		{
+			name: "service entry with multiple specific namespaces",
+			serviceEntry: &istionetworkingv1beta1.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "shared-cache",
+					Namespace: "infrastructure",
+				},
+				Spec: istioapi.ServiceEntry{
+					Hosts:      []string{"cache.infrastructure.svc.cluster.local"},
+					Location:   istioapi.ServiceEntry_MESH_INTERNAL,
+					Resolution: istioapi.ServiceEntry_DNS,
+					ExportTo:   []string{"frontend", "backend", "api"},
+				},
+			},
+			wantName:     "shared-cache",
+			wantExportTo: []string{"frontend", "backend", "api"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertServiceEntry(tt.serviceEntry)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantName, result.Name)
+			assert.Equal(t, tt.serviceEntry.Namespace, result.Namespace)
+			assert.Equal(t, tt.wantExportTo, result.ExportTo)
+			assert.NotEmpty(t, result.RawSpec)
+
+			// Verify RawSpec contains valid JSON
+			var spec map[string]interface{}
+			err = json.Unmarshal([]byte(result.RawSpec), &spec)
+			assert.NoError(t, err, "RawSpec should be valid JSON")
+		})
+	}
+}
+
+func TestClient_convertServiceEntry_ErrorCases(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name         string
+		serviceEntry *istionetworkingv1beta1.ServiceEntry
+		expectError  bool
+	}{
+		{
+			name: "valid service entry should not error",
+			serviceEntry: &istionetworkingv1beta1.ServiceEntry{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-service-entry",
+					Namespace: "default",
+				},
+				Spec: istioapi.ServiceEntry{
+					Hosts:      []string{"example.com"},
+					Location:   istioapi.ServiceEntry_MESH_EXTERNAL,
+					Resolution: istioapi.ServiceEntry_DNS,
+					ExportTo:   []string{"*"},
+				},
+			},
+			expectError: false,
+		},
+		// Note: It's hard to create a scenario where JSON marshaling fails for ServiceEntry
+		// since the Istio types are well-defined, but we include this test structure for completeness
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertServiceEntry(tt.serviceEntry)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
+}

@@ -799,6 +799,14 @@
             "$ref": "#/definitions/v1alpha1WasmPlugin"
           },
           "description": "wasm_plugins are WasmPlugin resources affecting this instance."
+        },
+        "serviceEntries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServiceEntry"
+          },
+          "description": "service_entries are ServiceEntry resources affecting this instance."
         }
       },
       "description": "GetIstioResourcesResponse contains the Istio resources for the requested service instance."
@@ -1336,6 +1344,31 @@
         }
       },
       "description": "Service represents a Kubernetes service with its backing instances.\nServices in different clusters that share the same name and namespace are considered the same service."
+    },
+    "v1alpha1ServiceEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the service entry."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the service entry."
+        },
+        "rawSpec": {
+          "type": "string",
+          "description": "raw_spec is the service entry spec as a JSON string."
+        },
+        "exportTo": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "export_to controls the visibility of this service entry to other namespaces."
+        }
+      },
+      "description": "ServiceEntry represents an Istio ServiceEntry resource."
     },
     "v1alpha1ServiceInstance": {
       "type": "object",
