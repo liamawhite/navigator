@@ -43,7 +43,7 @@ func isVisibleToNamespace(resource ExporterResource, workloadNamespace string) b
 	}
 
 	exportTo := resource.GetExportTo()
-	
+
 	// Empty exportTo defaults to ["*"] (visible to all namespaces)
 	if len(exportTo) == 0 {
 		return true
@@ -77,7 +77,7 @@ func matchesLabelSelector(selectorLabels map[string]string, workloadLabels map[s
 	// Convert to Kubernetes label selector for consistent matching
 	selector := labels.Set(selectorLabels).AsSelector()
 	workloadLabelSet := labels.Set(workloadLabels)
-	
+
 	return selector.Matches(workloadLabelSet)
 }
 

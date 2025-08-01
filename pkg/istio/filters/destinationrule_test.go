@@ -64,10 +64,10 @@ func TestFilterDestinationRulesForWorkload(t *testing.T) {
 
 func TestDestinationRuleMatchesWorkloadSelector(t *testing.T) {
 	tests := []struct {
-		name            string
-		dr              *typesv1alpha1.DestinationRule
-		instance        *backendv1alpha1.ServiceInstance
-		expectedMatch   bool
+		name          string
+		dr            *typesv1alpha1.DestinationRule
+		instance      *backendv1alpha1.ServiceInstance
+		expectedMatch bool
 	}{
 		{
 			name:          "nil destination rule should not match",

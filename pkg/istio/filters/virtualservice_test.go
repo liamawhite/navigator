@@ -67,11 +67,11 @@ func TestFilterVirtualServicesForWorkload(t *testing.T) {
 
 func TestVirtualServiceAppliesToWorkloadTraffic(t *testing.T) {
 	tests := []struct {
-		name           string
-		vs             *typesv1alpha1.VirtualService
-		instance       *backendv1alpha1.ServiceInstance
-		namespace      string
-		expectedMatch  bool
+		name          string
+		vs            *typesv1alpha1.VirtualService
+		instance      *backendv1alpha1.ServiceInstance
+		namespace     string
+		expectedMatch bool
 	}{
 		{
 			name:          "nil virtual service should not apply",
