@@ -22,7 +22,9 @@
       "Bash(rg:*)",
       "Bash(go list:*)",
       "Bash(ls:*)",
-      "WebFetch(domain:istio.io)"
+      "WebFetch(domain:istio.io)",
+      "Bash(kubectl:*)",
+      "Bash(./bin/navctl:*)"
     ],
     "deny": []
   }
