@@ -64,4 +64,5 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(localCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(demoCmd)
 }

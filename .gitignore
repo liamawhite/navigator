@@ -22,5 +22,9 @@ Thumbs.db
 *.tmp
 *.temp
 *.log
+
 # Added by goreleaser init:
 dist/
+
+*kubeconfig
+chart-downloader
