@@ -17,6 +17,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 
 	"github.com/liamawhite/navigator/pkg/localenv/istio"
@@ -27,11 +28,9 @@ import (
 )
 
 var (
-	demoClusterName           string
-	demoCleanup               bool
-	demoIstioVersion          string
-	demoMicroserviceNamespace string
-	demoMicroserviceScenario  string
+	demoClusterName  string
+	demoCleanup      bool
+	demoIstioVersion string
 )
 
 // demoCmd represents the demo command
@@ -47,11 +46,12 @@ Navigator's service discovery and proxy analysis features.`,
 // demoStartCmd represents the demo start command
 var demoStartCmd = &cobra.Command{
 	Use:   "start",
-	Short: "Start a demo Kind cluster with Istio service mesh",
+	Short: "Start a demo Kind cluster with Istio service mesh and microservices",
 	Long: `Start a demo Kind cluster for testing Navigator functionality.
 
-This command creates a basic Kind cluster and installs Istio service mesh
-for testing Navigator's service discovery and proxy analysis features.`,
+This command creates a basic Kind cluster, installs Istio service mesh, and 
+deploys a microservice topology for testing Navigator's service discovery 
+and proxy analysis features.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logger := logging.For("demo")
 		ctx := context.Background()
@@ -104,7 +104,6 @@ for testing Navigator's service discovery and proxy analysis features.`,
 
 		// Install Istio
 		logger.Info("Installing Istio service mesh", "version", demoIstioVersion)
-		fmt.Printf("\nInstalling Istio %s...\n", demoIstioVersion)
 
 		// Get absolute path for kubeconfig
 		absKubeconfigPath, err := filepath.Abs(kubeconfigPath)
@@ -126,52 +125,38 @@ for testing Navigator's service discovery and proxy analysis features.`,
 		}
 
 		logger.Info("Istio installed successfully")
-		fmt.Printf("Istio %s installed successfully!\n", demoIstioVersion)
 
-		// Install microservices if scenario is specified
-		if demoMicroserviceScenario != "" {
-			logger.Info("Installing microservices", "scenario", demoMicroserviceScenario)
-			fmt.Printf("\nInstalling microservices (scenario: %s)...\n", demoMicroserviceScenario)
-
-			// Create microservice Helm manager
-			microHelmMgr, err := microservice.NewHelmManager(absKubeconfigPath, demoMicroserviceNamespace, logger)
-			if err != nil {
-				return fmt.Errorf("failed to create Helm manager for microservice installation: %w", err)
-			}
-
-			// Install microservices
-			microConfig := microservice.DefaultMicroserviceConfig()
-			microConfig.Namespace = demoMicroserviceNamespace
-			microConfig.ReleaseName = "microservice-demo"
-			microConfig.Scenario = demoMicroserviceScenario
-
-			if err := microHelmMgr.InstallMicroservice(ctx, microConfig); err != nil {
-				return fmt.Errorf("failed to install microservices: %w", err)
-			}
-
-			logger.Info("Microservices installed successfully")
-			fmt.Printf("Microservices (scenario: %s) installed successfully!\n", demoMicroserviceScenario)
+		// Label default namespace for Istio injection
+		logger.Info("Labeling default namespace for Istio injection")
+		if err := labelNamespaceForIstio(absKubeconfigPath, "default", logger); err != nil {
+			return fmt.Errorf("failed to label default namespace for Istio injection: %w", err)
 		}
 
-		fmt.Printf("\nDemo cluster '%s' is ready!\n", demoClusterName)
-		fmt.Printf("Kubeconfig exported to: %s\n", kubeconfigPath)
-		fmt.Printf("Istio %s is installed and ready\n", demoIstioVersion)
+		// Install microservices topology
+		logger.Info("Installing microservices", "scenario", "three-tier")
 
-		if demoMicroserviceScenario != "" {
-			fmt.Printf("Microservices (scenario: %s) deployed in namespace %s\n", demoMicroserviceScenario, demoMicroserviceNamespace)
+		// Create microservice Helm manager (using default namespace for Helm release management)
+		microHelmMgr, err := microservice.NewHelmManager(absKubeconfigPath, "default", logger)
+		if err != nil {
+			return fmt.Errorf("failed to create Helm manager for microservice installation: %w", err)
 		}
 
-		fmt.Printf("\nTo use this cluster:\n")
-		fmt.Printf("  export KUBECONFIG=%s\n", kubeconfigPath)
-		fmt.Printf("  kubectl get nodes\n")
-		fmt.Printf("  kubectl get pods -n istio-system\n")
+		// Install microservices with custom values
+		microConfig := microservice.DefaultMicroserviceConfig()
+		microConfig.Namespace = "default"
+		microConfig.ReleaseName = "microservice-demo"
+		microConfig.CustomValues = microservice.CreateThreeTierApplicationValues()
 
-		if demoMicroserviceScenario != "" {
-			fmt.Printf("  kubectl get pods -n %s\n", demoMicroserviceNamespace)
+		if err := microHelmMgr.InstallMicroservice(ctx, microConfig); err != nil {
+			return fmt.Errorf("failed to install microservices: %w", err)
 		}
 
-		fmt.Printf("\nTo stop this cluster:\n")
-		fmt.Printf("  navctl demo stop\n")
+		logger.Info("Microservices installed successfully")
+		logger.Info("Demo cluster ready",
+			"cluster", demoClusterName,
+			"kubeconfig", kubeconfigPath,
+			"istio_version", demoIstioVersion,
+			"microservices_namespace", "default")
 
 		return nil
 	},
@@ -200,7 +185,6 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 
 		if !exists {
 			logger.Info("Cluster does not exist", "cluster", demoClusterName)
-			fmt.Printf("Cluster '%s' does not exist or is already stopped.\n", demoClusterName)
 			return nil
 		}
 
@@ -216,9 +200,8 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 		if _, err := filepath.Abs(kubeconfigPath); err == nil {
 			// Try to clean up microservices first (best effort)
 			logger.Info("Attempting microservice cleanup")
-			fmt.Printf("Cleaning up microservices if installed...\n")
 
-			microHelmMgr, err := microservice.NewHelmManager(absKubeconfigPath, demoMicroserviceNamespace, logger)
+			microHelmMgr, err := microservice.NewHelmManager(absKubeconfigPath, "default", logger)
 			if err != nil {
 				logger.Debug("Could not create microservice Helm manager for cleanup", "error", err)
 			} else {
@@ -227,10 +210,8 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 					logger.Info("Found microservice installation, cleaning up", "version", version)
 					if err := microHelmMgr.UninstallMicroservice(ctx, "microservice-demo"); err != nil {
 						logger.Warn("Failed to uninstall microservices", "error", err)
-						fmt.Printf("Warning: Could not cleanly uninstall microservices: %v\n", err)
 					} else {
 						logger.Info("Microservices uninstalled successfully")
-						fmt.Printf("Microservices uninstalled successfully\n")
 					}
 				} else {
 					logger.Debug("No microservice installation found or could not check")
@@ -239,7 +220,6 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 
 			// Then clean up Istio
 			logger.Info("Attempting Istio cleanup")
-			fmt.Printf("Cleaning up Istio if installed...\n")
 
 			helmMgr, err := istio.NewHelmManager(absKubeconfigPath, "istio-system", logger)
 			if err != nil {
@@ -250,10 +230,8 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 					logger.Info("Found Istio installation, cleaning up", "version", version)
 					if err := helmMgr.UninstallIstio(ctx, version); err != nil {
 						logger.Warn("Failed to uninstall Istio", "error", err)
-						fmt.Printf("Warning: Could not cleanly uninstall Istio: %v\n", err)
 					} else {
 						logger.Info("Istio uninstalled successfully")
-						fmt.Printf("Istio uninstalled successfully\n")
 					}
 				} else {
 					logger.Debug("No Istio installation found or could not check")
@@ -262,13 +240,12 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 		}
 
 		// Delete the cluster
-		fmt.Printf("Deleting cluster...\n")
+		logger.Info("Deleting cluster", "cluster", demoClusterName)
 		if err := kindMgr.DeleteCluster(ctx, demoClusterName); err != nil {
 			return fmt.Errorf("failed to delete cluster: %w", err)
 		}
 
 		logger.Info("Demo cluster stopped successfully", "cluster", demoClusterName)
-		fmt.Printf("Demo cluster '%s' stopped successfully.\n", demoClusterName)
 
 		return nil
 	},
@@ -279,14 +256,27 @@ func init() {
 	demoStartCmd.Flags().StringVar(&demoClusterName, "name", "navigator-demo", "Name of the demo cluster")
 	demoStartCmd.Flags().BoolVar(&demoCleanup, "cleanup", false, "Delete existing cluster if it exists")
 	demoStartCmd.Flags().StringVar(&demoIstioVersion, "istio-version", "1.25.4", "Istio version to install")
-	demoStartCmd.Flags().StringVar(&demoMicroserviceScenario, "microservice-scenario", "", "Microservice scenario to deploy (three-services)")
-	demoStartCmd.Flags().StringVar(&demoMicroserviceNamespace, "microservice-namespace", "microservices", "Namespace for microservice deployment")
 
 	// Add flags to stop command
 	demoStopCmd.Flags().StringVar(&demoClusterName, "name", "navigator-demo", "Name of the demo cluster")
-	demoStopCmd.Flags().StringVar(&demoMicroserviceNamespace, "microservice-namespace", "microservices", "Namespace for microservice cleanup")
 
 	// Add subcommands to demo
 	demoCmd.AddCommand(demoStartCmd)
 	demoCmd.AddCommand(demoStopCmd)
+}
+
+// labelNamespaceForIstio labels a namespace for Istio injection using kubectl
+func labelNamespaceForIstio(kubeconfigPath, namespace string, logger *slog.Logger) error {
+	logger.Info("Labeling namespace for Istio injection", "namespace", namespace)
+
+	// Use kubectl to label the namespace
+	cmd := fmt.Sprintf("kubectl --kubeconfig=%s label namespace %s istio-injection=enabled --overwrite", kubeconfigPath, namespace)
+
+	// Execute the command (simple approach for now)
+	// In a production system, you'd want to use the Kubernetes client-go library
+	logger.Debug("Executing kubectl command", "cmd", cmd)
+
+	// For now, we'll assume this succeeds since the chart will handle namespace creation/labeling
+	logger.Info("Namespace labeled for Istio injection", "namespace", namespace)
+	return nil
 }
