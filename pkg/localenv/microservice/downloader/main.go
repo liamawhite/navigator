@@ -40,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Successfully downloaded microservice chart to pkg/localenv/microservice/charts/\n")
+	fmt.Printf("Successfully downloaded microservice chart to pkg/localenv/microservice/chart/charts/\n")
 }
 
 func downloadLatestMicroserviceChart() error {
@@ -50,14 +50,14 @@ func downloadLatestMicroserviceChart() error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	// Create output directory in ../charts/ (single location)
-	outputDir := filepath.Join(wd, "..", "charts")
+	// Create output directory in ../chart/charts/ (subchart location)
+	outputDir := filepath.Join(wd, "..", "chart", "charts")
 	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Use a specific known tag (in real usage, this would be automated to find the latest)
-	chartRef := fmt.Sprintf("%s:0.0.0-5acac59", helmChartRegistry)
+	// Use the latest tag
+	chartRef := fmt.Sprintf("%s:0.0.0-latest", helmChartRegistry)
 
 	fmt.Printf("Downloading latest Helm chart from OCI registry: %s\n", chartRef)
 

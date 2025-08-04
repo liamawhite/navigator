@@ -28,12 +28,12 @@ import (
 
 // ChartFiles contains the embedded microservice Helm chart
 //
-//go:embed charts/microservice.tgz
+//go:embed chart/charts/microservice.tgz
 var ChartFiles embed.FS
 
 // GetChartTar returns the raw tar.gz data for the microservice chart
 func GetChartTar() ([]byte, error) {
-	data, err := fs.ReadFile(ChartFiles, "charts/microservice.tgz")
+	data, err := fs.ReadFile(ChartFiles, "chart/charts/microservice.tgz")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read microservice chart: %w", err)
 	}

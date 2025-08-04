@@ -15,7 +15,6 @@
 package microservice
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -26,7 +25,6 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	"sigs.k8s.io/yaml"
 )
 
 // HelmManager manages Helm operations for microservice installation
@@ -41,7 +39,6 @@ type HelmManager struct {
 type MicroserviceInstallConfig struct {
 	Namespace    string
 	ReleaseName  string
-	Scenario     string // Scenario name: "three-services"
 	CustomValues map[string]interface{}
 	WaitTimeout  time.Duration
 }
@@ -93,7 +90,6 @@ func DefaultMicroserviceConfig() MicroserviceInstallConfig {
 	return MicroserviceInstallConfig{
 		Namespace:    "default",
 		ReleaseName:  "microservice",
-		Scenario:     "", // No scenario by default
 		CustomValues: map[string]interface{}{},
 		WaitTimeout:  2 * time.Minute,
 	}
@@ -103,23 +99,16 @@ func DefaultMicroserviceConfig() MicroserviceInstallConfig {
 func (h *HelmManager) InstallMicroservice(ctx context.Context, config MicroserviceInstallConfig) error {
 	h.logger.Info("Starting microservice installation",
 		"namespace", config.Namespace,
-		"release", config.ReleaseName,
-		"scenario", config.Scenario)
+		"release", config.ReleaseName)
 
 	// Create namespace if it doesn't exist
 	if err := h.ensureNamespace(ctx, config.Namespace); err != nil {
 		return fmt.Errorf("failed to ensure namespace exists: %w", err)
 	}
 
-	// Load values based on configuration
-	values, err := h.loadValues(config)
-	if err != nil {
-		return fmt.Errorf("failed to load values: %w", err)
-	}
-
 	chartConfig := ChartConfig{
 		ReleaseName: config.ReleaseName,
-		Values:      values,
+		Values:      config.CustomValues,
 		Timeout:     config.WaitTimeout,
 		Wait:        true,
 		Atomic:      true,
@@ -191,10 +180,12 @@ func (h *HelmManager) installChart(ctx context.Context, chartName string, config
 	installAction := action.NewInstall(h.actionConfig)
 	installAction.ReleaseName = config.ReleaseName
 	installAction.Namespace = h.namespace
-	installAction.CreateNamespace = true
 	installAction.Wait = config.Wait
 	installAction.Timeout = config.Timeout
 	installAction.Atomic = config.Atomic
+
+	// Log the actual namespace being used for debugging
+	h.logger.Info("Installing to namespace", "namespace", installAction.Namespace, "helmManager.namespace", h.namespace)
 
 	// Install the chart
 	h.logger.Info("Installing chart with Helm", "chart", chartName, "release", config.ReleaseName, "wait", config.Wait, "timeout", config.Timeout)
@@ -244,85 +235,15 @@ func (h *HelmManager) isChartInstalled(ctx context.Context, releaseName string) 
 	return true, nil
 }
 
-// loadChart loads a chart from the embedded filesystem
+// loadChart loads a chart from the local filesystem
 func (h *HelmManager) loadChart(chartName string) (*chart.Chart, error) {
-	// Get chart tar from embedded FS
-	tarData, err := GetChartTar()
+	// Load our wrapper chart from the local filesystem
+	chartPath := "./pkg/localenv/microservice/chart"
+	chart, err := loader.Load(chartPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get chart tar: %w", err)
+		return nil, fmt.Errorf("failed to load microservice chart: %w", err)
 	}
-
-	// Load chart from tar data
-	chart, err := loader.LoadArchive(bytes.NewReader(tarData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load chart from archive: %w", err)
-	}
-
 	return chart, nil
-}
-
-// loadValues loads values based on scenario configuration
-func (h *HelmManager) loadValues(config MicroserviceInstallConfig) (map[string]interface{}, error) {
-	// Start with default values from the chart
-	values := make(map[string]interface{})
-
-	// Load scenario-specific values
-	if config.Scenario != "" {
-		var valuesData []byte
-		var err error
-
-		switch config.Scenario {
-		case "three-services":
-			// Load the three-services template and modify for single replica
-			valuesData, err = GetChartFile("values-three-services.yaml")
-			if err != nil {
-				h.logger.Warn("Failed to load three-services values file, using defaults", "error", err)
-			} else {
-				h.logger.Debug("Loaded three-services values file", "size", len(valuesData))
-
-				// Parse YAML values file
-				var fileValues map[string]interface{}
-				if err := yaml.Unmarshal(valuesData, &fileValues); err != nil {
-					h.logger.Warn("Failed to parse three-services YAML, using defaults", "error", err)
-				} else {
-					// Merge file values into values map
-					for k, v := range fileValues {
-						values[k] = v
-					}
-
-					// Override replica count to 1 for all services
-					h.overrideSingleReplica(values)
-					h.logger.Debug("Applied three-services scenario with single replica override")
-				}
-			}
-		default:
-			h.logger.Warn("Unknown scenario, using defaults", "scenario", config.Scenario)
-		}
-	}
-
-	// Override with custom values if provided
-	for k, v := range config.CustomValues {
-		values[k] = v
-	}
-
-	return values, nil
-}
-
-// overrideSingleReplica sets replicaCount to 1 for all services in the values
-func (h *HelmManager) overrideSingleReplica(values map[string]interface{}) {
-	// Override default replicaCount
-	if defaults, ok := values["defaults"].(map[string]interface{}); ok {
-		defaults["replicaCount"] = 1
-	}
-
-	// Override per-service replicaCount if services array exists
-	if services, ok := values["services"].([]interface{}); ok {
-		for _, service := range services {
-			if serviceMap, ok := service.(map[string]interface{}); ok {
-				serviceMap["replicaCount"] = 1
-			}
-		}
-	}
 }
 
 // ensureNamespace creates the namespace if it doesn't exist
