@@ -24,7 +24,7 @@ import {
     MapPin,
     Hexagon,
     Home,
-    Globe,
+    Network,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -210,21 +210,40 @@ export const ServiceDetailPage: React.FC = () => {
                                     </Badge>
                                 </div>
                                 <div className="flex items-center gap-2 mt-2">
-                                    <Globe className="w-4 h-4 text-muted-foreground" />
+                                    <Network className="w-4 h-4 text-muted-foreground" />
                                     <span className="text-muted-foreground">
                                         {clusterCount === 1
                                             ? 'Cluster:'
                                             : 'Clusters:'}
                                     </span>
                                     <div className="flex gap-1 flex-wrap">
-                                        {uniqueClusters.map((cluster) => (
-                                            <Badge
-                                                key={cluster}
-                                                variant="outline"
-                                            >
-                                                {cluster}
-                                            </Badge>
-                                        ))}
+                                        {uniqueClusters.map((cluster) => {
+                                            const clusterIP =
+                                                service.clusterIps?.[cluster];
+                                            const externalIP =
+                                                service.externalIps?.[cluster];
+
+                                            // Show external IP if available, otherwise cluster IP
+                                            const displayIP =
+                                                externalIP || clusterIP;
+
+                                            return (
+                                                <Badge
+                                                    key={cluster}
+                                                    variant="outline"
+                                                    className={
+                                                        externalIP
+                                                            ? 'border-green-500 text-green-700'
+                                                            : ''
+                                                    }
+                                                >
+                                                    {cluster}
+                                                    {displayIP
+                                                        ? `:${displayIP}`
+                                                        : ''}
+                                                </Badge>
+                                            );
+                                        })}
                                     </div>
                                     {clusterCount > 1 && (
                                         <Badge

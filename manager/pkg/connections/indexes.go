@@ -42,13 +42,25 @@ func (m *Manager) rebuildIndexes() {
 			aggService, exists := newIndexes.Services[serviceID]
 			if !exists {
 				aggService = &AggregatedService{
-					ID:         serviceID,
-					Name:       service.Name,
-					Namespace:  service.Namespace,
-					Instances:  make([]*AggregatedServiceInstance, 0),
-					ClusterMap: make(map[string][]*AggregatedServiceInstance),
+					ID:          serviceID,
+					Name:        service.Name,
+					Namespace:   service.Namespace,
+					Instances:   make([]*AggregatedServiceInstance, 0),
+					ClusterMap:  make(map[string][]*AggregatedServiceInstance),
+					ClusterIPs:  make(map[string]string),
+					ExternalIPs: make(map[string]string),
 				}
 				newIndexes.Services[serviceID] = aggService
+			}
+
+			// Add cluster IP if present
+			if service.ClusterIp != "" {
+				aggService.ClusterIPs[clusterID] = service.ClusterIp
+			}
+
+			// Add external IP if present
+			if service.ExternalIp != "" {
+				aggService.ExternalIPs[clusterID] = service.ExternalIp
 			}
 
 			var clusterInstances []*AggregatedServiceInstance

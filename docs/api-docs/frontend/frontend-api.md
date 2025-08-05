@@ -19,11 +19,14 @@
     - [ListServicesRequest](#navigator-frontend-v1alpha1-ListServicesRequest)
     - [ListServicesResponse](#navigator-frontend-v1alpha1-ListServicesResponse)
     - [Service](#navigator-frontend-v1alpha1-Service)
+    - [Service.ClusterIpsEntry](#navigator-frontend-v1alpha1-Service-ClusterIpsEntry)
+    - [Service.ExternalIpsEntry](#navigator-frontend-v1alpha1-Service-ExternalIpsEntry)
     - [ServiceInstance](#navigator-frontend-v1alpha1-ServiceInstance)
     - [ServiceInstanceDetail](#navigator-frontend-v1alpha1-ServiceInstanceDetail)
     - [ServiceInstanceDetail.AnnotationsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-AnnotationsEntry)
     - [ServiceInstanceDetail.LabelsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-LabelsEntry)
   
+    - [ServiceType](#navigator-frontend-v1alpha1-ServiceType)
     - [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus)
   
     - [ServiceRegistryService](#navigator-frontend-v1alpha1-ServiceRegistryService)
@@ -279,6 +282,40 @@ Services in different clusters that share the same name and namespace are consid
 | name | [string](#string) |  | name is the service name. |
 | namespace | [string](#string) |  | namespace is the Kubernetes namespace containing the service. |
 | instances | [ServiceInstance](#navigator-frontend-v1alpha1-ServiceInstance) | repeated | instances are the backend instances (pods) that serve this service across all clusters. |
+| cluster_ips | [Service.ClusterIpsEntry](#navigator-frontend-v1alpha1-Service-ClusterIpsEntry) | repeated | cluster_ips maps cluster names to their cluster IP addresses for this service. |
+| external_ips | [Service.ExternalIpsEntry](#navigator-frontend-v1alpha1-Service-ExternalIpsEntry) | repeated | external_ips maps cluster names to their external IP addresses for this service. |
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-Service-ClusterIpsEntry"></a>
+
+### Service.ClusterIpsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-Service-ExternalIpsEntry"></a>
+
+### Service.ExternalIpsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
 
 
 
@@ -365,6 +402,21 @@ ServiceInstanceDetail represents detailed information about a specific service i
 
 
  
+
+
+<a name="navigator-frontend-v1alpha1-ServiceType"></a>
+
+### ServiceType
+ServiceType indicates the type of Kubernetes service.
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| SERVICE_TYPE_UNSPECIFIED | 0 | SERVICE_TYPE_UNSPECIFIED indicates the service type is not specified or unknown. |
+| CLUSTER_IP | 1 | CLUSTER_IP exposes the service on a cluster-internal IP. |
+| NODE_PORT | 2 | NODE_PORT exposes the service on each node&#39;s IP at a static port. |
+| LOAD_BALANCER | 3 | LOAD_BALANCER exposes the service externally using a cloud provider&#39;s load balancer. |
+| EXTERNAL_NAME | 4 | EXTERNAL_NAME maps the service to the contents of the externalName field. |
+
 
 
 <a name="navigator-frontend-v1alpha1-SyncStatus"></a>

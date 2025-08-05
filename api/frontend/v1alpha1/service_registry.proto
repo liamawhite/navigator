@@ -119,6 +119,12 @@ message Service {
 
   // instances are the backend instances (pods) that serve this service across all clusters.
   repeated ServiceInstance instances = 4;
+  
+  // cluster_ips maps cluster names to their cluster IP addresses for this service.
+  map<string, string> cluster_ips = 5;
+  
+  // external_ips maps cluster names to their external IP addresses for this service.
+  map<string, string> external_ips = 6;
 }
 
 // ServiceInstance represents a single backend instance serving a service.
@@ -300,4 +306,22 @@ enum SyncStatus {
   SYNC_STATUS_HEALTHY = 1; // Recent updates within expected timeframe
   SYNC_STATUS_STALE = 2; // No recent updates, potentially problematic
   SYNC_STATUS_DISCONNECTED = 3; // Connection lost
+}
+
+// ServiceType indicates the type of Kubernetes service.
+enum ServiceType {
+  // SERVICE_TYPE_UNSPECIFIED indicates the service type is not specified or unknown.
+  SERVICE_TYPE_UNSPECIFIED = 0;
+  
+  // CLUSTER_IP exposes the service on a cluster-internal IP.
+  CLUSTER_IP = 1;
+  
+  // NODE_PORT exposes the service on each node's IP at a static port.
+  NODE_PORT = 2;
+  
+  // LOAD_BALANCER exposes the service externally using a cloud provider's load balancer.
+  LOAD_BALANCER = 3;
+  
+  // EXTERNAL_NAME maps the service to the contents of the externalName field.
+  EXTERNAL_NAME = 4;
 }

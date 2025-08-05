@@ -245,10 +245,12 @@ func (f *FrontendService) convertAggregatedService(aggService *connections.Aggre
 	}
 
 	return &frontendv1alpha1.Service{
-		Id:        aggService.ID,
-		Name:      aggService.Name,
-		Namespace: aggService.Namespace,
-		Instances: instances,
+		Id:          aggService.ID,
+		Name:        aggService.Name,
+		Namespace:   aggService.Namespace,
+		Instances:   instances,
+		ClusterIps:  aggService.ClusterIPs,
+		ExternalIps: aggService.ExternalIPs,
 	}
 }
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import type { v1alpha1Service } from '../../types/generated/openapi';
-import { Server, Database, Hexagon } from 'lucide-react';
+import { Server, Database, Hexagon, Globe, Network } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -63,6 +63,32 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
                         </span>
                     </div>
                 )}
+
+                {service.clusterIps &&
+                    Object.keys(service.clusterIps).length > 0 && (
+                        <div className="flex items-center gap-2">
+                            <Network className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm text-slate-600 font-mono">
+                                {Object.values(service.clusterIps).join(', ')}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                                Cluster
+                            </Badge>
+                        </div>
+                    )}
+
+                {service.externalIps &&
+                    Object.keys(service.externalIps).length > 0 && (
+                        <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-green-500" />
+                            <span className="text-sm text-slate-600 font-mono">
+                                {Object.values(service.externalIps).join(', ')}
+                            </span>
+                            <Badge variant="secondary" className="text-xs">
+                                External
+                            </Badge>
+                        </div>
+                    )}
             </CardContent>
         </Card>
     );
