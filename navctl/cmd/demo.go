@@ -25,6 +25,9 @@ import (
 	"github.com/liamawhite/navigator/pkg/localenv/microservice"
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -126,9 +129,20 @@ and proxy analysis features.`,
 
 		logger.Info("Istio installed successfully")
 
+		// Create Kubernetes client for namespace labeling
+		kubeConfig, err := clientcmd.BuildConfigFromFlags("", absKubeconfigPath)
+		if err != nil {
+			return fmt.Errorf("failed to build kubeconfig for namespace labeling: %w", err)
+		}
+
+		clientset, err := kubernetes.NewForConfig(kubeConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create kubernetes client for namespace labeling: %w", err)
+		}
+
 		// Label default namespace for Istio injection
 		logger.Info("Labeling default namespace for Istio injection")
-		if err := labelNamespaceForIstio(absKubeconfigPath, "default", logger); err != nil {
+		if err := labelNamespaceForIstio(clientset, "default", logger); err != nil {
 			return fmt.Errorf("failed to label default namespace for Istio injection: %w", err)
 		}
 
@@ -265,18 +279,28 @@ func init() {
 	demoCmd.AddCommand(demoStopCmd)
 }
 
-// labelNamespaceForIstio labels a namespace for Istio injection using kubectl
-func labelNamespaceForIstio(kubeconfigPath, namespace string, logger *slog.Logger) error {
+// labelNamespaceForIstio labels a namespace for Istio injection using Kubernetes client-go
+func labelNamespaceForIstio(clientset kubernetes.Interface, namespace string, logger *slog.Logger) error {
 	logger.Info("Labeling namespace for Istio injection", "namespace", namespace)
 
-	// Use kubectl to label the namespace
-	cmd := fmt.Sprintf("kubectl --kubeconfig=%s label namespace %s istio-injection=enabled --overwrite", kubeconfigPath, namespace)
+	// Get the namespace first to ensure it exists
+	ns, err := clientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get namespace %s: %w", namespace, err)
+	}
 
-	// Execute the command (simple approach for now)
-	// In a production system, you'd want to use the Kubernetes client-go library
-	logger.Debug("Executing kubectl command", "cmd", cmd)
+	// Add the Istio injection label
+	if ns.Labels == nil {
+		ns.Labels = make(map[string]string)
+	}
+	ns.Labels["istio-injection"] = "enabled"
 
-	// For now, we'll assume this succeeds since the chart will handle namespace creation/labeling
+	// Update the namespace
+	_, err = clientset.CoreV1().Namespaces().Update(context.Background(), ns, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update namespace %s with Istio injection label: %w", namespace, err)
+	}
+
 	logger.Info("Namespace labeled for Istio injection", "namespace", namespace)
 	return nil
 }
