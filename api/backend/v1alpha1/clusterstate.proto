@@ -17,6 +17,7 @@ syntax = "proto3";
 package navigator.backend.v1alpha1;
 
 import "types/v1alpha1/istio_resources.proto";
+import "types/v1alpha1/kubernetes_types.proto";
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 
@@ -66,6 +67,15 @@ message Service {
   
   // instances is the list of service instances backing this service.
   repeated ServiceInstance instances = 3;
+  
+  // service_type is the type of the service.
+  navigator.types.v1alpha1.ServiceType service_type = 4;
+  
+  // cluster_ip is the cluster IP address assigned to the service.
+  string cluster_ip = 5;
+  
+  // external_ip is the external IP address (for LoadBalancer services or manually assigned external IPs).
+  string external_ip = 6;
 }
 
 // Container represents a container running in a pod.
@@ -100,6 +110,7 @@ enum ProxyType {
   // GATEWAY indicates an Istio gateway proxy is present.
   GATEWAY = 3;
 }
+
 
 // ServiceInstance represents a single instance of a service.
 message ServiceInstance {

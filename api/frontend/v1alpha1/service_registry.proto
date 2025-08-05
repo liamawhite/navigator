@@ -19,6 +19,7 @@ package navigator.frontend.v1alpha1;
 import "google/api/annotations.proto";
 import "types/v1alpha1/proxy_types.proto";
 import "types/v1alpha1/istio_resources.proto";
+import "types/v1alpha1/kubernetes_types.proto";
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1";
 
@@ -119,6 +120,12 @@ message Service {
 
   // instances are the backend instances (pods) that serve this service across all clusters.
   repeated ServiceInstance instances = 4;
+  
+  // cluster_ips maps cluster names to their cluster IP addresses for this service.
+  map<string, string> cluster_ips = 5;
+  
+  // external_ips maps cluster names to their external IP addresses for this service.
+  map<string, string> external_ips = 6;
 }
 
 // ServiceInstance represents a single backend instance serving a service.
@@ -301,3 +308,4 @@ enum SyncStatus {
   SYNC_STATUS_STALE = 2; // No recent updates, potentially problematic
   SYNC_STATUS_DISCONNECTED = 3; // Connection lost
 }
+

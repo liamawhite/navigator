@@ -1341,6 +1341,20 @@
             "$ref": "#/definitions/v1alpha1ServiceInstance"
           },
           "description": "instances are the backend instances (pods) that serve this service across all clusters."
+        },
+        "clusterIps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "cluster_ips maps cluster names to their cluster IP addresses for this service."
+        },
+        "externalIps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "external_ips maps cluster names to their external IP addresses for this service."
         }
       },
       "description": "Service represents a Kubernetes service with its backing instances.\nServices in different clusters that share the same name and namespace are considered the same service."

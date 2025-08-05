@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,6 +64,11 @@ func (k *Client) convertServiceWithMaps(
 		Name:      svc.Name,
 		Namespace: svc.Namespace,
 	}
+
+	// Extract service type and IPs
+	protoService.ServiceType = k.convertServiceType(svc.Spec.Type)
+	protoService.ClusterIp = svc.Spec.ClusterIP
+	protoService.ExternalIp = k.extractExternalIP(svc)
 
 	// Get endpoint slices for this service
 	serviceKey := svc.Namespace + "/" + svc.Name
@@ -272,4 +278,39 @@ func (k *Client) fetchPods(ctx context.Context, wg *sync.WaitGroup, podsByName *
 		return
 	}
 	*podsByName = k.buildPodMap(podsResult.Items)
+}
+
+// convertServiceType converts Kubernetes service type to protobuf ServiceType enum
+func (k *Client) convertServiceType(serviceType corev1.ServiceType) types.ServiceType {
+	switch serviceType {
+	case corev1.ServiceTypeClusterIP:
+		return types.ServiceType_CLUSTER_IP
+	case corev1.ServiceTypeNodePort:
+		return types.ServiceType_NODE_PORT
+	case corev1.ServiceTypeLoadBalancer:
+		return types.ServiceType_LOAD_BALANCER
+	case corev1.ServiceTypeExternalName:
+		return types.ServiceType_EXTERNAL_NAME
+	default:
+		return types.ServiceType_SERVICE_TYPE_UNSPECIFIED
+	}
+}
+
+// extractExternalIP extracts the external IP from a Kubernetes service
+func (k *Client) extractExternalIP(svc *corev1.Service) string {
+	// For LoadBalancer services, check LoadBalancer status first
+	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		for _, ingress := range svc.Status.LoadBalancer.Ingress {
+			if ingress.IP != "" {
+				return ingress.IP
+			}
+		}
+	}
+
+	// Check for manually assigned external IPs
+	if len(svc.Spec.ExternalIPs) > 0 {
+		return svc.Spec.ExternalIPs[0] // Return the first external IP
+	}
+
+	return ""
 }

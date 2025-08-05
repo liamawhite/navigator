@@ -31,11 +31,13 @@ type Connection struct {
 
 // AggregatedService represents a service consolidated across multiple clusters
 type AggregatedService struct {
-	ID         string // namespace:service-name
-	Name       string
-	Namespace  string
-	Instances  []*AggregatedServiceInstance            // All instances across clusters
-	ClusterMap map[string][]*AggregatedServiceInstance // cluster_id -> instances
+	ID          string // namespace:service-name
+	Name        string
+	Namespace   string
+	Instances   []*AggregatedServiceInstance            // All instances across clusters
+	ClusterMap  map[string][]*AggregatedServiceInstance // cluster_id -> instances
+	ClusterIPs  map[string]string                       // cluster_id -> cluster IP
+	ExternalIPs map[string]string                       // cluster_id -> external IP
 }
 
 // Container represents a container running in a pod

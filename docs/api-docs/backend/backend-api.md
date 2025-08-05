@@ -90,6 +90,9 @@ Service represents a Kubernetes Service.
 | name | [string](#string) |  | name is the name of the service. |
 | namespace | [string](#string) |  | namespace is the namespace of the service. |
 | instances | [ServiceInstance](#navigator-backend-v1alpha1-ServiceInstance) | repeated | instances is the list of service instances backing this service. |
+| service_type | [navigator.types.v1alpha1.ServiceType](#navigator-types-v1alpha1-ServiceType) |  | service_type is the type of the service. |
+| cluster_ip | [string](#string) |  | cluster_ip is the cluster IP address assigned to the service. |
+| external_ip | [string](#string) |  | external_ip is the external IP address (for LoadBalancer services or manually assigned external IPs). |
 
 
 

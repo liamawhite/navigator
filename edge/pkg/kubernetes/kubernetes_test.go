@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -389,6 +390,235 @@ func TestClient_convertEndpointSlicesToInstancesWithMaps(t *testing.T) {
 				assert.Equal(t, tt.want[i].PodName, instance.PodName)
 				assert.Equal(t, tt.want[i].EnvoyPresent, instance.EnvoyPresent)
 			}
+		})
+	}
+}
+
+func TestClient_convertServiceType(t *testing.T) {
+	client := &Client{}
+
+	tests := []struct {
+		name        string
+		serviceType corev1.ServiceType
+		expected    types.ServiceType
+	}{
+		{
+			name:        "ClusterIP service type",
+			serviceType: corev1.ServiceTypeClusterIP,
+			expected:    types.ServiceType_CLUSTER_IP,
+		},
+		{
+			name:        "NodePort service type",
+			serviceType: corev1.ServiceTypeNodePort,
+			expected:    types.ServiceType_NODE_PORT,
+		},
+		{
+			name:        "LoadBalancer service type",
+			serviceType: corev1.ServiceTypeLoadBalancer,
+			expected:    types.ServiceType_LOAD_BALANCER,
+		},
+		{
+			name:        "ExternalName service type",
+			serviceType: corev1.ServiceTypeExternalName,
+			expected:    types.ServiceType_EXTERNAL_NAME,
+		},
+		{
+			name:        "Unknown service type",
+			serviceType: corev1.ServiceType("Unknown"),
+			expected:    types.ServiceType_SERVICE_TYPE_UNSPECIFIED,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := client.convertServiceType(tt.serviceType)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestClient_extractExternalIP(t *testing.T) {
+	client := &Client{}
+
+	tests := []struct {
+		name     string
+		service  *corev1.Service
+		expected string
+	}{
+		{
+			name: "LoadBalancer with ingress IP",
+			service: &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{
+							{IP: "203.0.113.1"},
+						},
+					},
+				},
+			},
+			expected: "203.0.113.1",
+		},
+		{
+			name: "LoadBalancer with hostname (ignored)",
+			service: &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{
+							{Hostname: "example.com"},
+						},
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "Service with external IPs",
+			service: &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					ExternalIPs: []string{"198.51.100.1", "198.51.100.2"},
+				},
+			},
+			expected: "198.51.100.1", // Returns first external IP
+		},
+		{
+			name: "LoadBalancer with both ingress IP and external IPs (ingress priority)",
+			service: &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type:        corev1.ServiceTypeLoadBalancer,
+					ExternalIPs: []string{"198.51.100.1"},
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{
+							{IP: "203.0.113.1"},
+						},
+					},
+				},
+			},
+			expected: "203.0.113.1", // LoadBalancer ingress takes priority
+		},
+		{
+			name: "ClusterIP service with no external access",
+			service: &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeClusterIP,
+					ClusterIP: "10.96.0.1",
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "NodePort service with no external IPs",
+			service: &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeNodePort,
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "Service with empty external IPs slice",
+			service: &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					ExternalIPs: []string{},
+				},
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := client.extractExternalIP(tt.service)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestClient_convertServiceWithMaps_WithIPs(t *testing.T) {
+	client := &Client{}
+
+	tests := []struct {
+		name     string
+		service  *corev1.Service
+		expected struct {
+			serviceType types.ServiceType
+			clusterIP   string
+			externalIP  string
+		}
+	}{
+		{
+			name: "ClusterIP service with cluster IP",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeClusterIP,
+					ClusterIP: "10.96.0.1",
+				},
+			},
+			expected: struct {
+				serviceType types.ServiceType
+				clusterIP   string
+				externalIP  string
+			}{
+				serviceType: types.ServiceType_CLUSTER_IP,
+				clusterIP:   "10.96.0.1",
+				externalIP:  "",
+			},
+		},
+		{
+			name: "LoadBalancer service with both cluster and external IPs",
+			service: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "lb-service",
+					Namespace: "default",
+				},
+				Spec: corev1.ServiceSpec{
+					Type:      corev1.ServiceTypeLoadBalancer,
+					ClusterIP: "10.96.0.2",
+				},
+				Status: corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{
+							{IP: "203.0.113.1"},
+						},
+					},
+				},
+			},
+			expected: struct {
+				serviceType types.ServiceType
+				clusterIP   string
+				externalIP  string
+			}{
+				serviceType: types.ServiceType_LOAD_BALANCER,
+				clusterIP:   "10.96.0.2",
+				externalIP:  "203.0.113.1",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Empty maps for endpoint slices and pods since we're only testing service IP extraction
+			endpointSlicesByService := make(map[string][]discoveryv1.EndpointSlice)
+			podsByName := make(map[string]*corev1.Pod)
+
+			result := client.convertServiceWithMaps(tt.service, endpointSlicesByService, podsByName)
+
+			assert.Equal(t, tt.service.Name, result.Name)
+			assert.Equal(t, tt.service.Namespace, result.Namespace)
+			assert.Equal(t, tt.expected.serviceType, result.ServiceType)
+			assert.Equal(t, tt.expected.clusterIP, result.ClusterIp)
+			assert.Equal(t, tt.expected.externalIP, result.ExternalIp)
 		})
 	}
 }

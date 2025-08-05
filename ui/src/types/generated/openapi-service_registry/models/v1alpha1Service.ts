@@ -24,5 +24,13 @@ export type v1alpha1Service = {
      * instances are the backend instances (pods) that serve this service across all clusters.
      */
     instances?: Array<v1alpha1ServiceInstance>;
+    /**
+     * cluster_ips maps cluster names to their cluster IP addresses for this service.
+     */
+    clusterIps?: Record<string, string>;
+    /**
+     * external_ips maps cluster names to their external IP addresses for this service.
+     */
+    externalIps?: Record<string, string>;
 };
 
