@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -399,32 +400,32 @@ func TestClient_convertServiceType(t *testing.T) {
 	tests := []struct {
 		name        string
 		serviceType corev1.ServiceType
-		expected    v1alpha1.ServiceType
+		expected    types.ServiceType
 	}{
 		{
 			name:        "ClusterIP service type",
 			serviceType: corev1.ServiceTypeClusterIP,
-			expected:    v1alpha1.ServiceType_CLUSTER_IP,
+			expected:    types.ServiceType_CLUSTER_IP,
 		},
 		{
 			name:        "NodePort service type",
 			serviceType: corev1.ServiceTypeNodePort,
-			expected:    v1alpha1.ServiceType_NODE_PORT,
+			expected:    types.ServiceType_NODE_PORT,
 		},
 		{
 			name:        "LoadBalancer service type",
 			serviceType: corev1.ServiceTypeLoadBalancer,
-			expected:    v1alpha1.ServiceType_LOAD_BALANCER,
+			expected:    types.ServiceType_LOAD_BALANCER,
 		},
 		{
 			name:        "ExternalName service type",
 			serviceType: corev1.ServiceTypeExternalName,
-			expected:    v1alpha1.ServiceType_EXTERNAL_NAME,
+			expected:    types.ServiceType_EXTERNAL_NAME,
 		},
 		{
 			name:        "Unknown service type",
 			serviceType: corev1.ServiceType("Unknown"),
-			expected:    v1alpha1.ServiceType_SERVICE_TYPE_UNSPECIFIED,
+			expected:    types.ServiceType_SERVICE_TYPE_UNSPECIFIED,
 		},
 	}
 
@@ -547,7 +548,7 @@ func TestClient_convertServiceWithMaps_WithIPs(t *testing.T) {
 		name     string
 		service  *corev1.Service
 		expected struct {
-			serviceType v1alpha1.ServiceType
+			serviceType types.ServiceType
 			clusterIP   string
 			externalIP  string
 		}
@@ -565,11 +566,11 @@ func TestClient_convertServiceWithMaps_WithIPs(t *testing.T) {
 				},
 			},
 			expected: struct {
-				serviceType v1alpha1.ServiceType
+				serviceType types.ServiceType
 				clusterIP   string
 				externalIP  string
 			}{
-				serviceType: v1alpha1.ServiceType_CLUSTER_IP,
+				serviceType: types.ServiceType_CLUSTER_IP,
 				clusterIP:   "10.96.0.1",
 				externalIP:  "",
 			},
@@ -594,11 +595,11 @@ func TestClient_convertServiceWithMaps_WithIPs(t *testing.T) {
 				},
 			},
 			expected: struct {
-				serviceType v1alpha1.ServiceType
+				serviceType types.ServiceType
 				clusterIP   string
 				externalIP  string
 			}{
-				serviceType: v1alpha1.ServiceType_LOAD_BALANCER,
+				serviceType: types.ServiceType_LOAD_BALANCER,
 				clusterIP:   "10.96.0.2",
 				externalIP:  "203.0.113.1",
 			},

@@ -12,7 +12,6 @@
     - [ServiceInstance.LabelsEntry](#navigator-backend-v1alpha1-ServiceInstance-LabelsEntry)
   
     - [ProxyType](#navigator-backend-v1alpha1-ProxyType)
-    - [ServiceType](#navigator-backend-v1alpha1-ServiceType)
   
 - [backend/v1alpha1/manager_service.proto](#backend_v1alpha1_manager_service-proto)
     - [ClusterIdentification](#navigator-backend-v1alpha1-ClusterIdentification)
@@ -91,7 +90,7 @@ Service represents a Kubernetes Service.
 | name | [string](#string) |  | name is the name of the service. |
 | namespace | [string](#string) |  | namespace is the namespace of the service. |
 | instances | [ServiceInstance](#navigator-backend-v1alpha1-ServiceInstance) | repeated | instances is the list of service instances backing this service. |
-| service_type | [ServiceType](#navigator-backend-v1alpha1-ServiceType) |  | service_type is the type of the service. |
+| service_type | [navigator.types.v1alpha1.ServiceType](#navigator-types-v1alpha1-ServiceType) |  | service_type is the type of the service. |
 | cluster_ip | [string](#string) |  | cluster_ip is the cluster IP address assigned to the service. |
 | external_ip | [string](#string) |  | external_ip is the external IP address (for LoadBalancer services or manually assigned external IPs). |
 
@@ -169,21 +168,6 @@ ProxyType indicates the type of Istio proxy running in a service instance.
 | NONE | 1 | NONE indicates no Istio proxy is present. |
 | SIDECAR | 2 | SIDECAR indicates an Istio sidecar proxy is present. |
 | GATEWAY | 3 | GATEWAY indicates an Istio gateway proxy is present. |
-
-
-
-<a name="navigator-backend-v1alpha1-ServiceType"></a>
-
-### ServiceType
-ServiceType indicates the type of Kubernetes service.
-
-| Name | Number | Description |
-| ---- | ------ | ----------- |
-| SERVICE_TYPE_UNSPECIFIED | 0 | SERVICE_TYPE_UNSPECIFIED indicates the service type is not specified or unknown. |
-| CLUSTER_IP | 1 | CLUSTER_IP exposes the service on a cluster-internal IP. |
-| NODE_PORT | 2 | NODE_PORT exposes the service on each node&#39;s IP at a static port. |
-| LOAD_BALANCER | 3 | LOAD_BALANCER exposes the service externally using a cloud provider&#39;s load balancer. |
-| EXTERNAL_NAME | 4 | EXTERNAL_NAME maps the service to the contents of the externalName field. |
 
 
  

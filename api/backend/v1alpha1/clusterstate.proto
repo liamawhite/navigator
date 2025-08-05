@@ -17,6 +17,7 @@ syntax = "proto3";
 package navigator.backend.v1alpha1;
 
 import "types/v1alpha1/istio_resources.proto";
+import "types/v1alpha1/kubernetes_types.proto";
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 
@@ -68,7 +69,7 @@ message Service {
   repeated ServiceInstance instances = 3;
   
   // service_type is the type of the service.
-  ServiceType service_type = 4;
+  navigator.types.v1alpha1.ServiceType service_type = 4;
   
   // cluster_ip is the cluster IP address assigned to the service.
   string cluster_ip = 5;
@@ -110,23 +111,6 @@ enum ProxyType {
   GATEWAY = 3;
 }
 
-// ServiceType indicates the type of Kubernetes service.
-enum ServiceType {
-  // SERVICE_TYPE_UNSPECIFIED indicates the service type is not specified or unknown.
-  SERVICE_TYPE_UNSPECIFIED = 0;
-  
-  // CLUSTER_IP exposes the service on a cluster-internal IP.
-  CLUSTER_IP = 1;
-  
-  // NODE_PORT exposes the service on each node's IP at a static port.
-  NODE_PORT = 2;
-  
-  // LOAD_BALANCER exposes the service externally using a cloud provider's load balancer.
-  LOAD_BALANCER = 3;
-  
-  // EXTERNAL_NAME maps the service to the contents of the externalName field.
-  EXTERNAL_NAME = 4;
-}
 
 // ServiceInstance represents a single instance of a service.
 message ServiceInstance {

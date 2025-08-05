@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -280,18 +281,18 @@ func (k *Client) fetchPods(ctx context.Context, wg *sync.WaitGroup, podsByName *
 }
 
 // convertServiceType converts Kubernetes service type to protobuf ServiceType enum
-func (k *Client) convertServiceType(serviceType corev1.ServiceType) v1alpha1.ServiceType {
+func (k *Client) convertServiceType(serviceType corev1.ServiceType) types.ServiceType {
 	switch serviceType {
 	case corev1.ServiceTypeClusterIP:
-		return v1alpha1.ServiceType_CLUSTER_IP
+		return types.ServiceType_CLUSTER_IP
 	case corev1.ServiceTypeNodePort:
-		return v1alpha1.ServiceType_NODE_PORT
+		return types.ServiceType_NODE_PORT
 	case corev1.ServiceTypeLoadBalancer:
-		return v1alpha1.ServiceType_LOAD_BALANCER
+		return types.ServiceType_LOAD_BALANCER
 	case corev1.ServiceTypeExternalName:
-		return v1alpha1.ServiceType_EXTERNAL_NAME
+		return types.ServiceType_EXTERNAL_NAME
 	default:
-		return v1alpha1.ServiceType_SERVICE_TYPE_UNSPECIFIED
+		return types.ServiceType_SERVICE_TYPE_UNSPECIFIED
 	}
 }
 

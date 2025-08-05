@@ -26,7 +26,6 @@
     - [ServiceInstanceDetail.AnnotationsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-AnnotationsEntry)
     - [ServiceInstanceDetail.LabelsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-LabelsEntry)
   
-    - [ServiceType](#navigator-frontend-v1alpha1-ServiceType)
     - [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus)
   
     - [ServiceRegistryService](#navigator-frontend-v1alpha1-ServiceRegistryService)
@@ -402,21 +401,6 @@ ServiceInstanceDetail represents detailed information about a specific service i
 
 
  
-
-
-<a name="navigator-frontend-v1alpha1-ServiceType"></a>
-
-### ServiceType
-ServiceType indicates the type of Kubernetes service.
-
-| Name | Number | Description |
-| ---- | ------ | ----------- |
-| SERVICE_TYPE_UNSPECIFIED | 0 | SERVICE_TYPE_UNSPECIFIED indicates the service type is not specified or unknown. |
-| CLUSTER_IP | 1 | CLUSTER_IP exposes the service on a cluster-internal IP. |
-| NODE_PORT | 2 | NODE_PORT exposes the service on each node&#39;s IP at a static port. |
-| LOAD_BALANCER | 3 | LOAD_BALANCER exposes the service externally using a cloud provider&#39;s load balancer. |
-| EXTERNAL_NAME | 4 | EXTERNAL_NAME maps the service to the contents of the externalName field. |
-
 
 
 <a name="navigator-frontend-v1alpha1-SyncStatus"></a>

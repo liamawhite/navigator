@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 )
@@ -262,7 +263,7 @@ func TestManager_ServiceIPAggregation(t *testing.T) {
 			{
 				Name:        "web-service",
 				Namespace:   "default",
-				ServiceType: v1alpha1.ServiceType_CLUSTER_IP,
+				ServiceType: types.ServiceType_CLUSTER_IP,
 				ClusterIp:   "10.96.0.1",
 				ExternalIp:  "",
 				Instances: []*v1alpha1.ServiceInstance{
@@ -280,7 +281,7 @@ func TestManager_ServiceIPAggregation(t *testing.T) {
 			{
 				Name:        "web-service",
 				Namespace:   "default",
-				ServiceType: v1alpha1.ServiceType_LOAD_BALANCER,
+				ServiceType: types.ServiceType_LOAD_BALANCER,
 				ClusterIp:   "10.97.0.1",
 				ExternalIp:  "203.0.113.1",
 				Instances: []*v1alpha1.ServiceInstance{
@@ -335,7 +336,7 @@ func TestManager_ServiceIPAggregation_EmptyIPs(t *testing.T) {
 			{
 				Name:        "headless-service",
 				Namespace:   "default",
-				ServiceType: v1alpha1.ServiceType_CLUSTER_IP,
+				ServiceType: types.ServiceType_CLUSTER_IP,
 				ClusterIp:   "", // Headless service
 				ExternalIp:  "",
 				Instances: []*v1alpha1.ServiceInstance{

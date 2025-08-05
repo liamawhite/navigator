@@ -21,6 +21,9 @@
     - [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector)
     - [WorkloadSelector.MatchLabelsEntry](#navigator-types-v1alpha1-WorkloadSelector-MatchLabelsEntry)
   
+- [types/v1alpha1/kubernetes_types.proto](#types_v1alpha1_kubernetes_types-proto)
+    - [ServiceType](#navigator-types-v1alpha1-ServiceType)
+  
 - [types/v1alpha1/proxy_types.proto](#types_v1alpha1_proxy_types-proto)
     - [BootstrapSummary](#navigator-types-v1alpha1-BootstrapSummary)
     - [ClusterManagerInfo](#navigator-types-v1alpha1-ClusterManagerInfo)
@@ -354,6 +357,37 @@ WorkloadSelector represents the workload selector criteria used across Istio res
 
 
  
+
+ 
+
+ 
+
+ 
+
+
+
+<a name="types_v1alpha1_kubernetes_types-proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## types/v1alpha1/kubernetes_types.proto
+
+
+ 
+
+
+<a name="navigator-types-v1alpha1-ServiceType"></a>
+
+### ServiceType
+ServiceType indicates the type of Kubernetes service.
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| SERVICE_TYPE_UNSPECIFIED | 0 | SERVICE_TYPE_UNSPECIFIED indicates the service type is not specified or unknown. |
+| CLUSTER_IP | 1 | CLUSTER_IP exposes the service on a cluster-internal IP. |
+| NODE_PORT | 2 | NODE_PORT exposes the service on each node&#39;s IP at a static port. |
+| LOAD_BALANCER | 3 | LOAD_BALANCER exposes the service externally using a cloud provider&#39;s load balancer. |
+| EXTERNAL_NAME | 4 | EXTERNAL_NAME maps the service to the contents of the externalName field. |
+
 
  
 
