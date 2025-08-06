@@ -149,19 +149,14 @@ and proxy analysis features.`,
 		// Install microservices topology
 		logger.Info("Installing microservices", "scenario", "three-tier")
 
-		// Create microservice Helm manager (using default namespace for Helm release management)
-		microHelmMgr, err := microservice.NewHelmManager(absKubeconfigPath, "default", logger)
+		// Create microservice Kustomize manager
+		microKustomizeMgr, err := microservice.NewKustomizeManager(absKubeconfigPath, logger)
 		if err != nil {
-			return fmt.Errorf("failed to create Helm manager for microservice installation: %w", err)
+			return fmt.Errorf("failed to create Kustomize manager for microservice installation: %w", err)
 		}
 
-		// Install microservices with custom values
-		microConfig := microservice.DefaultMicroserviceConfig()
-		microConfig.Namespace = "default"
-		microConfig.ReleaseName = "microservice-demo"
-		microConfig.CustomValues = microservice.CreateThreeTierApplicationValues()
-
-		if err := microHelmMgr.InstallMicroservice(ctx, microConfig); err != nil {
+		// Install microservices using Kustomize
+		if err := microKustomizeMgr.InstallMicroservice(ctx); err != nil {
 			return fmt.Errorf("failed to install microservices: %w", err)
 		}
 
@@ -170,7 +165,7 @@ and proxy analysis features.`,
 			"cluster", demoClusterName,
 			"kubeconfig", kubeconfigPath,
 			"istio_version", demoIstioVersion,
-			"microservices_namespace", "default")
+			"microservices_namespace", "microservice-demo")
 
 		return nil
 	},
@@ -215,14 +210,14 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 			// Try to clean up microservices first (best effort)
 			logger.Info("Attempting microservice cleanup")
 
-			microHelmMgr, err := microservice.NewHelmManager(absKubeconfigPath, "default", logger)
+			microKustomizeMgr, err := microservice.NewKustomizeManager(absKubeconfigPath, logger)
 			if err != nil {
-				logger.Debug("Could not create microservice Helm manager for cleanup", "error", err)
+				logger.Debug("Could not create microservice Kustomize manager for cleanup", "error", err)
 			} else {
 				// Check if microservice is installed
-				if installed, version, err := microHelmMgr.IsMicroserviceInstalled(ctx, "microservice-demo"); err == nil && installed {
+				if installed, version, err := microKustomizeMgr.IsMicroserviceInstalled(ctx); err == nil && installed {
 					logger.Info("Found microservice installation, cleaning up", "version", version)
-					if err := microHelmMgr.UninstallMicroservice(ctx, "microservice-demo"); err != nil {
+					if err := microKustomizeMgr.UninstallMicroservice(ctx); err != nil {
 						logger.Warn("Failed to uninstall microservices", "error", err)
 					} else {
 						logger.Info("Microservices uninstalled successfully")
