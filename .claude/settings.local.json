@@ -26,7 +26,9 @@
       "Bash(kubectl:*)",
       "Bash(./bin/navctl:*)",
       "Bash(go get:*)",
-      "Bash(tar:*)"
+      "Bash(tar:*)",
+      "Bash(gofmt:*)",
+      "Bash(go vet:*)"
     ],
     "deny": []
   }
