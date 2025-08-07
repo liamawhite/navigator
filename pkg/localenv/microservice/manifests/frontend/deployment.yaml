@@ -2,13 +2,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: frontend
-  namespace: microservice-demo
+  namespace: microservices
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: microservice-demo
+  namespace: microservices
   labels:
     app.kubernetes.io/name: frontend
     app.kubernetes.io/component: web-tier
@@ -32,17 +32,12 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
-        env:
-        - name: SERVICE_NAME
-          value: "frontend"
-        - name: PORT
-          value: "8080"
-        - name: TIMEOUT
-          value: "30s"
-        - name: LOG_LEVEL
-          value: "info"
-        - name: LOG_FORMAT
-          value: "json"
+        args:
+        - "-service-name=frontend"
+        - "-port=8080"
+        - "-timeout=30s"
+        - "-log-level=info"
+        - "-log-format=json"
         livenessProbe:
           httpGet:
             path: /health
@@ -62,21 +57,3 @@ spec:
           limits:
             memory: "256Mi"
             cpu: "200m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: frontend
-  namespace: microservice-demo
-  labels:
-    app.kubernetes.io/name: frontend
-    app.kubernetes.io/component: web-tier
-spec:
-  type: ClusterIP
-  ports:
-  - port: 8080
-    targetPort: http
-    protocol: TCP
-    name: http
-  selector:
-    app.kubernetes.io/name: frontend

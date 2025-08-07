@@ -18,9 +18,23 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"sigs.k8s.io/kind/pkg/cluster"
+)
+
+// Fixed NodePort assignments for Kind cluster demo configuration
+// These ports are bound 1:1 from host to Kind container for direct access
+const (
+	// HTTPNodePort is the fixed NodePort for HTTP traffic (port 80)
+	HTTPNodePort = 30080
+	// HTTPSNodePort is the fixed NodePort for HTTPS traffic (port 443)
+	HTTPSNodePort = 30443
+	// StatusNodePort is the fixed NodePort for status/health checks (port 15021)
+	StatusNodePort = 31021
 )
 
 type KindManager struct {
@@ -58,7 +72,15 @@ func (k *KindManager) CreateCluster(ctx context.Context, config KindClusterConfi
 		createOptions = append(createOptions, cluster.CreateWithNodeImage(config.Image))
 	}
 
-	if config.ConfigPath != "" {
+	// Create Kind config file if we need port mappings
+	if len(config.ExtraPortMaps) > 0 {
+		configPath, err := k.createKindConfigFile(config)
+		if err != nil {
+			return fmt.Errorf("failed to create Kind config file: %w", err)
+		}
+		createOptions = append(createOptions, cluster.CreateWithConfigFile(configPath))
+		k.logger.Debug("Using generated Kind config", "path", configPath)
+	} else if config.ConfigPath != "" {
 		createOptions = append(createOptions, cluster.CreateWithConfigFile(config.ConfigPath))
 	}
 
@@ -148,6 +170,63 @@ func DefaultKindConfig(name string) KindClusterConfig {
 		ExtraPortMaps:   []string{},
 		DisableDefaults: false,
 	}
+}
+
+// DemoKindConfig returns a Kind configuration suitable for demo clusters with NodePort access
+func DemoKindConfig(name string) KindClusterConfig {
+	// Bind the specific fixed ports for Istio gateway access
+	portMaps := []string{
+		fmt.Sprintf("%d:%d", HTTPNodePort, HTTPNodePort),     // HTTP
+		fmt.Sprintf("%d:%d", HTTPSNodePort, HTTPSNodePort),   // HTTPS
+		fmt.Sprintf("%d:%d", StatusNodePort, StatusNodePort), // Status
+	}
+
+	return KindClusterConfig{
+		Name:            name,
+		Image:           "",
+		KubeVersion:     "",
+		ConfigPath:      "",
+		ExtraMounts:     []string{},
+		ExtraPortMaps:   portMaps,
+		DisableDefaults: false,
+	}
+}
+
+func (k *KindManager) createKindConfigFile(config KindClusterConfig) (string, error) {
+	configYAML := `kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  extraPortMappings:`
+
+	for _, portMap := range config.ExtraPortMaps {
+		parts := strings.Split(portMap, ":")
+		if len(parts) != 2 {
+			return "", fmt.Errorf("invalid port mapping format: %s", portMap)
+		}
+
+		hostPort := parts[0]
+		containerPort := parts[1]
+
+		configYAML += fmt.Sprintf(`
+  - containerPort: %s
+    hostPort: %s
+    protocol: TCP`, containerPort, hostPort)
+	}
+
+	// Create temporary config file
+	tempDir := filepath.Join(os.TempDir(), "kind-configs")
+	if err := os.MkdirAll(tempDir, 0750); err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+
+	configPath := filepath.Join(tempDir, fmt.Sprintf("%s-config.yaml", config.Name))
+	if err := os.WriteFile(configPath, []byte(configYAML), 0600); err != nil {
+		return "", fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	k.logger.Debug("Created Kind config file", "path", configPath)
+	return configPath, nil
 }
 
 func (k *KindManager) WaitForClusterReady(ctx context.Context, name string) error {

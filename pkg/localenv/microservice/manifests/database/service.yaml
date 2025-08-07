@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: database
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: database
+    app.kubernetes.io/component: data-tier
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: database

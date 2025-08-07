@@ -81,8 +81,8 @@ and proxy analysis features.`,
 			}
 		}
 
-		// Create the cluster
-		config := kind.DefaultKindConfig(demoClusterName)
+		// Create the cluster with NodePort port mappings for direct access
+		config := kind.DemoKindConfig(demoClusterName)
 		if err := kindMgr.CreateCluster(ctx, config); err != nil {
 			return fmt.Errorf("failed to create demo cluster: %w", err)
 		}
@@ -161,11 +161,55 @@ and proxy analysis features.`,
 		}
 
 		logger.Info("Microservices installed successfully")
-		logger.Info("Demo cluster ready",
-			"cluster", demoClusterName,
-			"kubeconfig", kubeconfigPath,
-			"istio_version", demoIstioVersion,
-			"microservices_namespace", "microservice-demo")
+
+		// Verify the microservice chain is working
+		logger.Info("Verifying microservice connectivity...")
+
+		// Verify Istio gateway readiness
+		logger.Info("Step 1/2: Verifying Istio gateway readiness...")
+		if err := helmMgr.VerifyIstioGateway(ctx); err != nil {
+			logger.Error("Istio gateway verification failed", "error", err)
+			logger.Info("Demo cluster ready but verification incomplete - try manual testing",
+				"cluster", demoClusterName,
+				"kubeconfig", kubeconfigPath,
+				"istio_version", demoIstioVersion,
+				"microservices_namespace", "microservices",
+				"http_port", kind.HTTPNodePort)
+			return nil
+		}
+		logger.Info("✓ Istio gateway verification successful")
+
+		// Verify microservice chain
+		logger.Info("Step 2/2: Verifying microservice request chain...")
+		if err := microKustomizeMgr.VerifyMicroserviceChain(ctx); err != nil {
+			logger.Error("Microservice verification failed", "error", err)
+			logger.Info("Demo cluster ready but verification incomplete - try manual testing",
+				"cluster", demoClusterName,
+				"kubeconfig", kubeconfigPath,
+				"istio_version", demoIstioVersion,
+				"microservices_namespace", "microservices",
+				"http_port", kind.HTTPNodePort)
+		} else {
+			logger.Info("✓ Microservice verification successful - full chain working!")
+			logger.Info("🎉 Demo cluster ready and verified!",
+				"cluster", demoClusterName,
+				"kubeconfig", kubeconfigPath,
+				"istio_version", demoIstioVersion,
+				"microservices_namespace", "microservices",
+				"test_url", "Gateway -> Frontend -> Backend -> Database chain verified",
+				"http_port", kind.HTTPNodePort,
+				"https_port", kind.HTTPSNodePort,
+				"status_port", kind.StatusNodePort)
+
+			// Print curl examples for manual testing after all structured logging
+			fmt.Printf("\n🧪 Test the microservice chain manually:\n")
+			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database:8080\"\n", kind.HTTPNodePort)
+			fmt.Printf("\n🔍 Test individual services:\n")
+			fmt.Printf("   curl -s \"http://localhost:%d\"                              # Frontend only\n", kind.HTTPNodePort)
+			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080\"             # Frontend -> Backend\n", kind.HTTPNodePort)
+			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database:8080\" # Full chain\n", kind.HTTPNodePort)
+			fmt.Printf("\n")
+		}
 
 		return nil
 	},

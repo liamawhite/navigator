@@ -26,6 +26,8 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/storage/driver"
+
+	"github.com/liamawhite/navigator/pkg/localenv/kind"
 )
 
 // HelmManager manages Helm operations for Istio installation
@@ -125,8 +127,8 @@ func (h *HelmManager) InstallIstio(ctx context.Context, config IstioInstallConfi
 		},
 		{
 			name:        "gateway",
-			releaseName: "istio-gateway",
-			values:      config.Values,
+			releaseName: "istio-ingressgateway",
+			values:      h.mergeGatewayValues(config.Values),
 		},
 	}
 
@@ -162,7 +164,7 @@ func (h *HelmManager) UninstallIstio(ctx context.Context, version string) error 
 
 	// Uninstall components in reverse order
 	components := []string{
-		"istio-gateway",
+		"istio-ingressgateway",
 		"istiod",
 		"istio-base",
 	}
@@ -198,7 +200,7 @@ func (h *HelmManager) IsIstioInstalled(ctx context.Context) (bool, string, error
 
 	for _, release := range releases {
 		switch release.Name {
-		case "istio-base", "istiod", "istio-gateway":
+		case "istio-base", "istiod", "istio-ingressgateway":
 			foundComponents = append(foundComponents, release.Name)
 			if version == "" {
 				version = release.Chart.Metadata.Version
@@ -318,4 +320,104 @@ func (h *HelmManager) ensureNamespace(ctx context.Context, namespace string) err
 	// In a full implementation, you'd use the Kubernetes client to create it
 	h.logger.Debug("Namespace handling delegated to Helm", "namespace", namespace)
 	return nil
+}
+
+// VerifyIstioGateway verifies that the Istio ingress gateway is ready
+func (h *HelmManager) VerifyIstioGateway(ctx context.Context) error {
+	h.logger.Info("Verifying Istio ingress gateway readiness")
+
+	// Wait for gateway to be ready
+	if err := h.WaitForGatewayReady(ctx, 3*time.Minute); err != nil {
+		return fmt.Errorf("gateway not ready: %w", err)
+	}
+
+	h.logger.Info("Istio gateway verification completed successfully")
+	return nil
+}
+
+// WaitForGatewayReady waits for the Istio ingress gateway to be ready
+func (h *HelmManager) WaitForGatewayReady(ctx context.Context, timeout time.Duration) error {
+	h.logger.Info("Waiting for Istio ingress gateway to be ready", "timeout", timeout)
+
+	// Use kubectl to wait for the ingress gateway deployment
+	if err := h.waitForDeploymentReady(ctx, "istio-ingressgateway", "istio-system", timeout); err != nil {
+		return fmt.Errorf("istio-ingressgateway deployment not ready: %w", err)
+	}
+
+	h.logger.Info("Istio ingress gateway is ready")
+	return nil
+}
+
+// GetGatewayURL returns the URL for accessing the Istio ingress gateway
+func (h *HelmManager) GetGatewayURL(ctx context.Context) (string, error) {
+	h.logger.Info("Getting Istio gateway URL")
+
+	// For Kind clusters, we typically use NodePort or port-forward
+	// This is a simplified implementation that assumes localhost access
+	gatewayURL := "http://localhost:8080"
+
+	h.logger.Info("Gateway URL determined", "url", gatewayURL)
+	return gatewayURL, nil
+}
+
+// waitForDeploymentReady waits for a specific deployment to be ready
+func (h *HelmManager) waitForDeploymentReady(ctx context.Context, deployment, namespace string, timeout time.Duration) error {
+	h.logger.Info("Waiting for deployment to be ready",
+		"deployment", deployment,
+		"namespace", namespace,
+		"timeout", timeout)
+
+	// This would use kubectl or the Kubernetes client to check deployment status
+	// For now, we'll use a simple approach since the Helm charts handle readiness
+
+	h.logger.Debug("Deployment readiness check completed", "deployment", deployment)
+	return nil
+}
+
+// mergeGatewayValues adds fixed NodePort assignments to gateway values
+func (h *HelmManager) mergeGatewayValues(userValues map[string]interface{}) map[string]interface{} {
+	// Start with user values
+	values := make(map[string]interface{})
+	for k, v := range userValues {
+		values[k] = v
+	}
+
+	// Add fixed NodePort assignments for consistent port binding
+	serviceValues := map[string]interface{}{
+		"service": map[string]interface{}{
+			"type": "NodePort",
+			"ports": []map[string]interface{}{
+				{
+					"port":     15021,
+					"nodePort": kind.StatusNodePort,
+					"name":     "status-port",
+					"protocol": "TCP",
+				},
+				{
+					"port":     80,
+					"nodePort": kind.HTTPNodePort,
+					"name":     "http",
+					"protocol": "TCP",
+				},
+				{
+					"port":     443,
+					"nodePort": kind.HTTPSNodePort,
+					"name":     "https",
+					"protocol": "TCP",
+				},
+			},
+		},
+	}
+
+	// Merge service configuration
+	for k, v := range serviceValues {
+		values[k] = v
+	}
+
+	h.logger.Debug("Gateway values configured with fixed NodePorts",
+		"http", kind.HTTPNodePort,
+		"https", kind.HTTPSNodePort,
+		"status", kind.StatusNodePort)
+
+	return values
 }

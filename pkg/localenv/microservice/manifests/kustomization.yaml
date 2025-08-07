@@ -3,12 +3,14 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - frontend.yaml
-  - backend.yaml
-  - database.yaml
+  - gateway.yaml
+  - peerauthentication.yaml
+  - frontend
+  - backend
+  - database
 
 commonLabels:
   app.kubernetes.io/part-of: three-tier-microservice
   app.kubernetes.io/managed-by: navigator
 
-namespace: microservice-demo
+namespace: microservices

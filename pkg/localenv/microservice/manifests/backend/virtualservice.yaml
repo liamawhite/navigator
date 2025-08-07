@@ -1,0 +1,26 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: backend
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: backend-vs
+    app.kubernetes.io/component: networking
+spec:
+  hosts:
+  - backend.microservices.svc.cluster.local
+  http:
+  - route:
+    - destination:
+        host: backend.microservices.svc.cluster.local
+        port:
+          number: 8080
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 5s
