@@ -1,0 +1,14 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: backend
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: backend-peer-auth
+    app.kubernetes.io/component: security
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  mtls:
+    mode: STRICT

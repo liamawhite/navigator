@@ -16,9 +16,7 @@ package microservice
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,37 +24,9 @@ import (
 	"time"
 )
 
-//go:embed manifests/*
-var manifestsFS embed.FS
-
-// KustomizeManager manages Kustomize operations for microservice installation
-type KustomizeManager struct {
-	kubeconfig string
-	logger     *slog.Logger
-}
-
-// NewKustomizeManager creates a new Kustomize manager instance for microservices
-func NewKustomizeManager(kubeconfig string, logger *slog.Logger) (*KustomizeManager, error) {
-	if logger == nil {
-		logger = slog.Default()
-	}
-
-	k := &KustomizeManager{
-		kubeconfig: kubeconfig,
-		logger:     logger,
-	}
-
-	// Check if kubectl is available
-	if err := k.checkKubectl(); err != nil {
-		return nil, fmt.Errorf("kubectl not available: %w", err)
-	}
-
-	return k, nil
-}
-
 // InstallMicroservice installs microservice manifests
 func (k *KustomizeManager) InstallMicroservice(ctx context.Context) error {
-	k.logger.Info("Starting microservice installation", "namespace", "microservice-demo")
+	k.logger.Info("Starting microservice installation", "namespace", "microservices")
 
 	// Create temporary directory for manifests
 	tempDir, err := os.MkdirTemp("", "navigator-microservice-*")
@@ -73,8 +43,6 @@ func (k *KustomizeManager) InstallMicroservice(ctx context.Context) error {
 	if err := k.extractManifests(tempDir); err != nil {
 		return fmt.Errorf("failed to extract manifests: %w", err)
 	}
-
-	// Use the namespace from kustomization.yaml (microservice-demo)
 
 	// Apply manifests using kubectl with 2 minute timeout
 	if err := k.applyManifests(ctx, tempDir, 2*time.Minute); err != nil {
@@ -117,7 +85,7 @@ func (k *KustomizeManager) UninstallMicroservice(ctx context.Context) error {
 // IsMicroserviceInstalled checks if microservice is installed
 func (k *KustomizeManager) IsMicroserviceInstalled(ctx context.Context) (bool, string, error) {
 	// Check if namespace exists and has our labeled resources
-	args := []string{"get", "namespace", "microservice-demo"}
+	args := []string{"get", "namespace", "microservices"}
 	if k.kubeconfig != "" {
 		args = append([]string{"--kubeconfig", k.kubeconfig}, args...)
 	}
@@ -133,7 +101,7 @@ func (k *KustomizeManager) IsMicroserviceInstalled(ctx context.Context) (bool, s
 	}
 
 	// Check if deployments exist
-	args = []string{"get", "deployments", "-n", "microservice-demo", "-l", "app.kubernetes.io/part-of=three-tier-microservice"}
+	args = []string{"get", "deployments", "-n", "microservices", "-l", "app.kubernetes.io/part-of=three-tier-microservice"}
 	if k.kubeconfig != "" {
 		args = append([]string{"--kubeconfig", k.kubeconfig}, args...)
 	}
@@ -149,26 +117,42 @@ func (k *KustomizeManager) IsMicroserviceInstalled(ctx context.Context) (bool, s
 	return hasDeployments, "latest", nil
 }
 
-// extractManifests extracts embedded manifests to a temporary directory
+// extractManifests extracts embedded manifests to a temporary directory recursively
 func (k *KustomizeManager) extractManifests(tempDir string) error {
-	entries, err := manifestsFS.ReadDir("manifests")
+	return k.extractDirectory("manifests", tempDir)
+}
+
+// extractDirectory recursively extracts a directory from the embedded filesystem
+func (k *KustomizeManager) extractDirectory(srcDir, destDir string) error {
+	entries, err := manifestsFS.ReadDir(srcDir)
 	if err != nil {
-		return fmt.Errorf("failed to read embedded manifests: %w", err)
+		return fmt.Errorf("failed to read embedded directory %s: %w", srcDir, err)
 	}
 
 	for _, entry := range entries {
+		srcPath := filepath.Join(srcDir, entry.Name())
+		destPath := filepath.Join(destDir, entry.Name())
+
 		if entry.IsDir() {
-			continue
-		}
+			// Create the directory
+			if err := os.MkdirAll(destPath, 0750); err != nil {
+				return fmt.Errorf("failed to create directory %s: %w", destPath, err)
+			}
 
-		content, err := manifestsFS.ReadFile(filepath.Join("manifests", entry.Name()))
-		if err != nil {
-			return fmt.Errorf("failed to read manifest %s: %w", entry.Name(), err)
-		}
+			// Recursively extract subdirectory
+			if err := k.extractDirectory(srcPath, destPath); err != nil {
+				return fmt.Errorf("failed to extract subdirectory %s: %w", srcPath, err)
+			}
+		} else {
+			// Extract file
+			content, err := manifestsFS.ReadFile(srcPath)
+			if err != nil {
+				return fmt.Errorf("failed to read manifest %s: %w", srcPath, err)
+			}
 
-		filePath := filepath.Join(tempDir, entry.Name())
-		if err := os.WriteFile(filePath, content, 0600); err != nil {
-			return fmt.Errorf("failed to write manifest %s: %w", entry.Name(), err)
+			if err := os.WriteFile(destPath, content, 0600); err != nil {
+				return fmt.Errorf("failed to write manifest %s: %w", destPath, err)
+			}
 		}
 	}
 
@@ -226,7 +210,7 @@ func (k *KustomizeManager) waitForDeployments(ctx context.Context, timeout time.
 	deployments := []string{"frontend", "backend", "database"}
 
 	for _, deployment := range deployments {
-		args := []string{"rollout", "status", "deployment/" + deployment, "-n", "microservice-demo", "--timeout=" + timeout.String()}
+		args := []string{"rollout", "status", "deployment/" + deployment, "-n", "microservices", "--timeout=" + timeout.String()}
 		if k.kubeconfig != "" {
 			args = append([]string{"--kubeconfig", k.kubeconfig}, args...)
 		}
@@ -241,14 +225,5 @@ func (k *KustomizeManager) waitForDeployments(ctx context.Context, timeout time.
 		k.logger.Info("Deployment is ready", "deployment", deployment)
 	}
 
-	return nil
-}
-
-// checkKubectl verifies that kubectl is available
-func (k *KustomizeManager) checkKubectl() error {
-	cmd := exec.Command("kubectl", "version", "--client", "--output=yaml")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("kubectl not found or not working: %w", err)
-	}
 	return nil
 }

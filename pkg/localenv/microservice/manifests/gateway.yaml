@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: microservice-gateway
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: microservice-gateway
+    app.kubernetes.io/component: networking
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
