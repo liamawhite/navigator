@@ -16,6 +16,9 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -45,9 +48,17 @@ func runDocs(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Disable auto-generated tag for cleaner output
+	rootCmd.DisableAutoGenTag = true
+
 	// Generate markdown docs for all commands
 	err := doc.GenMarkdownTree(rootCmd, outputDir)
 	if err != nil {
+		return err
+	}
+
+	// Normalize environment-specific paths in generated docs
+	if err := normalizeGeneratedDocs(outputDir); err != nil {
 		return err
 	}
 
@@ -61,4 +72,51 @@ func runDocs(cmd *cobra.Command, args []string) error {
 	cmd.Printf("CLI documentation generated successfully in %s\n", outputDir)
 	cmd.Printf("Main CLI reference available at %s\n", newPath)
 	return nil
+}
+
+// normalizeGeneratedDocs normalizes environment-specific paths in generated documentation
+func normalizeGeneratedDocs(outputDir string) error {
+	// Regex patterns to normalize environment-specific kubeconfig paths
+	patterns := []*regexp.Regexp{
+		regexp.MustCompile(`/Users/[^/\s]+/\.kube/config`),
+		regexp.MustCompile(`/home/[^/\s]+/\.kube/config`),
+	}
+
+	return filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Only process .md files
+		if !strings.HasSuffix(path, ".md") {
+			return nil
+		}
+
+		// Ensure path is within output directory to prevent path traversal
+		relPath, err := filepath.Rel(outputDir, path)
+		if err != nil || strings.Contains(relPath, "..") {
+			return nil // Skip files outside output directory
+		}
+
+		// Read file content
+		content, err := os.ReadFile(filepath.Clean(path))
+		if err != nil {
+			return err
+		}
+
+		// Apply normalization patterns
+		normalized := string(content)
+		for _, pattern := range patterns {
+			normalized = pattern.ReplaceAllString(normalized, "~/.kube/config")
+		}
+
+		// Write back if content changed
+		if normalized != string(content) {
+			if err := os.WriteFile(path, []byte(normalized), info.Mode()); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
