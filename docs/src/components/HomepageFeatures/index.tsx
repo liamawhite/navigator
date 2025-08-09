@@ -25,32 +25,32 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: 'Multi-cluster Service Discovery',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Aggregate and visualize Kubernetes services across multiple clusters 
+        with real-time synchronization through gRPC streaming connections.
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: 'Proxy Configuration Analysis',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        Deep inspection of Envoy/Istio proxy configurations with structured
+        analysis of listeners, clusters, routes, and endpoints.
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Simple Local Development',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Start exploring your clusters in seconds with <code>navctl local</code> - 
+        a single command that launches the entire Navigator stack locally.
       </>
     ),
   },

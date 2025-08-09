@@ -1,22 +1,52 @@
 # Architecture
 
-Navigator is built on an edge computing architecture where **Edge** processes connect to a central **Manager** through bidirectional streaming connections. This design enables real-time communication, data synchronization, and dynamic coordination between edge components.
+Navigator runs all components on your local machine or a dedicated server outside the cluster using the `navctl local` command.
 
-## Core Architecture
+## navctl local Architecture
 
-![Core Architecture](./core-architecture.svg)
+![navctl Local Architecture](./navctl-local-architecture.svg)
 
-## Component Roles
+**Characteristics:**
+- **Single process**: Manager, multiple Edge instances, and UI run within one `navctl local` process
+- **Multi-cluster support**: Each edge instance manages a different Kubernetes cluster
+- **External access**: Connects to Kubernetes clusters via kubeconfig
+- **Simple deployment**: No in-cluster permissions or resources required
+- **Dynamic cluster switching**: Can add/remove clusters by updating kubeconfig contexts
+- **Development friendly**: Ideal for development, testing, and lightweight production
 
-### Edges
-- **Edge processes** that communicate with Kubernetes API servers
-- **Flexible deployment** - can run external to cluster or as containers in-cluster
-- **State synchronization** - sync high-level state of services, pods, and endpoint slices with the central manager
-- **On-demand query responders** - provide additional information such as proxy configuration for individual proxies when requested by the management plane
+**Use Cases:**
+- Development and testing
+- CI/CD environments  
+- Small to medium deployments
+- Situations where in-cluster deployment is restricted
+- Multi-cluster management from a central location
 
-### Manager
-- **Central coordination point** for all edge processes
-- **Connection orchestrator** managing multiple streaming connections
-- **High-level state aggregator** - maintains consolidated view of services, pods, and endpoint slices across clusters
-- **Query initiator** - requests detailed information (like proxy configurations) from edges when needed
-- **Scalable data management** - stores lightweight state centrally while keeping detailed data distributed at the edges
+## Core Components
+
+### Manager Service
+- **Central coordination hub** for all edge connections
+- **Bidirectional streaming** - maintains persistent gRPC connections with edges
+- **State aggregation** - consolidates cluster state from multiple sources
+- **Query routing** - directs proxy configuration requests to appropriate edges
+- **API gateway** - serves HTTP REST API for UI and external integrations
+
+**Deployment:**
+- Embedded in navctl process on ports 8080 (gRPC) and 8081 (HTTP)
+
+### Edge Service  
+- **Cluster connector** - interfaces with Kubernetes API servers
+- **State synchronization** - streams services, pods, and endpoints to manager
+- **Proxy analysis** - connects to Envoy admin APIs for configuration retrieval
+- **Flexible deployment** - runs externally via kubeconfig
+
+**Deployment:**
+- Multiple edge instances embedded in navctl process, each using different kubeconfig contexts
+
+### Web UI
+- **Service discovery interface** - browse and inspect Kubernetes services
+- **Proxy visualization** - view Envoy configurations in structured format  
+- **Real-time updates** - live data from manager API
+- **Multi-cluster view** - unified interface across all connected clusters
+
+**Deployment:**
+- Embedded in navctl, served on port 3000
