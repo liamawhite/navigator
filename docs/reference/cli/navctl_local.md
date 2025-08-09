@@ -34,11 +34,7 @@ Examples:
   # Use custom kubeconfig with patterns
   navctl local --kube-config ~/.kube/config --contexts "*-prod"
 
-Available contexts in ~/.kube/config:
-  - kind-microservice-test
-  * kind-navigator-demo (current)
-  - kind-scenario-test
-
+Available contexts will be shown from your kubeconfig file.
 ```
 navctl local [flags]
 ```
