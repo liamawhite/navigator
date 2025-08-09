@@ -22,8 +22,9 @@ import (
 )
 
 var docsCmd = &cobra.Command{
-	Use:   "docs",
-	Short: "Generate CLI reference documentation",
+	Use:    "docs",
+	Short:  "Generate CLI reference documentation",
+	Hidden: true,
 	Long: `Generate markdown documentation for all navctl commands.
 
 This command generates comprehensive CLI reference documentation
@@ -38,25 +39,25 @@ func init() {
 
 func runDocs(cmd *cobra.Command, args []string) error {
 	outputDir, _ := cmd.Flags().GetString("output")
-	
+
 	// Ensure output directory exists
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0750); err != nil {
 		return err
 	}
-	
+
 	// Generate markdown docs for all commands
 	err := doc.GenMarkdownTree(rootCmd, outputDir)
 	if err != nil {
 		return err
 	}
-	
+
 	// Rename the main navctl.md to cli-reference.md to replace the manual version
 	oldPath := outputDir + "/navctl.md"
 	newPath := outputDir + "/cli-reference.md"
 	if err := os.Rename(oldPath, newPath); err != nil {
 		return err
 	}
-	
+
 	cmd.Printf("CLI documentation generated successfully in %s\n", outputDir)
 	cmd.Printf("Main CLI reference available at %s\n", newPath)
 	return nil

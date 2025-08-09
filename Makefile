@@ -47,7 +47,7 @@ generate: clean
 	cd api && buf generate --template buf.gen.backend-docs.yaml
 	cd api && buf generate --template buf.gen.types-docs.yaml
 	cd ui && npm ci && npm run generate
-	go run ./navctl/main.go docs
+	go run -tags=docs ./navctl/main.go docs
 
 generate-cli-docs:
 	go run ./navctl/main.go docs
