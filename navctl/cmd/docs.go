@@ -81,7 +81,7 @@ func normalizeGeneratedDocs(outputDir string) error {
 		regexp.MustCompile(`/Users/[^/\s]+/\.kube/config`),
 		regexp.MustCompile(`/home/[^/\s]+/\.kube/config`),
 	}
-	
+
 	// Pattern to normalize dynamic context listing - more precise to avoid removing too much
 	contextPattern := regexp.MustCompile(`(?s)Available contexts in [^:]+:\s*\n(?:\s*[-*]\s+[^\n]*\n)*\n`)
 	errorContextPattern := regexp.MustCompile(`\(Note: Could not read kubeconfig to show available contexts\)\s*\n`)
@@ -113,7 +113,7 @@ func normalizeGeneratedDocs(outputDir string) error {
 		for _, pattern := range patterns {
 			normalized = pattern.ReplaceAllString(normalized, "~/.kube/config")
 		}
-		
+
 		// Replace dynamic context listings with generic placeholder
 		normalized = contextPattern.ReplaceAllString(normalized, "Available contexts will be shown from your kubeconfig file.\n")
 		normalized = errorContextPattern.ReplaceAllString(normalized, "Available contexts will be shown from your kubeconfig file.\n")
