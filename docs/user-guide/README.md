@@ -10,7 +10,7 @@ This guide helps you get started with Navigator and covers common usage patterns
 
 ## Overview
 
-Navigator is an edge computing platform that provides Kubernetes service discovery and proxy configuration analysis. It consists of three main components:
+Navigator is a service-focused analysis tool for Kubernetes and Istio that provides service discovery and proxy configuration analysis. It consists of three main components:
 
 - **navctl** - CLI tool for local development and orchestration
 - **manager** - Central coordination point for edge connections

@@ -1,6 +1,6 @@
 # Navigator Documentation
 
-Welcome to the Navigator documentation. Navigator is an edge computing platform that provides Kubernetes service discovery and proxy configuration analysis.
+Welcome to the Navigator documentation. Navigator is a service-focused analysis tool for Kubernetes and Istio that provides service discovery and proxy configuration analysis.
 
 ## Documentation Sections
 
