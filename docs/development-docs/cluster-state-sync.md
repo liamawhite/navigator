@@ -15,14 +15,28 @@ Edge processes operate on configurable intervals (typically every 30 seconds) to
 1. **Service Discovery**: Query the Kubernetes API server for all Services across all namespaces
 2. **Endpoint Collection**: Query for all EndpointSlices to understand service endpoints
 3. **Pod Enumeration**: Query for all Pods to track workload state
+4. **Istio Resource Discovery**: Query for Istio Custom Resource Definitions (CRDs) including VirtualServices, DestinationRules, Gateways, ServiceEntries, Sidecars, EnvoyFilters, authentication policies, and WebAssembly plugins across all namespaces
 
 ### Data Packaging
 
-The collected Kubernetes resources are packaged into a ClusterState message that includes:
+The collected Kubernetes and Istio resources are packaged into a ClusterState message that includes:
 
+#### Core Kubernetes Resources
 - **Services**: Service definitions including names, namespaces, selectors, and ports
 - **EndpointSlices**: Endpoint information including IP addresses, ports, and readiness status
 - **Pods**: Pod metadata including names, namespaces, labels, and current phase
+
+#### Istio Service Mesh Resources
+- **VirtualService**: Traffic routing and splitting rules for service-to-service communication
+- **DestinationRule**: Load balancing policies, connection pooling, and circuit breaker configurations
+- **Gateway**: Ingress and egress gateway configurations for external traffic management
+- **ServiceEntry**: External service registrations to extend the service mesh
+- **Sidecar**: Sidecar proxy configurations controlling traffic flow and resource consumption
+- **EnvoyFilter**: Custom Envoy proxy filters for advanced traffic manipulation
+- **PeerAuthentication**: Mutual TLS (mTLS) authentication policies between services
+- **RequestAuthentication**: JWT token authentication policies for incoming requests
+- **WasmPlugin**: WebAssembly plugin configurations for extending proxy functionality
+- **IstioControlPlaneConfig**: Istio control plane metadata and configuration settings
 
 ### Transmission to Manager
 
@@ -127,6 +141,13 @@ When an edge connection fails:
 - **Retry Configuration**: Retry counts and backoff strategies
 - **Buffer Sizes**: Message queuing limits
 - **Keep-Alive Settings**: Heartbeat intervals
-- **Max Message Size**: gRPC maximum message size limit (default 4MB may need adjustment for large clusters)
+- **Max Message Size**: gRPC maximum message size limit (default 4MB may need adjustment for large clusters or clusters with extensive Istio configurations)
+
+### Istio Resource Considerations
+
+- **Payload Size Impact**: Istio resources can significantly increase sync message sizes, especially in clusters with complex service mesh configurations
+- **Resource Filtering**: Edge processes collect all Istio resources across all namespaces; consider namespace-based filtering for very large clusters
+- **Sync Performance**: Large numbers of Istio resources may require increased sync intervals or buffer sizes to prevent resource exhaustion
+- **Control Plane Detection**: Istio control plane metadata is automatically detected and included in cluster state for proper resource interpretation
 
 

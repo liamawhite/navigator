@@ -2,46 +2,69 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Getting Started with Navigator
 
-Let's discover **Docusaurus in less than 5 minutes**.
+Navigator is a Kubernetes service discovery and proxy configuration analysis tool that helps you visualize and understand your services across multiple clusters.
 
-## Getting Started
+## What is Navigator?
 
-Get started by **creating a new site**.
+Navigator helps you understand and visualize your Kubernetes services across multiple clusters with built-in support for Istio service mesh analysis. Key features include:
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+- **Multi-cluster Service Discovery**: Aggregate services from multiple Kubernetes clusters
+- **Proxy Configuration Analysis**: Deep inspection of Envoy/Istio proxy configurations
+- **Real-time Synchronization**: Live updates of cluster state through gRPC streaming
+- **Web Interface**: Modern React UI for service visualization and configuration viewing
+- **Simple Setup**: Single command to start all components
 
-### What you'll need
+## Core Components
 
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+- **Manager**: Central coordination point that aggregates cluster state from multiple edges
+- **Edge**: Connects to Kubernetes clusters and streams state to the manager
+- **navctl**: CLI tool that orchestrates all components
+- **UI**: React web interface for service discovery and proxy analysis
 
-## Generate a new site
+## Quick Start
 
-Generate a new Docusaurus site using the **classic template**.
+The fastest way to get started with Navigator:
 
-The classic template will automatically be added to your project after you run the command:
+### Prerequisites
+
+- A running Kubernetes cluster with kubeconfig access
+
+### Installation
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/liamawhite/navigator/releases/latest).
+
+### Start Navigator
+
+Once installed, start Navigator with a single command:
 
 ```bash
-npm init docusaurus@latest my-website classic
+navctl local
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+This will:
+1. Start the manager service
+2. Start an edge process connected to your current kubectl context
+3. Launch the web UI
+4. Automatically open your browser to http://localhost:3000
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+### Exploring the Interface
 
-## Start your site
+In the web interface, you can:
 
-Run the development server:
+- **Browse Services**: View all Kubernetes services across connected clusters
+- **Inspect Instances**: See detailed information about service instances and pods
+- **Analyze Proxies**: View Envoy proxy configurations for Istio-enabled services
+- **Monitor Health**: Check real-time status of services and their endpoints
 
-```bash
-cd my-website
-npm run start
-```
+## Next Steps
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+- Check the [API Documentation](../api-docs/frontend/frontend-api) for integration details
+- Read the [Development Guide](../development-docs/intro) if you want to contribute
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+## Need Help?
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+- Check our [GitHub Issues](https://github.com/liamawhite/navigator/issues) for known problems
+- Start a [GitHub Discussion](https://github.com/liamawhite/navigator/discussions) for questions
+- Review the [API Documentation](../api-docs/frontend/frontend-api) for integration details

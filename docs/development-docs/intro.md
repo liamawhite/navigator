@@ -16,6 +16,7 @@ If you're looking for user-focused documentation like installation guides, usage
 
 ## Quick Links
 
-- [Edge.Connect Architecture](./edge-connect-architecture.md)
-- [API Reference](./api-reference.md)
-- [Contributing](./contributing.md)
+- [Architecture Overview](./architecture.md)
+- [Cluster State Synchronization](./cluster-state-sync.md)
+- [Proxy Information Retrieval](./proxy-information-retrieval.md)
+- [API Reference](../api-docs/backend/backend-api)

@@ -61,21 +61,6 @@ const config: Config = {
           editUrl:
             'https://github.com/liamawhite/navigator/tree/main/docs/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/liamawhite/navigator/tree/main/docs/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -129,19 +114,18 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
-          sidebarId: 'apiDocsSidebar',
-          position: 'left',
-          label: 'API Reference',
-          docsPluginId: 'api-docs',
-        },
-        {
-          type: 'docSidebar',
           sidebarId: 'developmentSidebar',
           position: 'left',
           label: 'Development',
           docsPluginId: 'development-docs',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
+        {
+          type: 'docSidebar',
+          sidebarId: 'apiDocsSidebar',
+          position: 'left',
+          label: 'API Reference',
+          docsPluginId: 'api-docs',
+        },
         {
           href: 'https://github.com/liamawhite/navigator',
           label: 'GitHub',
@@ -177,10 +161,6 @@ const config: Config = {
         {
           title: 'More',
           items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
             {
               label: 'GitHub',
               href: 'https://github.com/liamawhite/navigator',
