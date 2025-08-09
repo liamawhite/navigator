@@ -1,41 +1,43 @@
-# Website
+# Navigator Documentation
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Welcome to the Navigator documentation. Navigator is an edge computing platform that provides Kubernetes service discovery and proxy configuration analysis.
 
-## Installation
+## Documentation Sections
 
-```bash
-npm install
-```
+### [User Guide](user-guide/)
+Get started with Navigator, including installation and usage instructions.
 
-## Local Development
+- [Installation](user-guide/installation.md) - How to install Navigator
+- [Getting Started](user-guide/getting-started.md) - Quick start guide  
+- [CLI Reference](user-guide/cli-reference.md) - Complete navctl command reference
 
-```bash
-npm start
-```
+### [Developer Guide](developer-guide/)
+Technical documentation for developers and contributors.
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+- [Architecture](developer-guide/architecture.md) - System design and components
+- [Cluster State Sync](developer-guide/cluster-state-sync.md) - Edge-to-manager streaming
+- [Proxy Information](developer-guide/proxy-information-retrieval.md) - On-demand analysis
+- [Contributing](developer-guide/contributing.md) - How to contribute
 
-## Build
+### [API Reference](api-reference/)
+Complete API documentation for gRPC and HTTP interfaces.
 
-```bash
-npm run build
-```
+- [Backend API](api-reference/backend-api.md) - Manager-edge communication
+- [Frontend API](api-reference/frontend-api.md) - Service registry APIs
+- [Types](api-reference/types.md) - Istio resource definitions
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+## Quick Links
 
-## Deployment
+- **Get Started**: [Installation Guide](user-guide/installation.md)
+- **Development**: [CLAUDE.md](../CLAUDE.md) for complete development setup
+- **Architecture**: [System Overview](developer-guide/architecture.md)
+- **APIs**: [Reference Documentation](api-reference/)
 
-Using SSH:
+## Project Structure
 
-```bash
-USE_SSH=true npm run deploy
-```
+Navigator consists of three main components:
+- **navctl** - CLI tool for orchestration and local development
+- **manager** - Central coordination service  
+- **edge** - Kubernetes cluster connector
 
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> npm run deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+For detailed architecture information, see the [Developer Guide](developer-guide/).
