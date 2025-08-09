@@ -1,0 +1,30 @@
+## navctl version
+
+Show version information
+
+### Synopsis
+
+Show version information including build details and Go version
+
+```
+navctl version [flags]
+```
+
+### Options
+
+```
+  -h, --help            help for version
+  -o, --output string   Output format (text, json) (default "text")
+```
+
+### Options inherited from parent commands
+
+```
+      --log-format string   Log format (text, json) (default "text")
+      --log-level string    Log level (debug, info, warn, error) (default "info")
+```
+
+### SEE ALSO
+
+* [navctl](navctl.md)	 - Navigator control plane CLI
+

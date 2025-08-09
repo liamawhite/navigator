@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !test && !integration && !lint
+//go:build !test && !integration && !lint && !docs
 
 package ui
 

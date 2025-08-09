@@ -28,7 +28,8 @@
       "Bash(go get:*)",
       "Bash(tar:*)",
       "Bash(gofmt:*)",
-      "Bash(go vet:*)"
+      "Bash(go vet:*)",
+      "Bash(npm audit:*)"
     ],
     "deny": []
   }

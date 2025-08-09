@@ -6,5 +6,5 @@ inputs:
 plugins:
   # Documentation generation for backend APIs
   - remote: buf.build/community/pseudomuto-doc:v1.5.1
-    out: ../docs/api-docs/backend
+    out: ../docs/reference/api
     opt: markdown,backend-api.md

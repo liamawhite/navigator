@@ -19,4 +19,4 @@ If you're looking for user-focused documentation like installation guides, usage
 - [Architecture Overview](./architecture.md)
 - [Cluster State Synchronization](./cluster-state-sync.md)
 - [Proxy Information Retrieval](./proxy-information-retrieval.md)
-- [API Reference](../api-docs/backend/backend-api)
+- [API Reference](../reference/api/backend-api.md)
