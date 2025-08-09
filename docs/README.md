@@ -1,6 +1,6 @@
-# Navigator Documentation
+# Navigator
 
-Welcome to the Navigator documentation. Navigator is a service-focused analysis tool for Kubernetes and Istio that provides service discovery and proxy configuration analysis.
+Navigator is a service-focused analysis tool for Kubernetes and Istio that provides service discovery and proxy configuration analysis.
 
 ## Documentation Sections
 
@@ -9,7 +9,6 @@ Get started with Navigator, including installation and usage instructions.
 
 - [Installation](user-guide/installation.md) - How to install Navigator
 - [Getting Started](user-guide/getting-started.md) - Quick start guide  
-- [CLI Reference](user-guide/cli-reference.md) - Complete navctl command reference
 
 ### [Developer Guide](developer-guide/)
 Technical documentation for developers and contributors.
@@ -19,19 +18,18 @@ Technical documentation for developers and contributors.
 - [Proxy Information](developer-guide/proxy-information-retrieval.md) - On-demand analysis
 - [Contributing](developer-guide/contributing.md) - How to contribute
 
-### [API Reference](api-reference/)
-Complete API documentation for gRPC and HTTP interfaces.
+### [Reference Documentation](reference/)
+Complete API and CLI reference documentation.
 
-- [Backend API](api-reference/backend-api.md) - Manager-edge communication
-- [Frontend API](api-reference/frontend-api.md) - Service registry APIs
-- [Types](api-reference/types.md) - Istio resource definitions
+- [API Reference](reference/api/) - gRPC and HTTP interfaces
+- [CLI Reference](reference/cli/) - Command-line interface documentation
 
 ## Quick Links
 
 - **Get Started**: [Installation Guide](user-guide/installation.md)
 - **Development**: [CLAUDE.md](../CLAUDE.md) for complete development setup
 - **Architecture**: [System Overview](developer-guide/architecture.md)
-- **APIs**: [Reference Documentation](api-reference/)
+- **APIs**: [Reference Documentation](reference/)
 
 ## Project Structure
 

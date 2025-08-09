@@ -23,7 +23,8 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -X github.com/liamawhite/navigator/pkg/version.version=$(VERSION) -X github.com/liamawhite/navigator/pkg/version.commit=$(COMMIT) -X github.com/liamawhite/navigator/pkg/version.date=$(DATE)
 
-.PHONY: build build-edge build-manager build-navctl build-ui check clean demo demo-clean dev dev-backend dev-ui-only dirty fmt generate generate-backend generate-frontend lint test-integration test-unit
+.PHONY: build build-edge build-manager build-navctl build-ui 
+.PHONY: check clean dirty format generate generate-cli-docs lint local test-unit
 
 check: generate format lint test-unit dirty
 
@@ -46,12 +47,16 @@ generate: clean
 	cd api && buf generate --template buf.gen.backend-docs.yaml
 	cd api && buf generate --template buf.gen.types-docs.yaml
 	cd ui && npm ci && npm run generate
+	go run ./navctl/main.go docs
+
+generate-cli-docs:
+	go run ./navctl/main.go docs
 
 dirty:
 	git diff --exit-code
 
 clean:
-	@rm -rf pkg/api/ ui/src/types/openapi/ ui/src/types/generated/ ui/dist/ bin/
+	@rm -rf pkg/api/ ui/src/types/openapi/ ui/src/types/generated/ ui/dist/ bin/ docs/reference/
 
 # Build targets
 build-manager:
@@ -80,7 +85,4 @@ build-ui:
 
 build: build-manager build-edge build-navctl build-ui
 	@echo "✅ All binaries and assets built successfully"
-
-local:
-	rm -rf bin/ && make build-navctl && bin/navctl local
 

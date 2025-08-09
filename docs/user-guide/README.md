@@ -6,7 +6,7 @@ This guide helps you get started with Navigator and covers common usage patterns
 
 - [Installation](installation.md) - How to install Navigator
 - [Getting Started](getting-started.md) - Quick start guide
-- [CLI Reference](cli-reference.md) - Complete navctl command reference
+- [CLI Reference](../reference/cli/) - Complete navctl command reference
 
 ## Overview
 

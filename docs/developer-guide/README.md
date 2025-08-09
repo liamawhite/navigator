@@ -14,12 +14,39 @@ Welcome to the Navigator development documentation. This section is designed for
 ## Quick Links
 
 - [Architecture Overview](architecture.md)
-- [API Reference](../api-reference/)
+- [API Reference](../reference/api/)
 - [User Guide](../user-guide/) - For user-focused documentation
 
 ## Development Setup
 
-See the main [README.md](../../README.md) and [CLAUDE.md](../../CLAUDE.md) for detailed development setup instructions including:
+The only requirement to get started is to install `nix`. Nix will automatically handle all dependencies required for developement including:
+- Go
+- buf (Protocol Buffer tooling)
+- protobuf compiler
+- kind, kubectl, docker
+- golangci-lint, gosec
+
+> Note: Nix does not actually setup these tools in your default shell, instead it sets up a temporary shell enviroment with the correct binaries in the path using symlinks. All of this is handled transparently via the Makefile.
+
+```bash
+curl -fsSL https://install.determinate.systems/nix | sh -s -- install
+# select **n** (no) when prompted to use the OSS installation.
+   ```
+
+### Quick Commands
+
+```bash
+# Build all components
+make build
+
+# Run quality checks
+make check
+
+# Generate all documentation and code
+make generate
+```
+
+See [CLAUDE.md](../../CLAUDE.md) for detailed development setup instructions including:
 
 - Building and running locally
 - Code quality tools

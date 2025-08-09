@@ -40,42 +40,59 @@ Navigator consists of three main components working together:
 
 ## Advanced Usage
 
-### Custom Configuration
+### Multiple Kubernetes Contexts
 
-You can customize Navigator's behavior with command-line flags:
+Navigator can connect to multiple Kubernetes contexts simultaneously using the `--contexts` flag with glob pattern support:
 
 ```bash
-# Start with custom ports
-navctl local --manager-port 9090 --ui-port 3000 --no-browser
+# Use current context (default behavior)
+navctl local
 
-# Enable debug logging
-navctl local --log-level debug --log-format json
+# Connect to specific contexts
+navctl local --contexts context1,context2,context3
 
-# Use specific kubeconfig
-navctl local --kube-config /path/to/kubeconfig
+# Use glob patterns to select multiple contexts
+navctl local --contexts "*-prod"
+navctl local --contexts "team-*"
+navctl local --contexts "*-prod,*-staging"
+
+# Mix exact names and patterns
+navctl local --contexts "production,*-staging"
+
+# Use custom kubeconfig with context patterns
+navctl local --kube-config ~/.kube/config --contexts "*-prod"
 ```
 
-### Multi-Cluster Setup
+### Multi-Cluster Service Discovery
 
-For production deployments across multiple clusters, see the [CLI Reference](cli-reference.md) for advanced configuration options.
+When connected to multiple contexts, Navigator creates one edge service per context, all connecting to the same manager instance. This provides:
+
+- **Aggregated Service View**: See services from all connected clusters in a single interface
+- **Cross-Cluster Analysis**: Compare service configurations across environments  
+- **Cluster Identification**: Each service is tagged with its originating cluster
+- **Unified Proxy Analysis**: Analyze Istio configurations across your entire mesh
 
 ## Troubleshooting
 
 ### Common Issues
 
 **Port Already in Use**
-- Navigator uses ports 8080 (manager) and 3000 (UI) by default
+- Navigator uses ports 8080 (manager), 8081 (manager HTTP gateway), and 8082 (UI) by default
 - Use `--manager-port` and `--ui-port` flags to specify different ports
+
+**gRPC Message Size Exceeded (Large Clusters)**
+- Large clusters may exceed the default gRPC message size limit
+- Increase the limit with `--max-message-size` flag (e.g., `--max-message-size 16` for 16MB)
 
 **Kubernetes Access**
 - Ensure `kubectl` can access your cluster
 - Verify your current context with `kubectl config current-context`
 
 **Browser Doesn't Open**
-- Use `--no-browser` flag and manually navigate to http://localhost:3000
+- Use `--no-browser` flag and manually navigate to http://localhost:8082
 
 ## Next Steps
 
-- Learn about all available commands in the [CLI Reference](cli-reference.md)
+- Learn about all available commands in the [CLI Reference](../reference/cli/)
 - Explore the [Developer Guide](../developer-guide/) for architecture details
-- Review the [API Reference](../api-reference/) for integration options
+- Review the [API Reference](../reference/api/) for integration options
