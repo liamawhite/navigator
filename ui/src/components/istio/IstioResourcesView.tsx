@@ -299,7 +299,8 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                             istioResources.authorizationPolicies.length ===
                                 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
-                                No AuthorizationPolicies matched for this instance
+                                No AuthorizationPolicies matched for this
+                                instance
                             </div>
                         )}
                     </div>
@@ -311,8 +312,8 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 No security resources
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                                No RequestAuthentications, PeerAuthentications, or AuthorizationPolicies
-                                affect this instance.
+                                No RequestAuthentications, PeerAuthentications,
+                                or AuthorizationPolicies affect this instance.
                             </p>
                         </div>
                     )}

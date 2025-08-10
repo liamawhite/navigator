@@ -440,6 +440,19 @@ func (k *Client) convertAuthorizationPolicy(ap *istiosecurityv1beta1.Authorizati
 
 	// Extract target refs from the spec
 	var targetRefs []*typesv1alpha1.PolicyTargetReference
+
+	// Handle TargetRef (singular) - older API
+	if ap.Spec.TargetRef != nil {
+		protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+			Group:     ap.Spec.TargetRef.Group,
+			Kind:      ap.Spec.TargetRef.Kind,
+			Name:      ap.Spec.TargetRef.Name,
+			Namespace: ap.Spec.TargetRef.Namespace,
+		}
+		targetRefs = append(targetRefs, protoTargetRef)
+	}
+
+	// Handle TargetRefs (plural) - newer API
 	for _, targetRef := range ap.Spec.TargetRefs {
 		if targetRef != nil {
 			protoTargetRef := &typesv1alpha1.PolicyTargetReference{

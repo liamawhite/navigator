@@ -1522,12 +1522,12 @@ func TestClient_convertAuthorizationPolicy(t *testing.T) {
 	client := &Client{logger: logging.For("test")}
 
 	tests := []struct {
-		name                    string
-		authorizationPolicy     *istiosecurityv1beta1.AuthorizationPolicy
-		wantName               string
-		wantNamespace          string
-		wantWorkloadSelector   *typesv1alpha1.WorkloadSelector
-		wantTargetRefs         []*typesv1alpha1.PolicyTargetReference
+		name                 string
+		authorizationPolicy  *istiosecurityv1beta1.AuthorizationPolicy
+		wantName             string
+		wantNamespace        string
+		wantWorkloadSelector *typesv1alpha1.WorkloadSelector
+		wantTargetRefs       []*typesv1alpha1.PolicyTargetReference
 	}{
 		{
 			name: "authorization policy with no selector",
