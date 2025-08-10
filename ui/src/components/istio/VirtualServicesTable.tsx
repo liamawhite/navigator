@@ -73,8 +73,10 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
         let bVal: string;
 
         if (sortConfig.key === 'name') {
-            aVal = `${a.name || 'Unknown'}/${a.namespace || 'Unknown'}`.toLowerCase();
-            bVal = `${b.name || 'Unknown'}/${b.namespace || 'Unknown'}`.toLowerCase();
+            aVal =
+                `${a.name || 'Unknown'}/${a.namespace || 'Unknown'}`.toLowerCase();
+            bVal =
+                `${b.name || 'Unknown'}/${b.namespace || 'Unknown'}`.toLowerCase();
         } else {
             return 0;
         }
@@ -110,27 +112,37 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
                     {sortedVirtualServices.map((vs, index) => {
                         const hosts = vs.hosts || [];
                         const gateways = vs.gateways || [];
-                        
+
                         return (
                             <TableRow key={index}>
                                 <TableCell>
                                     <span className="font-mono text-sm">
-                                        {vs.name || 'Unknown'} / {vs.namespace || 'Unknown'}
+                                        {vs.name || 'Unknown'} /{' '}
+                                        {vs.namespace || 'Unknown'}
                                     </span>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1">
                                         {hosts.length > 0 ? (
                                             hosts.slice(0, 3).map((host, i) => (
-                                                <Badge key={i} variant="secondary" className="text-xs">
+                                                <Badge
+                                                    key={i}
+                                                    variant="secondary"
+                                                    className="text-xs"
+                                                >
                                                     {host}
                                                 </Badge>
                                             ))
                                         ) : (
-                                            <span className="text-muted-foreground text-sm">-</span>
+                                            <span className="text-muted-foreground text-sm">
+                                                -
+                                            </span>
                                         )}
                                         {hosts.length > 3 && (
-                                            <Badge variant="outline" className="text-xs">
+                                            <Badge
+                                                variant="outline"
+                                                className="text-xs"
+                                            >
                                                 +{hosts.length - 3} more
                                             </Badge>
                                         )}
@@ -139,16 +151,27 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1">
                                         {gateways.length > 0 ? (
-                                            gateways.slice(0, 2).map((gateway, i) => (
-                                                <Badge key={i} variant="outline" className="text-xs">
-                                                    {gateway}
-                                                </Badge>
-                                            ))
+                                            gateways
+                                                .slice(0, 2)
+                                                .map((gateway, i) => (
+                                                    <Badge
+                                                        key={i}
+                                                        variant="outline"
+                                                        className="text-xs"
+                                                    >
+                                                        {gateway}
+                                                    </Badge>
+                                                ))
                                         ) : (
-                                            <span className="text-muted-foreground text-sm">-</span>
+                                            <span className="text-muted-foreground text-sm">
+                                                -
+                                            </span>
                                         )}
                                         {gateways.length > 2 && (
-                                            <Badge variant="outline" className="text-xs">
+                                            <Badge
+                                                variant="outline"
+                                                className="text-xs"
+                                            >
                                                 +{gateways.length - 2} more
                                             </Badge>
                                         )}

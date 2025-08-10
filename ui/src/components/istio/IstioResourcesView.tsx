@@ -16,7 +16,14 @@ import { useSearchParams } from 'react-router-dom';
 import { useIstioResources } from '../../hooks/useServices';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Network, Route, Settings, Globe, ShieldCheck } from 'lucide-react';
+import {
+    AlertCircle,
+    Network,
+    Route,
+    Settings,
+    Globe,
+    ShieldCheck,
+} from 'lucide-react';
 import { VirtualServicesTable } from './VirtualServicesTable';
 import { DestinationRulesTable } from './DestinationRulesTable';
 import { GatewaysTable } from './GatewaysTable';
@@ -36,14 +43,20 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
     serviceId,
     instanceId,
 }) => {
-    const { data: istioResources, isLoading, error } = useIstioResources(serviceId, instanceId);
+    const {
+        data: istioResources,
+        isLoading,
+        error,
+    } = useIstioResources(serviceId, instanceId);
     const [searchParams, setSearchParams] = useSearchParams();
-    
+
     // Get Istio tab from URL params, default to 'traffic'
     const availableIstioTabs = ['traffic', 'security', 'extensions'] as const;
     const currentIstioTab = searchParams.get('istio_tab') || 'traffic';
-    const validIstioTab = availableIstioTabs.includes(currentIstioTab as typeof availableIstioTabs[number])
-        ? currentIstioTab as 'traffic' | 'security' | 'extensions'
+    const validIstioTab = availableIstioTabs.includes(
+        currentIstioTab as (typeof availableIstioTabs)[number]
+    )
+        ? (currentIstioTab as 'traffic' | 'security' | 'extensions')
         : 'traffic';
 
     if (isLoading) {
@@ -69,7 +82,8 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                         Unable to load Istio resources
                     </h3>
                     <p className="text-muted-foreground">
-                        Failed to retrieve Istio configuration for this instance.
+                        Failed to retrieve Istio configuration for this
+                        instance.
                     </p>
                 </CardContent>
             </Card>
@@ -94,7 +108,10 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
         ...(istioResources.wasmPlugins || []),
     ];
 
-    const totalResources = trafficResources.length + securityResources.length + extensionResources.length;
+    const totalResources =
+        trafficResources.length +
+        securityResources.length +
+        extensionResources.length;
 
     if (totalResources === 0) {
         return (
@@ -104,7 +121,8 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                     No Istio resources found
                 </h3>
                 <p className="text-muted-foreground">
-                    No Istio configuration resources affect this service instance.
+                    No Istio configuration resources affect this service
+                    instance.
                 </p>
             </div>
         );
@@ -136,57 +154,78 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
 
             <TabsContent value="traffic" className="mt-4">
                 <div className="space-y-6">
-                    {istioResources.gateways && istioResources.gateways.length > 0 && (
-                        <GatewaysTable gateways={istioResources.gateways} />
-                    )}
+                    {istioResources.gateways &&
+                        istioResources.gateways.length > 0 && (
+                            <GatewaysTable gateways={istioResources.gateways} />
+                        )}
 
-                    {istioResources.virtualServices && istioResources.virtualServices.length > 0 && (
-                        <VirtualServicesTable virtualServices={istioResources.virtualServices} />
-                    )}
+                    {istioResources.virtualServices &&
+                        istioResources.virtualServices.length > 0 && (
+                            <VirtualServicesTable
+                                virtualServices={istioResources.virtualServices}
+                            />
+                        )}
 
-                    {istioResources.destinationRules && istioResources.destinationRules.length > 0 && (
-                        <DestinationRulesTable destinationRules={istioResources.destinationRules} />
-                    )}
+                    {istioResources.destinationRules &&
+                        istioResources.destinationRules.length > 0 && (
+                            <DestinationRulesTable
+                                destinationRules={
+                                    istioResources.destinationRules
+                                }
+                            />
+                        )}
 
-                    {istioResources.serviceEntries && istioResources.serviceEntries.length > 0 && (
-                        <div className="space-y-2">
-                            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                <Globe className="w-4 h-4 text-teal-500" />
-                                ServiceEntries ({istioResources.serviceEntries.length})
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {istioResources.serviceEntries.map((entry, index) => (
-                                    <ResourceCard
-                                        key={index}
-                                        name={entry.name || 'Unknown'}
-                                        namespace={entry.namespace || 'Unknown'}
-                                        resourceType="ServiceEntry"
-                                        spec={entry.spec}
-                                        rawConfig={entry.rawConfig || ''}
-                                    />
-                                ))}
+                    {istioResources.serviceEntries &&
+                        istioResources.serviceEntries.length > 0 && (
+                            <div className="space-y-2">
+                                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                    <Globe className="w-4 h-4 text-teal-500" />
+                                    ServiceEntries (
+                                    {istioResources.serviceEntries.length})
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {istioResources.serviceEntries.map(
+                                        (entry, index) => (
+                                            <ResourceCard
+                                                key={index}
+                                                name={entry.name || 'Unknown'}
+                                                namespace={
+                                                    entry.namespace || 'Unknown'
+                                                }
+                                                resourceType="ServiceEntry"
+                                                spec={entry.spec}
+                                                rawConfig={
+                                                    entry.rawConfig || ''
+                                                }
+                                            />
+                                        )
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
                     {/* Show missing resource types */}
                     <div className="space-y-2">
-                        {(!istioResources.gateways || istioResources.gateways.length === 0) && (
+                        {(!istioResources.gateways ||
+                            istioResources.gateways.length === 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No Gateways matched for this instance
                             </div>
                         )}
-                        {(!istioResources.virtualServices || istioResources.virtualServices.length === 0) && (
+                        {(!istioResources.virtualServices ||
+                            istioResources.virtualServices.length === 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No VirtualServices matched for this instance
                             </div>
                         )}
-                        {(!istioResources.destinationRules || istioResources.destinationRules.length === 0) && (
+                        {(!istioResources.destinationRules ||
+                            istioResources.destinationRules.length === 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No DestinationRules matched for this instance
                             </div>
                         )}
-                        {(!istioResources.serviceEntries || istioResources.serviceEntries.length === 0) && (
+                        {(!istioResources.serviceEntries ||
+                            istioResources.serviceEntries.length === 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No ServiceEntries matched for this instance
                             </div>
@@ -200,7 +239,8 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 No traffic management resources
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                                No Gateways, VirtualServices, DestinationRules, or ServiceEntries affect this instance.
+                                No Gateways, VirtualServices, DestinationRules,
+                                or ServiceEntries affect this instance.
                             </p>
                         </div>
                     )}
@@ -209,22 +249,37 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
 
             <TabsContent value="security" className="mt-4">
                 <div className="space-y-6">
-                    {istioResources.requestAuthentications && istioResources.requestAuthentications.length > 0 && (
-                        <RequestAuthenticationsTable requestAuthentications={istioResources.requestAuthentications} />
-                    )}
+                    {istioResources.requestAuthentications &&
+                        istioResources.requestAuthentications.length > 0 && (
+                            <RequestAuthenticationsTable
+                                requestAuthentications={
+                                    istioResources.requestAuthentications
+                                }
+                            />
+                        )}
 
-                    {istioResources.peerAuthentications && istioResources.peerAuthentications.length > 0 && (
-                        <PeerAuthenticationsTable peerAuthentications={istioResources.peerAuthentications} />
-                    )}
+                    {istioResources.peerAuthentications &&
+                        istioResources.peerAuthentications.length > 0 && (
+                            <PeerAuthenticationsTable
+                                peerAuthentications={
+                                    istioResources.peerAuthentications
+                                }
+                            />
+                        )}
 
                     {/* Show missing resource types */}
                     <div className="space-y-2">
-                        {(!istioResources.requestAuthentications || istioResources.requestAuthentications.length === 0) && (
+                        {(!istioResources.requestAuthentications ||
+                            istioResources.requestAuthentications.length ===
+                                0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
-                                No RequestAuthentications matched for this instance
+                                No RequestAuthentications matched for this
+                                instance
                             </div>
                         )}
-                        {(!istioResources.peerAuthentications || istioResources.peerAuthentications.length === 0) && (
+                        {(!istioResources.peerAuthentications ||
+                            istioResources.peerAuthentications.length ===
+                                0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No PeerAuthentications matched for this instance
                             </div>
@@ -238,7 +293,8 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 No security resources
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                                No RequestAuthentications or PeerAuthentications affect this instance.
+                                No RequestAuthentications or PeerAuthentications
+                                affect this instance.
                             </p>
                         </div>
                     )}
@@ -247,31 +303,41 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
 
             <TabsContent value="extensions" className="mt-4">
                 <div className="space-y-6">
-                    {istioResources.sidecars && istioResources.sidecars.length > 0 && (
-                        <SidecarsTable sidecars={istioResources.sidecars} />
-                    )}
+                    {istioResources.sidecars &&
+                        istioResources.sidecars.length > 0 && (
+                            <SidecarsTable sidecars={istioResources.sidecars} />
+                        )}
 
-                    {istioResources.envoyFilters && istioResources.envoyFilters.length > 0 && (
-                        <EnvoyFiltersTable envoyFilters={istioResources.envoyFilters} />
-                    )}
+                    {istioResources.envoyFilters &&
+                        istioResources.envoyFilters.length > 0 && (
+                            <EnvoyFiltersTable
+                                envoyFilters={istioResources.envoyFilters}
+                            />
+                        )}
 
-                    {istioResources.wasmPlugins && istioResources.wasmPlugins.length > 0 && (
-                        <WasmPluginsTable wasmPlugins={istioResources.wasmPlugins} />
-                    )}
+                    {istioResources.wasmPlugins &&
+                        istioResources.wasmPlugins.length > 0 && (
+                            <WasmPluginsTable
+                                wasmPlugins={istioResources.wasmPlugins}
+                            />
+                        )}
 
                     {/* Show missing resource types */}
                     <div className="space-y-2">
-                        {(!istioResources.sidecars || istioResources.sidecars.length === 0) && (
+                        {(!istioResources.sidecars ||
+                            istioResources.sidecars.length === 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No Sidecars matched for this instance
                             </div>
                         )}
-                        {(!istioResources.envoyFilters || istioResources.envoyFilters.length === 0) && (
+                        {(!istioResources.envoyFilters ||
+                            istioResources.envoyFilters.length === 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No EnvoyFilters matched for this instance
                             </div>
                         )}
-                        {(!istioResources.wasmPlugins || istioResources.wasmPlugins.length === 0) && (
+                        {(!istioResources.wasmPlugins ||
+                            istioResources.wasmPlugins.length === 0) && (
                             <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
                                 No WasmPlugins matched for this instance
                             </div>
@@ -285,7 +351,8 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 No proxy extensions
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                                No Sidecars, EnvoyFilters, or WasmPlugins affect this instance.
+                                No Sidecars, EnvoyFilters, or WasmPlugins affect
+                                this instance.
                             </p>
                         </div>
                     )}

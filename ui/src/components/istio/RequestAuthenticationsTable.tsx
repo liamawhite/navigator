@@ -34,9 +34,9 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const RequestAuthenticationsTable: React.FC<RequestAuthenticationsTableProps> = ({
-    requestAuthentications,
-}) => {
+export const RequestAuthenticationsTable: React.FC<
+    RequestAuthenticationsTableProps
+> = ({ requestAuthentications }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -65,33 +65,35 @@ export const RequestAuthenticationsTable: React.FC<RequestAuthenticationsTablePr
         );
     };
 
-    const sortedRequestAuthentications = [...requestAuthentications].sort((a, b) => {
-        if (!sortConfig) return 0;
+    const sortedRequestAuthentications = [...requestAuthentications].sort(
+        (a, b) => {
+            if (!sortConfig) return 0;
 
-        let aVal: string | number | undefined;
-        let bVal: string | number | undefined;
+            let aVal: string | number | undefined;
+            let bVal: string | number | undefined;
 
-        if (sortConfig.key === 'name') {
-            aVal = a.name;
-            bVal = b.name;
-        } else if (sortConfig.key === 'namespace') {
-            aVal = a.namespace;
-            bVal = b.namespace;
+            if (sortConfig.key === 'name') {
+                aVal = a.name;
+                bVal = b.name;
+            } else if (sortConfig.key === 'namespace') {
+                aVal = a.namespace;
+                bVal = b.namespace;
+            }
+
+            // Convert to string for comparison if needed
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+
+            // Handle null/undefined values
+            if (aVal == null && bVal == null) return 0;
+            if (aVal == null) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (bVal == null) return sortConfig.direction === 'asc' ? 1 : -1;
+
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
         }
-
-        // Convert to string for comparison if needed
-        if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-        if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-
-        // Handle null/undefined values
-        if (aVal == null && bVal == null) return 0;
-        if (aVal == null) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (bVal == null) return sortConfig.direction === 'asc' ? 1 : -1;
-
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-    });
+    );
 
     if (requestAuthentications.length === 0) {
         return (
@@ -127,7 +129,8 @@ export const RequestAuthenticationsTable: React.FC<RequestAuthenticationsTablePr
                         <TableRow key={index}>
                             <TableCell>
                                 <span className="font-mono text-sm">
-                                    {auth.name || 'Unknown'} / {auth.namespace || 'Unknown'}
+                                    {auth.name || 'Unknown'} /{' '}
+                                    {auth.namespace || 'Unknown'}
                                 </span>
                             </TableCell>
                             <TableCell>

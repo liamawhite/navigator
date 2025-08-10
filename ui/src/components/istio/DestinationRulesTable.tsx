@@ -73,8 +73,10 @@ export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
         let bVal: string;
 
         if (sortConfig.key === 'name') {
-            aVal = `${a.name || 'Unknown'}/${a.namespace || 'Unknown'}`.toLowerCase();
-            bVal = `${b.name || 'Unknown'}/${b.namespace || 'Unknown'}`.toLowerCase();
+            aVal =
+                `${a.name || 'Unknown'}/${a.namespace || 'Unknown'}`.toLowerCase();
+            bVal =
+                `${b.name || 'Unknown'}/${b.namespace || 'Unknown'}`.toLowerCase();
         } else {
             return 0;
         }
@@ -110,12 +112,13 @@ export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
                 <TableBody>
                     {sortedDestinationRules.map((dr, index) => {
                         const subsets = dr.subsets || [];
-                        
+
                         return (
                             <TableRow key={index}>
                                 <TableCell>
                                     <span className="font-mono text-sm">
-                                        {dr.name || 'Unknown'} / {dr.namespace || 'Unknown'}
+                                        {dr.name || 'Unknown'} /{' '}
+                                        {dr.namespace || 'Unknown'}
                                     </span>
                                 </TableCell>
                                 <TableCell>
@@ -126,18 +129,31 @@ export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
                                 <TableCell>
                                     <div className="flex flex-wrap gap-1">
                                         {subsets.length > 0 ? (
-                                            subsets.slice(0, 3).map((subset, i) => (
-                                                <Badge key={i} variant="secondary" className="text-xs">
-                                                    {subset.name || `subset-${i}`}
-                                                </Badge>
-                                            ))
+                                            subsets
+                                                .slice(0, 3)
+                                                .map((subset, i) => (
+                                                    <Badge
+                                                        key={i}
+                                                        variant="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        {subset.name ||
+                                                            `subset-${i}`}
+                                                    </Badge>
+                                                ))
                                         ) : (
-                                            <Badge variant="outline" className="text-xs text-muted-foreground">
+                                            <Badge
+                                                variant="outline"
+                                                className="text-xs text-muted-foreground"
+                                            >
                                                 none
                                             </Badge>
                                         )}
                                         {subsets.length > 3 && (
-                                            <Badge variant="outline" className="text-xs">
+                                            <Badge
+                                                variant="outline"
+                                                className="text-xs"
+                                            >
                                                 +{subsets.length - 3} more
                                             </Badge>
                                         )}

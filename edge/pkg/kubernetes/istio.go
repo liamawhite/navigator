@@ -229,9 +229,9 @@ func (k *Client) fetchServiceEntries(ctx context.Context, wg *sync.WaitGroup, re
 
 // convertDestinationRule converts an Istio DestinationRule to a protobuf DestinationRule
 func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRule) (*typesv1alpha1.DestinationRule, error) {
-	specBytes, err := json.Marshal(&dr.Spec)
+	resourceBytes, err := json.Marshal(dr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal destination rule spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal destination rule resource: %w", err)
 	}
 
 	// Extract host from the spec
@@ -278,7 +278,7 @@ func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRu
 	return &typesv1alpha1.DestinationRule{
 		Name:             dr.Name,
 		Namespace:        dr.Namespace,
-		RawSpec:          string(specBytes),
+		RawConfig:        string(resourceBytes),
 		Host:             host,
 		Subsets:          subsets,
 		ExportTo:         exportTo,
@@ -288,9 +288,9 @@ func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRu
 
 // convertEnvoyFilter converts an Istio EnvoyFilter to a protobuf EnvoyFilter
 func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*typesv1alpha1.EnvoyFilter, error) {
-	specBytes, err := json.Marshal(&ef.Spec)
+	resourceBytes, err := json.Marshal(ef)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal envoy filter spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal envoy filter resource: %w", err)
 	}
 
 	// Extract workload selector from the spec
@@ -322,7 +322,7 @@ func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*t
 	return &typesv1alpha1.EnvoyFilter{
 		Name:             ef.Name,
 		Namespace:        ef.Namespace,
-		RawSpec:          string(specBytes),
+		RawConfig:        string(resourceBytes),
 		WorkloadSelector: workloadSelector,
 		TargetRefs:       targetRefs,
 	}, nil
@@ -330,9 +330,9 @@ func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*t
 
 // convertRequestAuthentication converts an Istio RequestAuthentication to a protobuf RequestAuthentication
 func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAuthentication) (*typesv1alpha1.RequestAuthentication, error) {
-	specBytes, err := json.Marshal(&ra.Spec)
+	resourceBytes, err := json.Marshal(ra)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request authentication spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal request authentication resource: %w", err)
 	}
 
 	// Extract selector from the spec
@@ -364,7 +364,7 @@ func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAu
 	return &typesv1alpha1.RequestAuthentication{
 		Name:       ra.Name,
 		Namespace:  ra.Namespace,
-		RawSpec:    string(specBytes),
+		RawConfig:  string(resourceBytes),
 		Selector:   selector,
 		TargetRefs: targetRefs,
 	}, nil
@@ -372,9 +372,9 @@ func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAu
 
 // convertPeerAuthentication converts an Istio PeerAuthentication to a protobuf PeerAuthentication
 func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthentication) (*typesv1alpha1.PeerAuthentication, error) {
-	specBytes, err := json.Marshal(&pa.Spec)
+	resourceBytes, err := json.Marshal(pa)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal peer authentication spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal peer authentication resource: %w", err)
 	}
 
 	// Extract selector from the spec
@@ -392,16 +392,16 @@ func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthenti
 	return &typesv1alpha1.PeerAuthentication{
 		Name:      pa.Name,
 		Namespace: pa.Namespace,
-		RawSpec:   string(specBytes),
+		RawConfig: string(resourceBytes),
 		Selector:  selector,
 	}, nil
 }
 
 // convertWasmPlugin converts an Istio WasmPlugin to a protobuf WasmPlugin
 func (k *Client) convertWasmPlugin(wp *istioextensionsv1alpha1.WasmPlugin) (*typesv1alpha1.WasmPlugin, error) {
-	specBytes, err := json.Marshal(&wp.Spec)
+	resourceBytes, err := json.Marshal(wp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal wasm plugin spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal wasm plugin resource: %w", err)
 	}
 
 	// Extract selector from the spec
@@ -433,7 +433,7 @@ func (k *Client) convertWasmPlugin(wp *istioextensionsv1alpha1.WasmPlugin) (*typ
 	return &typesv1alpha1.WasmPlugin{
 		Name:       wp.Name,
 		Namespace:  wp.Namespace,
-		RawSpec:    string(specBytes),
+		RawConfig:  string(resourceBytes),
 		Selector:   selector,
 		TargetRefs: targetRefs,
 	}, nil
@@ -441,9 +441,9 @@ func (k *Client) convertWasmPlugin(wp *istioextensionsv1alpha1.WasmPlugin) (*typ
 
 // convertGateway converts an Istio Gateway to a protobuf Gateway
 func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*typesv1alpha1.Gateway, error) {
-	specBytes, err := json.Marshal(&gw.Spec)
+	resourceBytes, err := json.Marshal(gw)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal gateway spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal gateway resource: %w", err)
 	}
 
 	// Extract selector from gateway spec
@@ -457,16 +457,16 @@ func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*typesv1alp
 	return &typesv1alpha1.Gateway{
 		Name:      gw.Name,
 		Namespace: gw.Namespace,
-		RawSpec:   string(specBytes),
+		RawConfig: string(resourceBytes),
 		Selector:  selector,
 	}, nil
 }
 
 // convertSidecar converts an Istio Sidecar to a protobuf Sidecar
 func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*typesv1alpha1.Sidecar, error) {
-	specBytes, err := json.Marshal(&sc.Spec)
+	resourceBytes, err := json.Marshal(sc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal sidecar spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal sidecar resource: %w", err)
 	}
 
 	// Extract workload selector from the spec
@@ -484,16 +484,16 @@ func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*typesv1alp
 	return &typesv1alpha1.Sidecar{
 		Name:             sc.Name,
 		Namespace:        sc.Namespace,
-		RawSpec:          string(specBytes),
+		RawConfig:        string(resourceBytes),
 		WorkloadSelector: workloadSelector,
 	}, nil
 }
 
 // convertVirtualService converts an Istio VirtualService to a protobuf VirtualService
 func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService) (*typesv1alpha1.VirtualService, error) {
-	specBytes, err := json.Marshal(&vs.Spec)
+	resourceBytes, err := json.Marshal(vs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal virtual service spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal virtual service resource: %w", err)
 	}
 
 	// Extract hosts, gateways, and exportTo from the spec
@@ -521,7 +521,7 @@ func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService
 	return &typesv1alpha1.VirtualService{
 		Name:      vs.Name,
 		Namespace: vs.Namespace,
-		RawSpec:   string(specBytes),
+		RawConfig: string(resourceBytes),
 		Hosts:     hosts,
 		Gateways:  gateways,
 		ExportTo:  exportTo,
@@ -699,9 +699,9 @@ func (k *Client) extractPilotConfiguration(deployment *appsv1.Deployment, config
 
 // convertServiceEntry converts an Istio ServiceEntry to a protobuf ServiceEntry
 func (k *Client) convertServiceEntry(se *istionetworkingv1beta1.ServiceEntry) (*typesv1alpha1.ServiceEntry, error) {
-	specBytes, err := json.Marshal(&se.Spec)
+	resourceBytes, err := json.Marshal(se)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal service entry spec: %w", err)
+		return nil, fmt.Errorf("failed to marshal service entry resource: %w", err)
 	}
 
 	// Default for exportTo is ["*"] if not specified or empty
@@ -715,7 +715,7 @@ func (k *Client) convertServiceEntry(se *istionetworkingv1beta1.ServiceEntry) (*
 	return &typesv1alpha1.ServiceEntry{
 		Name:      se.Name,
 		Namespace: se.Namespace,
-		RawSpec:   string(specBytes),
+		RawConfig: string(resourceBytes),
 		ExportTo:  exportTo,
 	}, nil
 }

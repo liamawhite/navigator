@@ -344,8 +344,7 @@ const EndpointsGroup: React.FC<{
                                                 <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0">
                                                     Weight
                                                 </span>
-                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0">
-                                                </span>
+                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0"></span>
                                             </div>
                                         </TableCell>
                                     </TableRow>

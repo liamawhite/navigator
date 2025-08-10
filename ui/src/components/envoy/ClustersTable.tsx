@@ -13,7 +13,14 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Target, Layers, Globe, Settings } from 'lucide-react';
+import {
+    ChevronUp,
+    ChevronDown,
+    Target,
+    Layers,
+    Globe,
+    Settings,
+} from 'lucide-react';
 import {
     Table,
     TableBody,

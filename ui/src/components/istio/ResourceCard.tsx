@@ -33,25 +33,37 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
 }) => {
     const renderSpecSummary = () => {
         if (!spec || typeof spec !== 'object') {
-            return <span className="text-muted-foreground text-sm">No specification available</span>;
+            return (
+                <span className="text-muted-foreground text-sm">
+                    No specification available
+                </span>
+            );
         }
 
         if (resourceType === 'Sidecar') {
             const workloadSelector = spec.workloadSelector?.labels || {};
             const ingress = spec.ingress || [];
             const egress = spec.egress || [];
-            
+
             return (
                 <div className="space-y-2">
                     {Object.keys(workloadSelector).length > 0 && (
                         <div>
-                            <span className="text-xs text-muted-foreground">Workload Selector:</span>
+                            <span className="text-xs text-muted-foreground">
+                                Workload Selector:
+                            </span>
                             <div className="flex flex-wrap gap-1 mt-1">
-                                {Object.entries(workloadSelector).slice(0, 2).map(([key, value], i) => (
-                                    <Badge key={i} variant="outline" className="text-xs">
-                                        {key}={String(value)}
-                                    </Badge>
-                                ))}
+                                {Object.entries(workloadSelector)
+                                    .slice(0, 2)
+                                    .map(([key, value], i) => (
+                                        <Badge
+                                            key={i}
+                                            variant="outline"
+                                            className="text-xs"
+                                        >
+                                            {key}={String(value)}
+                                        </Badge>
+                                    ))}
                             </div>
                         </div>
                     )}
@@ -66,18 +78,26 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
         if (resourceType === 'EnvoyFilter') {
             const workloadSelector = spec.workloadSelector?.labels || {};
             const configPatches = spec.configPatches || [];
-            
+
             return (
                 <div className="space-y-2">
                     {Object.keys(workloadSelector).length > 0 && (
                         <div>
-                            <span className="text-xs text-muted-foreground">Workload Selector:</span>
+                            <span className="text-xs text-muted-foreground">
+                                Workload Selector:
+                            </span>
                             <div className="flex flex-wrap gap-1 mt-1">
-                                {Object.entries(workloadSelector).slice(0, 2).map(([key, value], i) => (
-                                    <Badge key={i} variant="outline" className="text-xs">
-                                        {key}={String(value)}
-                                    </Badge>
-                                ))}
+                                {Object.entries(workloadSelector)
+                                    .slice(0, 2)
+                                    .map(([key, value], i) => (
+                                        <Badge
+                                            key={i}
+                                            variant="outline"
+                                            className="text-xs"
+                                        >
+                                            {key}={String(value)}
+                                        </Badge>
+                                    ))}
                             </div>
                         </div>
                     )}
@@ -88,22 +108,33 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
             );
         }
 
-        if (resourceType === 'RequestAuthentication' || resourceType === 'PeerAuthentication') {
+        if (
+            resourceType === 'RequestAuthentication' ||
+            resourceType === 'PeerAuthentication'
+        ) {
             const selector = spec.selector?.matchLabels || {};
             const rules = spec.rules || [];
             const action = spec.action;
-            
+
             return (
                 <div className="space-y-2">
                     {Object.keys(selector).length > 0 && (
                         <div>
-                            <span className="text-xs text-muted-foreground">Selector:</span>
+                            <span className="text-xs text-muted-foreground">
+                                Selector:
+                            </span>
                             <div className="flex flex-wrap gap-1 mt-1">
-                                {Object.entries(selector).slice(0, 2).map(([key, value], i) => (
-                                    <Badge key={i} variant="outline" className="text-xs">
-                                        {key}={String(value)}
-                                    </Badge>
-                                ))}
+                                {Object.entries(selector)
+                                    .slice(0, 2)
+                                    .map(([key, value], i) => (
+                                        <Badge
+                                            key={i}
+                                            variant="outline"
+                                            className="text-xs"
+                                        >
+                                            {key}={String(value)}
+                                        </Badge>
+                                    ))}
                             </div>
                         </div>
                     )}
@@ -119,18 +150,26 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
             const selector = spec.selector?.matchLabels || {};
             const url = spec.url;
             const phase = spec.phase;
-            
+
             return (
                 <div className="space-y-2">
                     {Object.keys(selector).length > 0 && (
                         <div>
-                            <span className="text-xs text-muted-foreground">Selector:</span>
+                            <span className="text-xs text-muted-foreground">
+                                Selector:
+                            </span>
                             <div className="flex flex-wrap gap-1 mt-1">
-                                {Object.entries(selector).slice(0, 2).map(([key, value], i) => (
-                                    <Badge key={i} variant="outline" className="text-xs">
-                                        {key}={String(value)}
-                                    </Badge>
-                                ))}
+                                {Object.entries(selector)
+                                    .slice(0, 2)
+                                    .map(([key, value], i) => (
+                                        <Badge
+                                            key={i}
+                                            variant="outline"
+                                            className="text-xs"
+                                        >
+                                            {key}={String(value)}
+                                        </Badge>
+                                    ))}
                             </div>
                         </div>
                     )}
@@ -146,20 +185,31 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
             const hosts = spec.hosts || [];
             const ports = spec.ports || [];
             const location = spec.location;
-            
+
             return (
                 <div className="space-y-2">
                     {hosts.length > 0 && (
                         <div>
-                            <span className="text-xs text-muted-foreground">Hosts:</span>
+                            <span className="text-xs text-muted-foreground">
+                                Hosts:
+                            </span>
                             <div className="flex flex-wrap gap-1 mt-1">
-                                {hosts.slice(0, 2).map((host: string, i: number) => (
-                                    <Badge key={i} variant="outline" className="text-xs">
-                                        {host}
-                                    </Badge>
-                                ))}
+                                {hosts
+                                    .slice(0, 2)
+                                    .map((host: string, i: number) => (
+                                        <Badge
+                                            key={i}
+                                            variant="outline"
+                                            className="text-xs"
+                                        >
+                                            {host}
+                                        </Badge>
+                                    ))}
                                 {hosts.length > 2 && (
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                    >
                                         +{hosts.length - 2} more
                                     </Badge>
                                 )}
@@ -185,9 +235,7 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
         <Card>
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-mono">
-                        {name}
-                    </CardTitle>
+                    <CardTitle className="text-sm font-mono">{name}</CardTitle>
                     <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-xs">
                             {namespace}
@@ -201,9 +249,7 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="pt-0">
-                {renderSpecSummary()}
-            </CardContent>
+            <CardContent className="pt-0">{renderSpecSummary()}</CardContent>
         </Card>
     );
 };

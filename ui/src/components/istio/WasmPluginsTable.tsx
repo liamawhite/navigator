@@ -80,7 +80,9 @@ export const WasmPluginsTable: React.FC<WasmPluginsTableProps> = ({
         }
     };
 
-    const getPhaseVariant = (phase?: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    const getPhaseVariant = (
+        phase?: string
+    ): 'default' | 'secondary' | 'destructive' | 'outline' => {
         switch (phase?.toLowerCase()) {
             case 'authn':
                 return 'default';
@@ -180,11 +182,16 @@ export const WasmPluginsTable: React.FC<WasmPluginsTableProps> = ({
                         <TableRow key={index}>
                             <TableCell>
                                 <span className="font-mono text-sm">
-                                    {plugin.name || 'Unknown'} / {plugin.namespace || 'Unknown'}
+                                    {plugin.name || 'Unknown'} /{' '}
+                                    {plugin.namespace || 'Unknown'}
                                 </span>
                             </TableCell>
                             <TableCell>
-                                <Badge variant={getPhaseVariant(plugin.spec?.phase)}>
+                                <Badge
+                                    variant={getPhaseVariant(
+                                        plugin.spec?.phase
+                                    )}
+                                >
                                     {formatPhase(plugin.spec?.phase)}
                                 </Badge>
                             </TableCell>

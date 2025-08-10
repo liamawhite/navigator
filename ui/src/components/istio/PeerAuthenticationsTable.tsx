@@ -34,9 +34,9 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const PeerAuthenticationsTable: React.FC<PeerAuthenticationsTableProps> = ({
-    peerAuthentications,
-}) => {
+export const PeerAuthenticationsTable: React.FC<
+    PeerAuthenticationsTableProps
+> = ({ peerAuthentications }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -64,8 +64,6 @@ export const PeerAuthenticationsTable: React.FC<PeerAuthenticationsTableProps> =
             <ChevronDown className="w-4 h-4 ml-1" />
         );
     };
-
-
 
     const sortedPeerAuthentications = [...peerAuthentications].sort((a, b) => {
         if (!sortConfig) return 0;
@@ -129,7 +127,8 @@ export const PeerAuthenticationsTable: React.FC<PeerAuthenticationsTableProps> =
                         <TableRow key={index}>
                             <TableCell>
                                 <span className="font-mono text-sm">
-                                    {auth.name || 'Unknown'} / {auth.namespace || 'Unknown'}
+                                    {auth.name || 'Unknown'} /{' '}
+                                    {auth.namespace || 'Unknown'}
                                 </span>
                             </TableCell>
                             <TableCell>

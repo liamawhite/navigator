@@ -34,9 +34,7 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const SidecarsTable: React.FC<SidecarsTableProps> = ({
-    sidecars,
-}) => {
+export const SidecarsTable: React.FC<SidecarsTableProps> = ({ sidecars }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -72,8 +70,10 @@ export const SidecarsTable: React.FC<SidecarsTableProps> = ({
         let bVal: string | number | undefined;
 
         if (sortConfig.key === 'name') {
-            aVal = `${a.name || 'Unknown'}/${a.namespace || 'Unknown'}`.toLowerCase();
-            bVal = `${b.name || 'Unknown'}/${b.namespace || 'Unknown'}`.toLowerCase();
+            aVal =
+                `${a.name || 'Unknown'}/${a.namespace || 'Unknown'}`.toLowerCase();
+            bVal =
+                `${b.name || 'Unknown'}/${b.namespace || 'Unknown'}`.toLowerCase();
         } else {
             return 0;
         }
@@ -126,7 +126,8 @@ export const SidecarsTable: React.FC<SidecarsTableProps> = ({
                         <TableRow key={index}>
                             <TableCell>
                                 <span className="font-mono text-sm">
-                                    {sidecar.name || 'Unknown'} / {sidecar.namespace || 'Unknown'}
+                                    {sidecar.name || 'Unknown'} /{' '}
+                                    {sidecar.namespace || 'Unknown'}
                                 </span>
                             </TableCell>
                             <TableCell>

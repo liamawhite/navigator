@@ -79,7 +79,9 @@ export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
         }
     };
 
-    const getContextVariant = (context?: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    const getContextVariant = (
+        context?: string
+    ): 'default' | 'secondary' | 'destructive' | 'outline' => {
         switch (context?.toLowerCase()) {
             case 'sidecar_inbound':
                 return 'default';
@@ -178,12 +180,23 @@ export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
                         <TableRow key={index}>
                             <TableCell>
                                 <span className="font-mono text-sm">
-                                    {filter.name || 'Unknown'} / {filter.namespace || 'Unknown'}
+                                    {filter.name || 'Unknown'} /{' '}
+                                    {filter.namespace || 'Unknown'}
                                 </span>
                             </TableCell>
                             <TableCell>
-                                <Badge variant={getContextVariant(filter.spec?.workloadSelector?.labels ? 'sidecar' : 'gateway')}>
-                                    {formatContext(filter.spec?.workloadSelector?.labels ? 'sidecar' : 'gateway')}
+                                <Badge
+                                    variant={getContextVariant(
+                                        filter.spec?.workloadSelector?.labels
+                                            ? 'sidecar'
+                                            : 'gateway'
+                                    )}
+                                >
+                                    {formatContext(
+                                        filter.spec?.workloadSelector?.labels
+                                            ? 'sidecar'
+                                            : 'gateway'
+                                    )}
                                 </Badge>
                             </TableCell>
                             <TableCell>

@@ -132,12 +132,14 @@ export const ServiceInstanceDetailPage: React.FC = () => {
         instanceId!
     );
     const [copiedItem, setCopiedItem] = useState<string | null>(null);
-    
+
     // Get config view from URL params, default to 'proxy'
     const availableViews = ['proxy', 'istio', 'containers'] as const;
     const currentConfigView = searchParams.get('config_view') || 'proxy';
-    const validConfigView = availableViews.includes(currentConfigView as typeof availableViews[number])
-        ? currentConfigView as 'proxy' | 'istio' | 'containers'
+    const validConfigView = availableViews.includes(
+        currentConfigView as (typeof availableViews)[number]
+    )
+        ? (currentConfigView as 'proxy' | 'istio' | 'containers')
         : 'proxy';
 
     const copyToClipboard = async (text: string, itemId: string) => {
@@ -401,7 +403,9 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                 </div>
 
                 {/* Service Mesh Configuration */}
-                {(instance.isEnvoyPresent || (instance.containers && instance.containers.length > 0)) && (
+                {(instance.isEnvoyPresent ||
+                    (instance.containers &&
+                        instance.containers.length > 0)) && (
                     <Card className="mb-6">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
@@ -410,11 +414,24 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                         <button
                                             onClick={() => {
                                                 setSearchParams((prev) => {
-                                                    const newParams = new URLSearchParams(prev);
-                                                    newParams.set('config_view', 'proxy');
+                                                    const newParams =
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
+                                                    newParams.set(
+                                                        'config_view',
+                                                        'proxy'
+                                                    );
                                                     // Keep existing proxy_config tab if it exists
-                                                    if (!prev.has('proxy_config')) {
-                                                        newParams.set('proxy_config', 'listeners');
+                                                    if (
+                                                        !prev.has(
+                                                            'proxy_config'
+                                                        )
+                                                    ) {
+                                                        newParams.set(
+                                                            'proxy_config',
+                                                            'listeners'
+                                                        );
                                                     }
                                                     return newParams;
                                                 });
@@ -425,19 +442,37 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                     : 'text-muted-foreground hover:text-foreground'
                                             }`}
                                         >
-                                            <Hexagon className={`w-4 h-4 ${
-                                                validConfigView === 'proxy' ? '' : 'text-purple-500'
-                                            }`} />
-                                            Proxy Configuration<sup className="text-xs text-purple-500 font-medium -ml-1.5">beta</sup>
+                                            <Hexagon
+                                                className={`w-4 h-4 ${
+                                                    validConfigView === 'proxy'
+                                                        ? ''
+                                                        : 'text-purple-500'
+                                                }`}
+                                            />
+                                            Proxy Configuration
+                                            <sup className="text-xs text-purple-500 font-medium -ml-1.5">
+                                                beta
+                                            </sup>
                                         </button>
                                         <button
                                             onClick={() => {
                                                 setSearchParams((prev) => {
-                                                    const newParams = new URLSearchParams(prev);
-                                                    newParams.set('config_view', 'istio');
+                                                    const newParams =
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
+                                                    newParams.set(
+                                                        'config_view',
+                                                        'istio'
+                                                    );
                                                     // Keep existing istio_tab if it exists
-                                                    if (!prev.has('istio_tab')) {
-                                                        newParams.set('istio_tab', 'traffic');
+                                                    if (
+                                                        !prev.has('istio_tab')
+                                                    ) {
+                                                        newParams.set(
+                                                            'istio_tab',
+                                                            'traffic'
+                                                        );
                                                     }
                                                     return newParams;
                                                 });
@@ -448,16 +483,29 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                     : 'text-muted-foreground hover:text-foreground'
                                             }`}
                                         >
-                                            <Sailboat className={`w-4 h-4 ${
-                                                validConfigView === 'istio' ? '' : 'text-blue-500'
-                                            }`} />
-                                            Istio Resources<sup className="text-xs text-blue-500 font-medium -ml-1.5">alpha</sup>
+                                            <Sailboat
+                                                className={`w-4 h-4 ${
+                                                    validConfigView === 'istio'
+                                                        ? ''
+                                                        : 'text-blue-500'
+                                                }`}
+                                            />
+                                            Istio Resources
+                                            <sup className="text-xs text-blue-500 font-medium -ml-1.5">
+                                                alpha
+                                            </sup>
                                         </button>
                                         <button
                                             onClick={() => {
                                                 setSearchParams((prev) => {
-                                                    const newParams = new URLSearchParams(prev);
-                                                    newParams.set('config_view', 'containers');
+                                                    const newParams =
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
+                                                    newParams.set(
+                                                        'config_view',
+                                                        'containers'
+                                                    );
                                                     return newParams;
                                                 });
                                             }}
@@ -467,9 +515,14 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                     : 'text-muted-foreground hover:text-foreground'
                                             }`}
                                         >
-                                            <Container className={`w-4 h-4 ${
-                                                validConfigView === 'containers' ? '' : 'text-green-500'
-                                            }`} />
+                                            <Container
+                                                className={`w-4 h-4 ${
+                                                    validConfigView ===
+                                                    'containers'
+                                                        ? ''
+                                                        : 'text-green-500'
+                                                }`}
+                                            />
                                             Containers
                                         </button>
                                     </div>
@@ -531,13 +584,15 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                 <div className="text-sm">
                                                     <Badge
                                                         variant={getProxyModeVariant(
-                                                            proxyConfig.proxyConfig
+                                                            proxyConfig
+                                                                .proxyConfig
                                                                 .bootstrap?.node
                                                                 ?.proxyMode
                                                         )}
                                                     >
                                                         {formatProxyMode(
-                                                            proxyConfig.proxyConfig
+                                                            proxyConfig
+                                                                .proxyConfig
                                                                 .bootstrap?.node
                                                                 ?.proxyMode
                                                         )}
@@ -562,7 +617,9 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                             onValueChange={(tab) => {
                                                 setSearchParams((prev) => {
                                                     const newParams =
-                                                        new URLSearchParams(prev);
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
                                                     newParams.set(
                                                         'proxy_config',
                                                         tab
@@ -664,7 +721,6 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                     }
                                                 />
                                             </TabsContent>
-
                                         </Tabs>
                                     </div>
                                 ) : (
@@ -674,8 +730,8 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                             Configuration not available
                                         </h3>
                                         <p className="text-muted-foreground">
-                                            Unable to retrieve proxy configuration
-                                            for this instance.
+                                            Unable to retrieve proxy
+                                            configuration for this instance.
                                         </p>
                                     </div>
                                 )
@@ -688,60 +744,76 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                 <div className="space-y-2">
                                     <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                         <Container className="w-4 h-4 text-green-500" />
-                                        Containers ({(instance.containers || []).length})
+                                        Containers (
+                                        {(instance.containers || []).length})
                                     </h4>
                                     <Table className="table-fixed">
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>Name</TableHead>
                                                 <TableHead>Image</TableHead>
-                                                <TableHead className="text-right">Status</TableHead>
-                                                <TableHead className="text-right">Ready</TableHead>
-                                                <TableHead className="text-right">Restarts</TableHead>
+                                                <TableHead className="text-right">
+                                                    Status
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Ready
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Restarts
+                                                </TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {(instance.containers || []).map((container, index) => (
-                                                <TableRow key={index}>
-                                                    <TableCell>
-                                                        <span className="font-mono text-sm">
-                                                            {container.name}
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <span className="font-mono text-sm">
-                                                            {container.image}
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Badge
-                                                            variant={
-                                                                container.status === 'Running'
-                                                                    ? 'default'
-                                                                    : 'secondary'
-                                                            }
-                                                        >
-                                                            {container.status}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end">
-                                                            <Circle
-                                                                className={`w-3 h-3 fill-current ${
-                                                                    container.ready
-                                                                        ? 'text-green-500'
-                                                                        : 'text-red-500'
-                                                                }`}
-                                                            />
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <span className="font-mono">
-                                                            {container.restartCount}
-                                                        </span>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
+                                            {(instance.containers || []).map(
+                                                (container, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell>
+                                                            <span className="font-mono text-sm">
+                                                                {container.name}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span className="font-mono text-sm">
+                                                                {
+                                                                    container.image
+                                                                }
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Badge
+                                                                variant={
+                                                                    container.status ===
+                                                                    'Running'
+                                                                        ? 'default'
+                                                                        : 'secondary'
+                                                                }
+                                                            >
+                                                                {
+                                                                    container.status
+                                                                }
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex justify-end">
+                                                                <Circle
+                                                                    className={`w-3 h-3 fill-current ${
+                                                                        container.ready
+                                                                            ? 'text-green-500'
+                                                                            : 'text-red-500'
+                                                                    }`}
+                                                                />
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <span className="font-mono">
+                                                                {
+                                                                    container.restartCount
+                                                                }
+                                                            </span>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )
+                                            )}
                                         </TableBody>
                                     </Table>
                                 </div>
