@@ -141,6 +141,20 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	// Wait for all filtering operations to complete
 	wg.Wait()
 
+	// Additional filtering for gateway workloads: if we found matching gateways,
+	// also find VirtualServices that reference those gateways
+	if len(matchingGateways) > 0 {
+		gatewayVirtualServices := filters.FilterVirtualServicesForMatchingGateways(clusterState.VirtualServices, matchingGateways, namespace)
+		if len(gatewayVirtualServices) > 0 {
+			originalCount := len(matchingVirtualServices)
+			matchingVirtualServices = mergeUniqueVirtualServices(matchingVirtualServices, gatewayVirtualServices)
+			i.logger.Debug("merged gateway-based virtual services",
+				"original_count", originalCount,
+				"gateway_vs_count", len(gatewayVirtualServices),
+				"merged_count", len(matchingVirtualServices))
+		}
+	}
+
 	i.logger.Debug("filtered istio resources",
 		"cluster_id", clusterID,
 		"total_gateways", len(clusterState.Gateways),
@@ -174,4 +188,37 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		WasmPlugins:            matchingWasmPlugins,
 		ServiceEntries:         matchingServiceEntries,
 	}, nil
+}
+
+// mergeUniqueVirtualServices combines two slices of VirtualServices, removing duplicates based on name and namespace.
+// This is used to merge VirtualServices found by different filtering approaches (workload-based and gateway-based).
+func mergeUniqueVirtualServices(vs1, vs2 []*typesv1alpha1.VirtualService) []*typesv1alpha1.VirtualService {
+	if len(vs2) == 0 {
+		return vs1
+	}
+	if len(vs1) == 0 {
+		return vs2
+	}
+
+	// Create a map to track existing VirtualServices by name+namespace
+	existing := make(map[string]bool)
+	for _, vs := range vs1 {
+		key := vs.Namespace + "/" + vs.Name
+		existing[key] = true
+	}
+
+	// Start with the first slice
+	result := make([]*typesv1alpha1.VirtualService, len(vs1))
+	copy(result, vs1)
+
+	// Add unique items from the second slice
+	for _, vs := range vs2 {
+		key := vs.Namespace + "/" + vs.Name
+		if !existing[key] {
+			result = append(result, vs)
+			existing[key] = true
+		}
+	}
+
+	return result
 }

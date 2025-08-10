@@ -209,7 +209,7 @@ func TestClient_convertDestinationRule(t *testing.T) {
 
 			assert.Equal(t, tt.wantExportTo, result.ExportTo)
 			assert.Equal(t, tt.wantWorkloadSelector, result.WorkloadSelector)
-			assert.NotEmpty(t, result.RawSpec)
+			assert.NotEmpty(t, result.RawConfig)
 		})
 	}
 }
@@ -310,7 +310,7 @@ func TestClient_convertGateway(t *testing.T) {
 			assert.Equal(t, tt.wantName, result.Name)
 			assert.Equal(t, "default", result.Namespace)
 			assert.Equal(t, tt.wantSelector, result.Selector)
-			assert.NotEmpty(t, result.RawSpec)
+			assert.NotEmpty(t, result.RawConfig)
 		})
 	}
 }
@@ -576,7 +576,7 @@ func TestClient_convertVirtualService(t *testing.T) {
 			assert.Equal(t, tt.wantHosts, result.Hosts)
 			assert.Equal(t, tt.wantGateways, result.Gateways)
 			assert.Equal(t, tt.wantExportTo, result.ExportTo)
-			assert.NotEmpty(t, result.RawSpec)
+			assert.NotEmpty(t, result.RawConfig)
 		})
 	}
 }
@@ -765,12 +765,12 @@ func TestClient_convertSidecar(t *testing.T) {
 			assert.Equal(t, tt.wantName, result.Name)
 			assert.Equal(t, tt.wantNamespace, result.Namespace)
 			assert.Equal(t, tt.wantWorkloadSelector, result.WorkloadSelector)
-			assert.NotEmpty(t, result.RawSpec)
+			assert.NotEmpty(t, result.RawConfig)
 
-			// Verify RawSpec contains valid JSON
+			// Verify RawConfig contains valid JSON
 			var spec map[string]interface{}
-			err = json.Unmarshal([]byte(result.RawSpec), &spec)
-			assert.NoError(t, err, "RawSpec should be valid JSON")
+			err = json.Unmarshal([]byte(result.RawConfig), &spec)
+			assert.NoError(t, err, "RawConfig should be valid JSON")
 		})
 	}
 }
@@ -1009,12 +1009,12 @@ func TestClient_convertPeerAuthentication(t *testing.T) {
 			assert.Equal(t, tt.wantName, result.Name)
 			assert.Equal(t, tt.wantNamespace, result.Namespace)
 			assert.Equal(t, tt.wantWorkloadSelector, result.Selector)
-			assert.NotEmpty(t, result.RawSpec)
+			assert.NotEmpty(t, result.RawConfig)
 
-			// Verify RawSpec contains valid JSON
+			// Verify RawConfig contains valid JSON
 			var spec map[string]interface{}
-			err = json.Unmarshal([]byte(result.RawSpec), &spec)
-			assert.NoError(t, err, "RawSpec should be valid JSON")
+			err = json.Unmarshal([]byte(result.RawConfig), &spec)
+			assert.NoError(t, err, "RawConfig should be valid JSON")
 		})
 	}
 }
@@ -1269,10 +1269,10 @@ func TestClient_convertWasmPlugin(t *testing.T) {
 			assert.Equal(t, tt.wantName, result.Name)
 			assert.Equal(t, tt.wantNamespace, result.Namespace)
 
-			// Verify that RawSpec is valid JSON
+			// Verify that RawConfig is valid JSON
 			var spec map[string]interface{}
-			err = json.Unmarshal([]byte(result.RawSpec), &spec)
-			assert.NoError(t, err, "RawSpec should be valid JSON")
+			err = json.Unmarshal([]byte(result.RawConfig), &spec)
+			assert.NoError(t, err, "RawConfig should be valid JSON")
 
 			if tt.wantWorkloadSelector == nil {
 				assert.Nil(t, result.Selector)
@@ -1465,12 +1465,12 @@ func TestClient_convertServiceEntry(t *testing.T) {
 			assert.Equal(t, tt.wantName, result.Name)
 			assert.Equal(t, tt.serviceEntry.Namespace, result.Namespace)
 			assert.Equal(t, tt.wantExportTo, result.ExportTo)
-			assert.NotEmpty(t, result.RawSpec)
+			assert.NotEmpty(t, result.RawConfig)
 
-			// Verify RawSpec contains valid JSON
+			// Verify RawConfig contains valid JSON
 			var spec map[string]interface{}
-			err = json.Unmarshal([]byte(result.RawSpec), &spec)
-			assert.NoError(t, err, "RawSpec should be valid JSON")
+			err = json.Unmarshal([]byte(result.RawConfig), &spec)
+			assert.NoError(t, err, "RawConfig should be valid JSON")
 		})
 	}
 }

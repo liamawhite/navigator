@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Target, Asterisk, Layers } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -165,9 +165,23 @@ const RouteGroup: React.FC<{
         return 0;
     });
 
+    const getGroupIcon = (title: string) => {
+        switch (title) {
+            case 'Service-Specific Routes':
+                return <Target className="w-4 h-4 text-green-500" />;
+            case 'Port-Based Routes':
+                return <Asterisk className="w-4 h-4 text-orange-500" />;
+            case 'Static Routes':
+                return <Layers className="w-4 h-4 text-purple-500" />;
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">
+            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                {getGroupIcon(title)}
                 {title} ({routes.length})
             </h4>
             <Table className="table-fixed w-full">
@@ -203,7 +217,7 @@ const RouteGroup: React.FC<{
                                 {getSortIcon('virtualHosts')}
                             </div>
                         </TableHead>
-                        <TableHead style={{ width: '10%' }}>Actions</TableHead>
+                        <TableHead style={{ width: '10%' }}></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

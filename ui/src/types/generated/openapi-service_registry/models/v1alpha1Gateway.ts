@@ -15,9 +15,9 @@ export type v1alpha1Gateway = {
      */
     namespace?: string;
     /**
-     * raw_spec is the gateway spec as a JSON string.
+     * raw_config is the complete gateway resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * selector is the workload selector for the gateway.
      */

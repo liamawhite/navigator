@@ -17,9 +17,9 @@ export type v1alpha1WasmPlugin = {
      */
     namespace?: string;
     /**
-     * raw_spec is the wasm plugin spec as a JSON string.
+     * raw_config is the complete wasm plugin resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * selector is the criteria used to select the specific set of pods/VMs.
      */

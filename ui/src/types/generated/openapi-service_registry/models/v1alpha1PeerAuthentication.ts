@@ -16,9 +16,9 @@ export type v1alpha1PeerAuthentication = {
      */
     namespace?: string;
     /**
-     * raw_spec is the peer authentication spec as a JSON string.
+     * raw_config is the complete peer authentication resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * selector is the criteria used to select the specific set of pods/VMs.
      */

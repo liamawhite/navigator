@@ -16,9 +16,9 @@ export type v1alpha1Sidecar = {
      */
     namespace?: string;
     /**
-     * raw_spec is the sidecar spec as a JSON string.
+     * raw_config is the complete sidecar resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * workload_selector is the criteria used to select the specific set of pods/VMs.
      */

@@ -117,3 +117,49 @@ func FilterVirtualServicesForWorkload(virtualServices []*typesv1alpha1.VirtualSe
 
 	return matchingVirtualServices
 }
+
+// FilterVirtualServicesForMatchingGateways returns all virtual services that reference any of the matched Gateway names.
+// This function is used to find VirtualServices that are bound to specific gateways that a gateway workload serves.
+// It applies namespace visibility rules based on the exportTo field.
+func FilterVirtualServicesForMatchingGateways(virtualServices []*typesv1alpha1.VirtualService, matchingGateways []*typesv1alpha1.Gateway, workloadNamespace string) []*typesv1alpha1.VirtualService {
+	if len(matchingGateways) == 0 {
+		return nil
+	}
+
+	// Extract gateway names from matching gateways (both simple and namespaced formats)
+	gatewayNames := make(map[string]bool)
+	for _, gateway := range matchingGateways {
+		if gateway.Name != "" {
+			// Add simple name
+			gatewayNames[gateway.Name] = true
+			// Add namespaced name
+			if gateway.Namespace != "" {
+				gatewayNames[gateway.Namespace+"/"+gateway.Name] = true
+			}
+		}
+	}
+
+	var matchingVirtualServices []*typesv1alpha1.VirtualService
+
+	for _, vs := range virtualServices {
+		// Check namespace visibility first
+		if !isVisibleToNamespace(virtualServiceExporter(vs), workloadNamespace) {
+			continue
+		}
+
+		// Check if any of the VirtualService's gateways match our gateway names
+		for _, vsGateway := range vs.Gateways {
+			if vsGateway == "mesh" {
+				continue // Skip mesh gateways as they don't apply to gateway workloads
+			}
+
+			// Check for exact match or try with workload namespace prefix
+			if gatewayNames[vsGateway] || gatewayNames[workloadNamespace+"/"+vsGateway] {
+				matchingVirtualServices = append(matchingVirtualServices, vs)
+				break // Found a match, no need to check other gateways for this VS
+			}
+		}
+	}
+
+	return matchingVirtualServices
+}

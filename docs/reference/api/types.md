@@ -84,7 +84,7 @@ DestinationRule represents an Istio DestinationRule resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the destination rule. |
 | namespace | [string](#string) |  | namespace is the namespace of the destination rule. |
-| raw_spec | [string](#string) |  | raw_spec is the destination rule spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete destination rule resource as a JSON string. |
 | host | [string](#string) |  | host is the name of a service from the service registry. |
 | subsets | [DestinationRuleSubset](#navigator-types-v1alpha1-DestinationRuleSubset) | repeated | subsets is the list of named subsets for traffic routing. |
 | export_to | [string](#string) | repeated | export_to controls the visibility of this destination rule to other namespaces. |
@@ -137,7 +137,7 @@ EnvoyFilter represents an Istio EnvoyFilter resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the envoy filter. |
 | namespace | [string](#string) |  | namespace is the namespace of the envoy filter. |
-| raw_spec | [string](#string) |  | raw_spec is the envoy filter spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete envoy filter resource as a JSON string. |
 | workload_selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
 | target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this envoy filter applies to. |
 
@@ -156,7 +156,7 @@ Gateway represents an Istio Gateway resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the gateway. |
 | namespace | [string](#string) |  | namespace is the namespace of the gateway. |
-| raw_spec | [string](#string) |  | raw_spec is the gateway spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete gateway resource as a JSON string. |
 | selector | [Gateway.SelectorEntry](#navigator-types-v1alpha1-Gateway-SelectorEntry) | repeated | selector is the workload selector for the gateway. |
 
 
@@ -206,7 +206,7 @@ PeerAuthentication represents an Istio PeerAuthentication resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the peer authentication. |
 | namespace | [string](#string) |  | namespace is the namespace of the peer authentication. |
-| raw_spec | [string](#string) |  | raw_spec is the peer authentication spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete peer authentication resource as a JSON string. |
 | selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
 
 
@@ -242,7 +242,7 @@ RequestAuthentication represents an Istio RequestAuthentication resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the request authentication. |
 | namespace | [string](#string) |  | namespace is the namespace of the request authentication. |
-| raw_spec | [string](#string) |  | raw_spec is the request authentication spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete request authentication resource as a JSON string. |
 | selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
 | target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this request authentication applies to. |
 
@@ -261,7 +261,7 @@ ServiceEntry represents an Istio ServiceEntry resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the service entry. |
 | namespace | [string](#string) |  | namespace is the namespace of the service entry. |
-| raw_spec | [string](#string) |  | raw_spec is the service entry spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete service entry resource as a JSON string. |
 | export_to | [string](#string) | repeated | export_to controls the visibility of this service entry to other namespaces. |
 
 
@@ -279,7 +279,7 @@ Sidecar represents an Istio Sidecar resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the sidecar. |
 | namespace | [string](#string) |  | namespace is the namespace of the sidecar. |
-| raw_spec | [string](#string) |  | raw_spec is the sidecar spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete sidecar resource as a JSON string. |
 | workload_selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | workload_selector is the criteria used to select the specific set of pods/VMs. |
 
 
@@ -297,7 +297,7 @@ VirtualService represents an Istio VirtualService resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the virtual service. |
 | namespace | [string](#string) |  | namespace is the namespace of the virtual service. |
-| raw_spec | [string](#string) |  | raw_spec is the virtual service spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete virtual service resource as a JSON string. |
 | hosts | [string](#string) | repeated | hosts is the list of destination hosts that these routing rules apply to. |
 | gateways | [string](#string) | repeated | gateways is the list of gateway names that should apply these routes. |
 | export_to | [string](#string) | repeated | export_to controls the visibility of this virtual service to other namespaces. |
@@ -317,7 +317,7 @@ WasmPlugin represents an Istio WasmPlugin resource.
 | ----- | ---- | ----- | ----------- |
 | name | [string](#string) |  | name is the name of the wasm plugin. |
 | namespace | [string](#string) |  | namespace is the namespace of the wasm plugin. |
-| raw_spec | [string](#string) |  | raw_spec is the wasm plugin spec as a JSON string. |
+| raw_config | [string](#string) |  | raw_config is the complete wasm plugin resource as a JSON string. |
 | selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
 | target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this wasm plugin applies to. |
 

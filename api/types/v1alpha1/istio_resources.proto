@@ -26,8 +26,8 @@ message DestinationRule {
   // namespace is the namespace of the destination rule.
   string namespace = 2;
   
-  // raw_spec is the destination rule spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete destination rule resource as a JSON string.
+  string raw_config = 3;
   
   // host is the name of a service from the service registry.
   string host = 4;
@@ -81,8 +81,8 @@ message EnvoyFilter {
   // namespace is the namespace of the envoy filter.
   string namespace = 2;
   
-  // raw_spec is the envoy filter spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete envoy filter resource as a JSON string.
+  string raw_config = 3;
   
   // workload_selector is the criteria used to select the specific set of pods/VMs.
   WorkloadSelector workload_selector = 4;
@@ -99,8 +99,8 @@ message Gateway {
   // namespace is the namespace of the gateway.
   string namespace = 2;
   
-  // raw_spec is the gateway spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete gateway resource as a JSON string.
+  string raw_config = 3;
   
   // selector is the workload selector for the gateway.
   map<string, string> selector = 4;
@@ -114,8 +114,8 @@ message Sidecar {
   // namespace is the namespace of the sidecar.
   string namespace = 2;
   
-  // raw_spec is the sidecar spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete sidecar resource as a JSON string.
+  string raw_config = 3;
   
   // workload_selector is the criteria used to select the specific set of pods/VMs.
   WorkloadSelector workload_selector = 4;
@@ -129,8 +129,8 @@ message VirtualService {
   // namespace is the namespace of the virtual service.
   string namespace = 2;
   
-  // raw_spec is the virtual service spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete virtual service resource as a JSON string.
+  string raw_config = 3;
   
   // hosts is the list of destination hosts that these routing rules apply to.
   repeated string hosts = 4;
@@ -150,8 +150,8 @@ message RequestAuthentication {
   // namespace is the namespace of the request authentication.
   string namespace = 2;
   
-  // raw_spec is the request authentication spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete request authentication resource as a JSON string.
+  string raw_config = 3;
   
   // selector is the criteria used to select the specific set of pods/VMs.
   WorkloadSelector selector = 4;
@@ -168,8 +168,8 @@ message PeerAuthentication {
   // namespace is the namespace of the peer authentication.
   string namespace = 2;
   
-  // raw_spec is the peer authentication spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete peer authentication resource as a JSON string.
+  string raw_config = 3;
   
   // selector is the criteria used to select the specific set of pods/VMs.
   WorkloadSelector selector = 4;
@@ -183,8 +183,8 @@ message WasmPlugin {
   // namespace is the namespace of the wasm plugin.
   string namespace = 2;
   
-  // raw_spec is the wasm plugin spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete wasm plugin resource as a JSON string.
+  string raw_config = 3;
   
   // selector is the criteria used to select the specific set of pods/VMs.
   WorkloadSelector selector = 4;
@@ -201,8 +201,8 @@ message ServiceEntry {
   // namespace is the namespace of the service entry.
   string namespace = 2;
   
-  // raw_spec is the service entry spec as a JSON string.
-  string raw_spec = 3;
+  // raw_config is the complete service entry resource as a JSON string.
+  string raw_config = 3;
   
   // export_to controls the visibility of this service entry to other namespaces.
   repeated string export_to = 4;

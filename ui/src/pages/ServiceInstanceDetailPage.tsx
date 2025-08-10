@@ -28,9 +28,10 @@ import {
     Globe,
     Calendar,
     HardDrive,
-    Monitor,
     Code,
     AlertCircle,
+    Sailboat,
+    Container,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +67,7 @@ import {
     BootstrapConfig,
     ConfigActions,
 } from '../components/envoy';
+import { IstioResourcesView } from '../components/istio';
 import { v1alpha1ProxyMode } from '@/types/generated/openapi-service_registry/index';
 
 const formatProxyMode = (proxyMode: v1alpha1ProxyMode | undefined): string => {
@@ -130,6 +132,15 @@ export const ServiceInstanceDetailPage: React.FC = () => {
         instanceId!
     );
     const [copiedItem, setCopiedItem] = useState<string | null>(null);
+
+    // Get config view from URL params, default to 'proxy'
+    const availableViews = ['proxy', 'istio', 'containers'] as const;
+    const currentConfigView = searchParams.get('config_view') || 'proxy';
+    const validConfigView = availableViews.includes(
+        currentConfigView as (typeof availableViews)[number]
+    )
+        ? (currentConfigView as 'proxy' | 'istio' | 'containers')
+        : 'proxy';
 
     const copyToClipboard = async (text: string, itemId: string) => {
         try {
@@ -391,83 +402,132 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                     </Card>
                 </div>
 
-                {/* Containers */}
-                <Card className="mb-6">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Monitor className="w-5 h-5 text-green-500" />
-                            Containers
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Image</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Ready</TableHead>
-                                    <TableHead>Restarts</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {(instance.containers || []).map(
-                                    (container, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>
-                                                <span className="font-mono text-sm">
-                                                    {container.name}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-mono text-sm">
-                                                    {container.image}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={
-                                                        container.status ===
-                                                        'Running'
-                                                            ? 'default'
-                                                            : 'secondary'
-                                                    }
-                                                >
-                                                    {container.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Circle
-                                                    className={`w-3 h-3 fill-current ${
-                                                        container.ready
-                                                            ? 'text-green-500'
-                                                            : 'text-red-500'
-                                                    }`}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-mono">
-                                                    {container.restartCount}
-                                                </span>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                {/* Proxy Configuration */}
-                {instance.isEnvoyPresent && (
+                {/* Service Mesh Configuration */}
+                {(instance.isEnvoyPresent ||
+                    (instance.containers &&
+                        instance.containers.length > 0)) && (
                     <Card className="mb-6">
                         <CardHeader>
                             <CardTitle className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Hexagon className="w-5 h-5 text-purple-500" />
-                                    Proxy Configuration
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => {
+                                                setSearchParams((prev) => {
+                                                    const newParams =
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
+                                                    newParams.set(
+                                                        'config_view',
+                                                        'proxy'
+                                                    );
+                                                    // Keep existing proxy_config tab if it exists
+                                                    if (
+                                                        !prev.has(
+                                                            'proxy_config'
+                                                        )
+                                                    ) {
+                                                        newParams.set(
+                                                            'proxy_config',
+                                                            'listeners'
+                                                        );
+                                                    }
+                                                    return newParams;
+                                                });
+                                            }}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                                                validConfigView === 'proxy'
+                                                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+                                                    : 'text-muted-foreground hover:text-foreground'
+                                            }`}
+                                        >
+                                            <Hexagon
+                                                className={`w-4 h-4 ${
+                                                    validConfigView === 'proxy'
+                                                        ? ''
+                                                        : 'text-purple-500'
+                                                }`}
+                                            />
+                                            Proxy Configuration
+                                            <sup className="text-xs text-purple-500 font-medium -ml-1.5">
+                                                beta
+                                            </sup>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setSearchParams((prev) => {
+                                                    const newParams =
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
+                                                    newParams.set(
+                                                        'config_view',
+                                                        'istio'
+                                                    );
+                                                    // Keep existing istio_tab if it exists
+                                                    if (
+                                                        !prev.has('istio_tab')
+                                                    ) {
+                                                        newParams.set(
+                                                            'istio_tab',
+                                                            'traffic'
+                                                        );
+                                                    }
+                                                    return newParams;
+                                                });
+                                            }}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                                                validConfigView === 'istio'
+                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                                                    : 'text-muted-foreground hover:text-foreground'
+                                            }`}
+                                        >
+                                            <Sailboat
+                                                className={`w-4 h-4 ${
+                                                    validConfigView === 'istio'
+                                                        ? ''
+                                                        : 'text-blue-500'
+                                                }`}
+                                            />
+                                            Istio Resources
+                                            <sup className="text-xs text-blue-500 font-medium -ml-1.5">
+                                                alpha
+                                            </sup>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setSearchParams((prev) => {
+                                                    const newParams =
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
+                                                    newParams.set(
+                                                        'config_view',
+                                                        'containers'
+                                                    );
+                                                    return newParams;
+                                                });
+                                            }}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
+                                                validConfigView === 'containers'
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                                                    : 'text-muted-foreground hover:text-foreground'
+                                            }`}
+                                        >
+                                            <Container
+                                                className={`w-4 h-4 ${
+                                                    validConfigView ===
+                                                    'containers'
+                                                        ? ''
+                                                        : 'text-green-500'
+                                                }`}
+                                            />
+                                            Containers
+                                        </button>
+                                    </div>
                                 </div>
-                                {proxyConfig && (
+                                {proxyConfig && validConfigView === 'proxy' && (
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-1.5 border">
                                             <Code className="w-3 h-3 text-blue-500" />
@@ -508,203 +568,254 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {proxyLoading ? (
-                                <div className="animate-pulse">
-                                    <div className="h-4 bg-muted rounded w-1/4 mb-2"></div>
-                                    <div className="h-32 bg-muted rounded"></div>
-                                </div>
-                            ) : proxyConfig ? (
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Proxy Mode
-                                            </label>
-                                            <div className="text-sm">
-                                                <Badge
-                                                    variant={getProxyModeVariant(
-                                                        proxyConfig.proxyConfig
-                                                            .bootstrap?.node
-                                                            ?.proxyMode
-                                                    )}
-                                                >
-                                                    {formatProxyMode(
-                                                        proxyConfig.proxyConfig
-                                                            .bootstrap?.node
-                                                            ?.proxyMode
-                                                    )}
-                                                </Badge>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Version
-                                            </label>
-                                            <div className="text-sm font-mono">
-                                                {
-                                                    proxyConfig.proxyConfig
-                                                        .version
-                                                }
-                                            </div>
-                                        </div>
+                            {validConfigView === 'proxy' ? (
+                                proxyLoading ? (
+                                    <div className="animate-pulse">
+                                        <div className="h-4 bg-muted rounded w-1/4 mb-2"></div>
+                                        <div className="h-32 bg-muted rounded"></div>
                                     </div>
+                                ) : proxyConfig ? (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Proxy Mode
+                                                </label>
+                                                <div className="text-sm">
+                                                    <Badge
+                                                        variant={getProxyModeVariant(
+                                                            proxyConfig
+                                                                .proxyConfig
+                                                                .bootstrap?.node
+                                                                ?.proxyMode
+                                                        )}
+                                                    >
+                                                        {formatProxyMode(
+                                                            proxyConfig
+                                                                .proxyConfig
+                                                                .bootstrap?.node
+                                                                ?.proxyMode
+                                                        )}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-medium text-muted-foreground">
+                                                    Version
+                                                </label>
+                                                <div className="text-sm font-mono">
+                                                    {
+                                                        proxyConfig.proxyConfig
+                                                            .version
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                    <Tabs
-                                        value={validTab}
-                                        onValueChange={(tab) => {
-                                            setSearchParams((prev) => {
-                                                const newParams =
-                                                    new URLSearchParams(prev);
-                                                newParams.set(
-                                                    'proxy_config',
-                                                    tab
-                                                );
-                                                return newParams;
-                                            });
-                                        }}
-                                        className="w-full"
-                                    >
-                                        <TabsList className="grid w-full grid-cols-5">
-                                            <TabsTrigger
-                                                value="listeners"
-                                                className="cursor-pointer"
-                                            >
-                                                Listeners
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                                value="routes"
-                                                className="cursor-pointer"
-                                            >
-                                                Routes
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                                value="clusters"
-                                                className="cursor-pointer"
-                                            >
-                                                Clusters
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                                value="endpoints"
-                                                className="cursor-pointer"
-                                            >
-                                                Endpoints
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                                value="bootstrap"
-                                                className="cursor-pointer"
-                                            >
-                                                Bootstrap
-                                            </TabsTrigger>
-                                        </TabsList>
-
-                                        <TabsContent
-                                            value="listeners"
-                                            className="mt-4"
+                                        <Tabs
+                                            value={validTab}
+                                            onValueChange={(tab) => {
+                                                setSearchParams((prev) => {
+                                                    const newParams =
+                                                        new URLSearchParams(
+                                                            prev
+                                                        );
+                                                    newParams.set(
+                                                        'proxy_config',
+                                                        tab
+                                                    );
+                                                    return newParams;
+                                                });
+                                            }}
+                                            className="w-full"
                                         >
-                                            <div className="space-y-4">
-                                                <h4 className="text-sm font-medium">
-                                                    Listeners (
-                                                    {proxyConfig.proxyConfig
-                                                        .listeners?.length || 0}
-                                                    )
-                                                </h4>
+                                            <TabsList className="grid w-full grid-cols-5">
+                                                <TabsTrigger
+                                                    value="listeners"
+                                                    className="cursor-pointer"
+                                                >
+                                                    Listeners
+                                                </TabsTrigger>
+                                                <TabsTrigger
+                                                    value="routes"
+                                                    className="cursor-pointer"
+                                                >
+                                                    Routes
+                                                </TabsTrigger>
+                                                <TabsTrigger
+                                                    value="clusters"
+                                                    className="cursor-pointer"
+                                                >
+                                                    Clusters
+                                                </TabsTrigger>
+                                                <TabsTrigger
+                                                    value="endpoints"
+                                                    className="cursor-pointer"
+                                                >
+                                                    Endpoints
+                                                </TabsTrigger>
+                                                <TabsTrigger
+                                                    value="bootstrap"
+                                                    className="cursor-pointer"
+                                                >
+                                                    Bootstrap
+                                                </TabsTrigger>
+                                            </TabsList>
+
+                                            <TabsContent
+                                                value="listeners"
+                                                className="mt-4"
+                                            >
                                                 <ListenersTable
                                                     listeners={
                                                         proxyConfig.proxyConfig
                                                             .listeners || []
                                                     }
                                                 />
-                                            </div>
-                                        </TabsContent>
+                                            </TabsContent>
 
-                                        <TabsContent
-                                            value="clusters"
-                                            className="mt-4"
-                                        >
-                                            <div className="space-y-4">
-                                                <h4 className="text-sm font-medium">
-                                                    Clusters (
-                                                    {proxyConfig.proxyConfig
-                                                        .clusters?.length || 0}
-                                                    )
-                                                </h4>
+                                            <TabsContent
+                                                value="clusters"
+                                                className="mt-4"
+                                            >
                                                 <ClustersTable
                                                     clusters={
                                                         proxyConfig.proxyConfig
                                                             .clusters || []
                                                     }
                                                 />
-                                            </div>
-                                        </TabsContent>
+                                            </TabsContent>
 
-                                        <TabsContent
-                                            value="endpoints"
-                                            className="mt-4"
-                                        >
-                                            <div className="space-y-4">
-                                                <h4 className="text-sm font-medium">
-                                                    Endpoints (
-                                                    {proxyConfig.proxyConfig
-                                                        .endpoints?.length || 0}
-                                                    )
-                                                </h4>
+                                            <TabsContent
+                                                value="endpoints"
+                                                className="mt-4"
+                                            >
                                                 <EndpointsTable
                                                     endpoints={
                                                         proxyConfig.proxyConfig
                                                             .endpoints || []
                                                     }
                                                 />
-                                            </div>
-                                        </TabsContent>
+                                            </TabsContent>
 
-                                        <TabsContent
-                                            value="routes"
-                                            className="mt-4"
-                                        >
-                                            <div className="space-y-4">
-                                                <h4 className="text-sm font-medium">
-                                                    Routes (
-                                                    {proxyConfig.proxyConfig
-                                                        .routes?.length || 0}
-                                                    )
-                                                </h4>
+                                            <TabsContent
+                                                value="routes"
+                                                className="mt-4"
+                                            >
                                                 <RoutesTable
                                                     routes={
                                                         proxyConfig.proxyConfig
                                                             .routes || []
                                                     }
                                                 />
-                                            </div>
-                                        </TabsContent>
+                                            </TabsContent>
 
-                                        <TabsContent
-                                            value="bootstrap"
-                                            className="mt-4"
-                                        >
-                                            <div className="space-y-4">
-                                                <h4 className="text-sm font-medium">
-                                                    Bootstrap Configuration
-                                                </h4>
+                                            <TabsContent
+                                                value="bootstrap"
+                                                className="mt-4"
+                                            >
                                                 <BootstrapConfig
                                                     bootstrap={
                                                         proxyConfig.proxyConfig
                                                             .bootstrap || null
                                                     }
                                                 />
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
-                                </div>
+                                            </TabsContent>
+                                        </Tabs>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <AlertCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                                            Configuration not available
+                                        </h3>
+                                        <p className="text-muted-foreground">
+                                            Unable to retrieve proxy
+                                            configuration for this instance.
+                                        </p>
+                                    </div>
+                                )
+                            ) : validConfigView === 'istio' ? (
+                                <IstioResourcesView
+                                    serviceId={serviceId!}
+                                    instanceId={instanceId!}
+                                />
                             ) : (
-                                <div className="text-center py-8">
-                                    <AlertCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                                        Configuration not available
-                                    </h3>
-                                    <p className="text-muted-foreground">
-                                        Unable to retrieve proxy configuration
-                                        for this instance.
-                                    </p>
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                        <Container className="w-4 h-4 text-green-500" />
+                                        Containers (
+                                        {(instance.containers || []).length})
+                                    </h4>
+                                    <Table className="table-fixed">
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Image</TableHead>
+                                                <TableHead className="text-right">
+                                                    Status
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Ready
+                                                </TableHead>
+                                                <TableHead className="text-right">
+                                                    Restarts
+                                                </TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {(instance.containers || []).map(
+                                                (container, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell>
+                                                            <span className="font-mono text-sm">
+                                                                {container.name}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <span className="font-mono text-sm">
+                                                                {
+                                                                    container.image
+                                                                }
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Badge
+                                                                variant={
+                                                                    container.status ===
+                                                                    'Running'
+                                                                        ? 'default'
+                                                                        : 'secondary'
+                                                                }
+                                                            >
+                                                                {
+                                                                    container.status
+                                                                }
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <div className="flex justify-end">
+                                                                <Circle
+                                                                    className={`w-3 h-3 fill-current ${
+                                                                        container.ready
+                                                                            ? 'text-green-500'
+                                                                            : 'text-red-500'
+                                                                    }`}
+                                                                />
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
+                                                            <span className="font-mono">
+                                                                {
+                                                                    container.restartCount
+                                                                }
+                                                            </span>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                         </CardContent>

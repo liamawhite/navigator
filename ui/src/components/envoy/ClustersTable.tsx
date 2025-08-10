@@ -13,7 +13,14 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import {
+    ChevronUp,
+    ChevronDown,
+    Target,
+    Layers,
+    Globe,
+    Settings,
+} from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -144,9 +151,25 @@ const ClusterGroup: React.FC<{
         return 0;
     });
 
+    const getGroupIcon = (title: string) => {
+        switch (title) {
+            case 'Service Discovery Clusters':
+                return <Target className="w-4 h-4 text-blue-500" />;
+            case 'Static Clusters':
+                return <Layers className="w-4 h-4 text-green-500" />;
+            case 'DNS-Based Clusters':
+                return <Globe className="w-4 h-4 text-orange-500" />;
+            case 'Special Clusters':
+                return <Settings className="w-4 h-4 text-purple-500" />;
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">
+            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                {getGroupIcon(title)}
                 {title} ({clusters.length})
             </h4>
             <Table className="table-fixed">
@@ -197,7 +220,7 @@ const ClusterGroup: React.FC<{
                                 {getSortIcon('type')}
                             </div>
                         </TableHead>
-                        <TableHead className="w-32">Actions</TableHead>
+                        <TableHead className="w-32"></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

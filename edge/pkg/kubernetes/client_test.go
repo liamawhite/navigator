@@ -249,7 +249,7 @@ func TestClient_GetClusterStateWithIstio(t *testing.T) {
 	// Verify Istio resources
 	assert.Len(t, result.DestinationRules, 1)
 	assert.Equal(t, "test-dr", result.DestinationRules[0].Name)
-	assert.Contains(t, result.DestinationRules[0].RawSpec, "test-service")
+	assert.Contains(t, result.DestinationRules[0].RawConfig, "test-service")
 }
 
 func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
@@ -317,7 +317,7 @@ func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
 	assert.Equal(t, "default", result.WasmPlugins[0].Namespace)
 	assert.NotNil(t, result.WasmPlugins[0].Selector)
 	assert.Equal(t, "test-service", result.WasmPlugins[0].Selector.MatchLabels["app"])
-	assert.Contains(t, result.WasmPlugins[0].RawSpec, "oci://docker.io/istio/test-plugin:latest")
+	assert.Contains(t, result.WasmPlugins[0].RawConfig, "oci://docker.io/istio/test-plugin:latest")
 
 	// Verify RequestAuthentication is still working (regression test)
 	assert.Len(t, result.RequestAuthentications, 1)
