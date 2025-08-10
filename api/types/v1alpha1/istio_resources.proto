@@ -175,6 +175,24 @@ message PeerAuthentication {
   WorkloadSelector selector = 4;
 }
 
+// AuthorizationPolicy represents an Istio AuthorizationPolicy resource.
+message AuthorizationPolicy {
+  // name is the name of the authorization policy.
+  string name = 1;
+  
+  // namespace is the namespace of the authorization policy.
+  string namespace = 2;
+  
+  // raw_config is the complete authorization policy resource as a JSON string.
+  string raw_config = 3;
+  
+  // selector is the criteria used to select the specific set of pods/VMs.
+  WorkloadSelector selector = 4;
+  
+  // target_refs is the list of resources that this authorization policy applies to.
+  repeated PolicyTargetReference target_refs = 5;
+}
+
 // WasmPlugin represents an Istio WasmPlugin resource.
 message WasmPlugin {
   // name is the name of the wasm plugin.

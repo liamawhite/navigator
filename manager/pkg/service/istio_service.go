@@ -77,12 +77,13 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	var matchingEnvoyFilters []*typesv1alpha1.EnvoyFilter
 	var matchingRequestAuthentications []*typesv1alpha1.RequestAuthentication
 	var matchingPeerAuthentications []*typesv1alpha1.PeerAuthentication
+	var matchingAuthorizationPolicies []*typesv1alpha1.AuthorizationPolicy
 	var matchingWasmPlugins []*typesv1alpha1.WasmPlugin
 	var matchingVirtualServices []*typesv1alpha1.VirtualService
 	var matchingServiceEntries []*typesv1alpha1.ServiceEntry
 	var matchingDestinationRules []*typesv1alpha1.DestinationRule
 
-	wg.Add(9)
+	wg.Add(10)
 
 	// Filter gateways concurrently
 	go func() {
@@ -112,6 +113,12 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 	go func() {
 		defer wg.Done()
 		matchingPeerAuthentications = filters.FilterPeerAuthenticationsForWorkload(clusterState.PeerAuthentications, instance, namespace, rootNamespace)
+	}()
+
+	// Filter authorization policies concurrently
+	go func() {
+		defer wg.Done()
+		matchingAuthorizationPolicies = filters.FilterAuthorizationPoliciesForWorkload(clusterState.AuthorizationPolicies, instance, namespace, rootNamespace)
 	}()
 
 	// Filter wasm plugins concurrently
@@ -167,6 +174,8 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		"matching_request_authentications", len(matchingRequestAuthentications),
 		"total_peer_authentications", len(clusterState.PeerAuthentications),
 		"matching_peer_authentications", len(matchingPeerAuthentications),
+		"total_authorization_policies", len(clusterState.AuthorizationPolicies),
+		"matching_authorization_policies", len(matchingAuthorizationPolicies),
 		"total_wasm_plugins", len(clusterState.WasmPlugins),
 		"matching_wasm_plugins", len(matchingWasmPlugins),
 		"total_virtual_services", len(clusterState.VirtualServices),
@@ -185,6 +194,7 @@ func (i *IstioService) GetIstioResourcesForWorkload(ctx context.Context, cluster
 		EnvoyFilters:           matchingEnvoyFilters,
 		RequestAuthentications: matchingRequestAuthentications,
 		PeerAuthentications:    matchingPeerAuthentications,
+		AuthorizationPolicies:  matchingAuthorizationPolicies,
 		WasmPlugins:            matchingWasmPlugins,
 		ServiceEntries:         matchingServiceEntries,
 	}, nil

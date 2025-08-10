@@ -10,6 +10,7 @@ export type { OpenAPIConfig } from './core/OpenAPI';
 export type { protobufAny } from './models/protobufAny';
 export type { rpcStatus } from './models/rpcStatus';
 export { v1alpha1AddressType } from './models/v1alpha1AddressType';
+export type { v1alpha1AuthorizationPolicy } from './models/v1alpha1AuthorizationPolicy';
 export type { v1alpha1BootstrapSummary } from './models/v1alpha1BootstrapSummary';
 export { v1alpha1ClusterDirection } from './models/v1alpha1ClusterDirection';
 export type { v1alpha1ClusterManagerInfo } from './models/v1alpha1ClusterManagerInfo';

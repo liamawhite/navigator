@@ -117,6 +117,28 @@ func (k *Client) fetchPeerAuthentications(ctx context.Context, wg *sync.WaitGrou
 	*result = protoPeerAuthentications
 }
 
+// fetchAuthorizationPolicies fetches and converts all authorization policies from the cluster
+func (k *Client) fetchAuthorizationPolicies(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.AuthorizationPolicy, errChan chan<- error) {
+	defer wg.Done()
+	apList, err := k.istioClient.SecurityV1beta1().AuthorizationPolicies("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		errChan <- fmt.Errorf("failed to list authorization policies: %w", err)
+		return
+	}
+
+	var protoAuthorizationPolicies []*typesv1alpha1.AuthorizationPolicy
+	for i := range apList.Items {
+		ap := apList.Items[i]
+		protoAP, convertErr := k.convertAuthorizationPolicy(ap)
+		if convertErr != nil {
+			k.logger.Warn("failed to convert authorization policy", "name", ap.Name, "namespace", ap.Namespace, "error", convertErr)
+			continue
+		}
+		protoAuthorizationPolicies = append(protoAuthorizationPolicies, protoAP)
+	}
+	*result = protoAuthorizationPolicies
+}
+
 // fetchWasmPlugins fetches and converts all wasm plugins from the cluster
 func (k *Client) fetchWasmPlugins(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.WasmPlugin, errChan chan<- error) {
 	defer wg.Done()
@@ -394,6 +416,61 @@ func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthenti
 		Namespace: pa.Namespace,
 		RawConfig: string(resourceBytes),
 		Selector:  selector,
+	}, nil
+}
+
+// convertAuthorizationPolicy converts an Istio AuthorizationPolicy to a protobuf AuthorizationPolicy
+func (k *Client) convertAuthorizationPolicy(ap *istiosecurityv1beta1.AuthorizationPolicy) (*typesv1alpha1.AuthorizationPolicy, error) {
+	resourceBytes, err := json.Marshal(ap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal authorization policy resource: %w", err)
+	}
+
+	// Extract selector from the spec
+	var selector *typesv1alpha1.WorkloadSelector
+	if ap.Spec.Selector != nil && ap.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range ap.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	// Extract target refs from the spec
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
+
+	// Handle TargetRef (singular) - older API
+	if ap.Spec.TargetRef != nil {
+		protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+			Group:     ap.Spec.TargetRef.Group,
+			Kind:      ap.Spec.TargetRef.Kind,
+			Name:      ap.Spec.TargetRef.Name,
+			Namespace: ap.Spec.TargetRef.Namespace,
+		}
+		targetRefs = append(targetRefs, protoTargetRef)
+	}
+
+	// Handle TargetRefs (plural) - newer API
+	for _, targetRef := range ap.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
+	return &typesv1alpha1.AuthorizationPolicy{
+		Name:       ap.Name,
+		Namespace:  ap.Namespace,
+		RawConfig:  string(resourceBytes),
+		Selector:   selector,
+		TargetRefs: targetRefs,
 	}, nil
 }
 
