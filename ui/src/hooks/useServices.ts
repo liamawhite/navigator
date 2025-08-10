@@ -46,3 +46,11 @@ export const useProxyConfig = (serviceId: string, instanceId: string) => {
         enabled: !!serviceId && !!instanceId,
     });
 };
+
+export const useIstioResources = (serviceId: string, instanceId: string) => {
+    return useQuery({
+        queryKey: ['istioResources', serviceId, instanceId],
+        queryFn: () => serviceApi.getIstioResources(serviceId, instanceId),
+        enabled: !!serviceId && !!instanceId,
+    });
+};

@@ -15,9 +15,9 @@ export type v1alpha1ServiceEntry = {
      */
     namespace?: string;
     /**
-     * raw_spec is the service entry spec as a JSON string.
+     * raw_config is the complete service entry resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * export_to controls the visibility of this service entry to other namespaces.
      */

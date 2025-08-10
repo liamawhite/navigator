@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, EthernetPort, Target, Asterisk, Settings } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -205,9 +205,25 @@ const ListenerGroup: React.FC<{
         return 0;
     });
 
+    const getGroupIcon = (title: string) => {
+        switch (title) {
+            case 'Virtual Listeners':
+                return <EthernetPort className="w-4 h-4 text-blue-500" />;
+            case 'Service-Specific Listeners':
+                return <Target className="w-4 h-4 text-green-500" />;
+            case 'Port-Based Listeners':
+                return <Asterisk className="w-4 h-4 text-orange-500" />;
+            case 'Proxy Listeners':
+                return <Settings className="w-4 h-4 text-purple-500" />;
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground">
+            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                {getGroupIcon(title)}
                 {title} ({listeners.length})
             </h4>
             <Table className="table-fixed">
@@ -240,7 +256,7 @@ const ListenerGroup: React.FC<{
                                 {getSortIcon('type')}
                             </div>
                         </TableHead>
-                        <TableHead className="w-20">Actions</TableHead>
+                        <TableHead className="w-20"></TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -20,6 +20,7 @@ import type {
     v1alpha1ServiceInstanceDetail,
     v1alpha1ListClustersResponse,
     v1alpha1ClusterSyncInfo,
+    v1alpha1GetIstioResourcesResponse,
 } from '../types/generated/openapi-service_registry';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -71,6 +72,16 @@ export const serviceApi = {
             '/api/v1alpha1/clusters'
         );
         return response.data.clusters || [];
+    },
+
+    getIstioResources: async (
+        serviceId: string,
+        instanceId: string
+    ): Promise<v1alpha1GetIstioResourcesResponse> => {
+        const response = await api.get<v1alpha1GetIstioResourcesResponse>(
+            `/api/v1alpha1/services/${serviceId}/instances/${instanceId}/istio-resources`
+        );
+        return response.data;
     },
 };
 

@@ -17,9 +17,9 @@ export type v1alpha1DestinationRule = {
      */
     namespace?: string;
     /**
-     * raw_spec is the destination rule spec as a JSON string.
+     * raw_config is the complete destination rule resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * host is the name of a service from the service registry.
      */

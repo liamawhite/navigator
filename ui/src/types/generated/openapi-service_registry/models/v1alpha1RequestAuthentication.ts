@@ -17,9 +17,9 @@ export type v1alpha1RequestAuthentication = {
      */
     namespace?: string;
     /**
-     * raw_spec is the request authentication spec as a JSON string.
+     * raw_config is the complete request authentication resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * selector is the criteria used to select the specific set of pods/VMs.
      */

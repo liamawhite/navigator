@@ -15,9 +15,9 @@ export type v1alpha1VirtualService = {
      */
     namespace?: string;
     /**
-     * raw_spec is the virtual service spec as a JSON string.
+     * raw_config is the complete virtual service resource as a JSON string.
      */
-    rawSpec?: string;
+    rawConfig?: string;
     /**
      * hosts is the list of destination hosts that these routing rules apply to.
      */
