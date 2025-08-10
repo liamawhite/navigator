@@ -1517,3 +1517,273 @@ func TestClient_convertServiceEntry_ErrorCases(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_convertAuthorizationPolicy(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name                    string
+		authorizationPolicy     *istiosecurityv1beta1.AuthorizationPolicy
+		wantName               string
+		wantNamespace          string
+		wantWorkloadSelector   *typesv1alpha1.WorkloadSelector
+		wantTargetRefs         []*typesv1alpha1.PolicyTargetReference
+	}{
+		{
+			name: "authorization policy with no selector",
+			authorizationPolicy: &istiosecurityv1beta1.AuthorizationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-authz-policy",
+					Namespace: "default",
+				},
+				Spec: securityapi.AuthorizationPolicy{
+					Rules: []*securityapi.Rule{
+						{
+							From: []*securityapi.Rule_From{
+								{
+									Source: &securityapi.Source{
+										Principals: []string{"cluster.local/ns/default/sa/test"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantName:             "test-authz-policy",
+			wantNamespace:        "default",
+			wantWorkloadSelector: nil,
+			wantTargetRefs:       nil,
+		},
+		{
+			name: "authorization policy with workload selector",
+			authorizationPolicy: &istiosecurityv1beta1.AuthorizationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "selector-authz-policy",
+					Namespace: "production",
+				},
+				Spec: securityapi.AuthorizationPolicy{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"app":     "backend",
+							"version": "v2",
+						},
+					},
+					Action: securityapi.AuthorizationPolicy_ALLOW,
+					Rules: []*securityapi.Rule{
+						{
+							To: []*securityapi.Rule_To{
+								{
+									Operation: &securityapi.Operation{
+										Methods: []string{"GET", "POST"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantName:      "selector-authz-policy",
+			wantNamespace: "production",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"app":     "backend",
+					"version": "v2",
+				},
+			},
+			wantTargetRefs: nil,
+		},
+		{
+			name: "authorization policy with target references",
+			authorizationPolicy: &istiosecurityv1beta1.AuthorizationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "targetref-authz-policy",
+					Namespace: "test-ns",
+				},
+				Spec: securityapi.AuthorizationPolicy{
+					TargetRef: &istiotype.PolicyTargetReference{
+						Group: "gateway.networking.k8s.io",
+						Kind:  "Gateway",
+						Name:  "test-gateway",
+					},
+					Action: securityapi.AuthorizationPolicy_DENY,
+					Rules: []*securityapi.Rule{
+						{
+							From: []*securityapi.Rule_From{
+								{
+									Source: &securityapi.Source{
+										IpBlocks: []string{"192.168.1.0/24"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantName:             "targetref-authz-policy",
+			wantNamespace:        "test-ns",
+			wantWorkloadSelector: nil,
+			wantTargetRefs: []*typesv1alpha1.PolicyTargetReference{
+				{
+					Group: "gateway.networking.k8s.io",
+					Kind:  "Gateway",
+					Name:  "test-gateway",
+				},
+			},
+		},
+		{
+			name: "authorization policy with multiple target references",
+			authorizationPolicy: &istiosecurityv1beta1.AuthorizationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "multi-targetref-authz-policy",
+					Namespace: "multi-ns",
+				},
+				Spec: securityapi.AuthorizationPolicy{
+					TargetRefs: []*istiotype.PolicyTargetReference{
+						{
+							Group: "",
+							Kind:  "Service",
+							Name:  "backend-service",
+						},
+						{
+							Group:     "gateway.networking.k8s.io",
+							Kind:      "Gateway",
+							Name:      "api-gateway",
+							Namespace: "gateway-ns",
+						},
+					},
+					Rules: []*securityapi.Rule{
+						{
+							When: []*securityapi.Condition{
+								{
+									Key:    "source.ip",
+									Values: []string{"10.0.0.0/8"},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantName:             "multi-targetref-authz-policy",
+			wantNamespace:        "multi-ns",
+			wantWorkloadSelector: nil,
+			wantTargetRefs: []*typesv1alpha1.PolicyTargetReference{
+				{
+					Group: "",
+					Kind:  "Service",
+					Name:  "backend-service",
+				},
+				{
+					Group:     "gateway.networking.k8s.io",
+					Kind:      "Gateway",
+					Name:      "api-gateway",
+					Namespace: "gateway-ns",
+				},
+			},
+		},
+		{
+			name: "authorization policy with both selector and target refs (single targetRef)",
+			authorizationPolicy: &istiosecurityv1beta1.AuthorizationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "both-selector-targetref",
+					Namespace: "combined-ns",
+				},
+				Spec: securityapi.AuthorizationPolicy{
+					Selector: &istiotype.WorkloadSelector{
+						MatchLabels: map[string]string{
+							"component": "frontend",
+						},
+					},
+					TargetRef: &istiotype.PolicyTargetReference{
+						Group: "networking.istio.io",
+						Kind:  "ServiceEntry",
+						Name:  "external-service",
+					},
+					Action: securityapi.AuthorizationPolicy_CUSTOM,
+					Rules: []*securityapi.Rule{
+						{
+							To: []*securityapi.Rule_To{
+								{
+									Operation: &securityapi.Operation{
+										Paths: []string{"/api/*"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantName:      "both-selector-targetref",
+			wantNamespace: "combined-ns",
+			wantWorkloadSelector: &typesv1alpha1.WorkloadSelector{
+				MatchLabels: map[string]string{
+					"component": "frontend",
+				},
+			},
+			wantTargetRefs: []*typesv1alpha1.PolicyTargetReference{
+				{
+					Group: "networking.istio.io",
+					Kind:  "ServiceEntry",
+					Name:  "external-service",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertAuthorizationPolicy(tt.authorizationPolicy)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantName, result.Name)
+			assert.Equal(t, tt.wantNamespace, result.Namespace)
+			assert.Equal(t, tt.wantWorkloadSelector, result.Selector)
+			assert.Equal(t, tt.wantTargetRefs, result.TargetRefs)
+
+			// Verify RawConfig is valid JSON
+			var jsonData interface{}
+			err = json.Unmarshal([]byte(result.RawConfig), &jsonData)
+			assert.NoError(t, err, "RawConfig should be valid JSON")
+		})
+	}
+}
+
+func TestClient_convertAuthorizationPolicy_ErrorCases(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	tests := []struct {
+		name                string
+		authorizationPolicy *istiosecurityv1beta1.AuthorizationPolicy
+		expectError         bool
+	}{
+		{
+			name: "valid authorization policy should not error",
+			authorizationPolicy: &istiosecurityv1beta1.AuthorizationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-authz-policy",
+					Namespace: "default",
+				},
+				Spec: securityapi.AuthorizationPolicy{
+					Action: securityapi.AuthorizationPolicy_ALLOW,
+				},
+			},
+			expectError: false,
+		},
+		// Note: It's hard to create a scenario where JSON marshaling fails for AuthorizationPolicy
+		// since the Istio types are well-defined, but we include this test structure for completeness
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.convertAuthorizationPolicy(tt.authorizationPolicy)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
+}

@@ -29,6 +29,7 @@ import { DestinationRulesTable } from './DestinationRulesTable';
 import { GatewaysTable } from './GatewaysTable';
 import { RequestAuthenticationsTable } from './RequestAuthenticationsTable';
 import { PeerAuthenticationsTable } from './PeerAuthenticationsTable';
+import { AuthorizationPoliciesTable } from './AuthorizationPoliciesTable';
 import { SidecarsTable } from './SidecarsTable';
 import { EnvoyFiltersTable } from './EnvoyFiltersTable';
 import { WasmPluginsTable } from './WasmPluginsTable';
@@ -100,6 +101,7 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
     const securityResources = [
         ...(istioResources.requestAuthentications || []),
         ...(istioResources.peerAuthentications || []),
+        ...(istioResources.authorizationPolicies || []),
     ];
 
     const extensionResources = [
@@ -267,6 +269,15 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                             />
                         )}
 
+                    {istioResources.authorizationPolicies &&
+                        istioResources.authorizationPolicies.length > 0 && (
+                            <AuthorizationPoliciesTable
+                                authorizationPolicies={
+                                    istioResources.authorizationPolicies
+                                }
+                            />
+                        )}
+
                     {/* Show missing resource types */}
                     <div className="space-y-2">
                         {(!istioResources.requestAuthentications ||
@@ -284,6 +295,13 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 No PeerAuthentications matched for this instance
                             </div>
                         )}
+                        {(!istioResources.authorizationPolicies ||
+                            istioResources.authorizationPolicies.length ===
+                                0) && (
+                            <div className="text-xs text-muted-foreground bg-muted/20 rounded px-3 py-2">
+                                No AuthorizationPolicies matched for this instance
+                            </div>
+                        )}
                     </div>
 
                     {securityResources.length === 0 && (
@@ -293,7 +311,7 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 No security resources
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                                No RequestAuthentications or PeerAuthentications
+                                No RequestAuthentications, PeerAuthentications, or AuthorizationPolicies
                                 affect this instance.
                             </p>
                         </div>

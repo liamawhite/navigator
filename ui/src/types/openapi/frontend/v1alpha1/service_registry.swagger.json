@@ -268,6 +268,36 @@
       "description": "- UNKNOWN_ADDRESS_TYPE: UNKNOWN_ADDRESS_TYPE indicates an unknown or unspecified address type\n - SOCKET_ADDRESS: SOCKET_ADDRESS indicates a standard network socket address (IP:port)\n - PIPE_ADDRESS: PIPE_ADDRESS indicates a Unix domain socket address",
       "title": "AddressType represents the type of endpoint address"
     },
+    "v1alpha1AuthorizationPolicy": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "name is the name of the authorization policy."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "namespace is the namespace of the authorization policy."
+        },
+        "rawConfig": {
+          "type": "string",
+          "description": "raw_config is the complete authorization policy resource as a JSON string."
+        },
+        "selector": {
+          "$ref": "#/definitions/v1alpha1WorkloadSelector",
+          "description": "selector is the criteria used to select the specific set of pods/VMs."
+        },
+        "targetRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1PolicyTargetReference"
+          },
+          "description": "target_refs is the list of resources that this authorization policy applies to."
+        }
+      },
+      "description": "AuthorizationPolicy represents an Istio AuthorizationPolicy resource."
+    },
     "v1alpha1BootstrapSummary": {
       "type": "object",
       "properties": {
@@ -791,6 +821,14 @@
             "$ref": "#/definitions/v1alpha1PeerAuthentication"
           },
           "description": "peer_authentications are PeerAuthentication resources affecting this instance."
+        },
+        "authorizationPolicies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1AuthorizationPolicy"
+          },
+          "description": "authorization_policies are AuthorizationPolicy resources affecting this instance."
         },
         "wasmPlugins": {
           "type": "array",

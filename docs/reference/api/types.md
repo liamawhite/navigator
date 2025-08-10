@@ -4,6 +4,7 @@
 ## Table of Contents
 
 - [types/v1alpha1/istio_resources.proto](#types_v1alpha1_istio_resources-proto)
+    - [AuthorizationPolicy](#navigator-types-v1alpha1-AuthorizationPolicy)
     - [DestinationRule](#navigator-types-v1alpha1-DestinationRule)
     - [DestinationRuleSubset](#navigator-types-v1alpha1-DestinationRuleSubset)
     - [DestinationRuleSubset.LabelsEntry](#navigator-types-v1alpha1-DestinationRuleSubset-LabelsEntry)
@@ -71,6 +72,25 @@
 <p align="right"><a href="#top">Top</a></p>
 
 ## types/v1alpha1/istio_resources.proto
+
+
+
+<a name="navigator-types-v1alpha1-AuthorizationPolicy"></a>
+
+### AuthorizationPolicy
+AuthorizationPolicy represents an Istio AuthorizationPolicy resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | name is the name of the authorization policy. |
+| namespace | [string](#string) |  | namespace is the namespace of the authorization policy. |
+| raw_config | [string](#string) |  | raw_config is the complete authorization policy resource as a JSON string. |
+| selector | [WorkloadSelector](#navigator-types-v1alpha1-WorkloadSelector) |  | selector is the criteria used to select the specific set of pods/VMs. |
+| target_refs | [PolicyTargetReference](#navigator-types-v1alpha1-PolicyTargetReference) | repeated | target_refs is the list of resources that this authorization policy applies to. |
+
+
+
 
 
 

@@ -110,6 +110,7 @@ GetIstioResourcesResponse contains the Istio resources for the requested service
 | envoy_filters | [navigator.types.v1alpha1.EnvoyFilter](#navigator-types-v1alpha1-EnvoyFilter) | repeated | envoy_filters are EnvoyFilter resources affecting this instance. |
 | request_authentications | [navigator.types.v1alpha1.RequestAuthentication](#navigator-types-v1alpha1-RequestAuthentication) | repeated | request_authentications are RequestAuthentication resources affecting this instance. |
 | peer_authentications | [navigator.types.v1alpha1.PeerAuthentication](#navigator-types-v1alpha1-PeerAuthentication) | repeated | peer_authentications are PeerAuthentication resources affecting this instance. |
+| authorization_policies | [navigator.types.v1alpha1.AuthorizationPolicy](#navigator-types-v1alpha1-AuthorizationPolicy) | repeated | authorization_policies are AuthorizationPolicy resources affecting this instance. |
 | wasm_plugins | [navigator.types.v1alpha1.WasmPlugin](#navigator-types-v1alpha1-WasmPlugin) | repeated | wasm_plugins are WasmPlugin resources affecting this instance. |
 | service_entries | [navigator.types.v1alpha1.ServiceEntry](#navigator-types-v1alpha1-ServiceEntry) | repeated | service_entries are ServiceEntry resources affecting this instance. |
 

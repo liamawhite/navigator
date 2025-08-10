@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { v1alpha1AuthorizationPolicy } from './v1alpha1AuthorizationPolicy';
 import type { v1alpha1DestinationRule } from './v1alpha1DestinationRule';
 import type { v1alpha1EnvoyFilter } from './v1alpha1EnvoyFilter';
 import type { v1alpha1Gateway } from './v1alpha1Gateway';
@@ -43,6 +44,10 @@ export type v1alpha1GetIstioResourcesResponse = {
      * peer_authentications are PeerAuthentication resources affecting this instance.
      */
     peerAuthentications?: Array<v1alpha1PeerAuthentication>;
+    /**
+     * authorization_policies are AuthorizationPolicy resources affecting this instance.
+     */
+    authorizationPolicies?: Array<v1alpha1AuthorizationPolicy>;
     /**
      * wasm_plugins are WasmPlugin resources affecting this instance.
      */
