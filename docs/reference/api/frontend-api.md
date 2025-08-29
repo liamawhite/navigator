@@ -412,9 +412,10 @@ SyncStatus represents the health of cluster synchronization.
 | Name | Number | Description |
 | ---- | ------ | ----------- |
 | SYNC_STATUS_UNSPECIFIED | 0 |  |
-| SYNC_STATUS_HEALTHY | 1 | Recent updates within expected timeframe |
-| SYNC_STATUS_STALE | 2 | No recent updates, potentially problematic |
-| SYNC_STATUS_DISCONNECTED | 3 | Connection lost |
+| SYNC_STATUS_INITIALIZING | 1 | Connected but hasn&#39;t received full state yet |
+| SYNC_STATUS_HEALTHY | 2 | Recent updates within expected timeframe |
+| SYNC_STATUS_STALE | 3 | No recent updates, potentially problematic |
+| SYNC_STATUS_DISCONNECTED | 4 | Connection lost |
 
 
  

@@ -346,13 +346,18 @@ func (f *FrontendService) convertConnectionInfoToClusterSyncInfo(connInfo connec
 		ConnectedAt:  connInfo.ConnectedAt.Format(time.RFC3339),
 		LastUpdate:   connInfo.LastUpdate.Format(time.RFC3339),
 		ServiceCount: serviceCount,
-		SyncStatus:   f.computeSyncStatus(connInfo.LastUpdate),
+		SyncStatus:   f.computeSyncStatus(connInfo),
 	}
 }
 
-// computeSyncStatus determines the sync health based on last update time
-func (f *FrontendService) computeSyncStatus(lastUpdate time.Time) frontendv1alpha1.SyncStatus {
-	timeSince := time.Since(lastUpdate)
+// computeSyncStatus determines the sync health based on connection info
+func (f *FrontendService) computeSyncStatus(connInfo connections.ConnectionInfo) frontendv1alpha1.SyncStatus {
+	// If no state has been received yet, connection is initializing
+	if !connInfo.StateReceived {
+		return frontendv1alpha1.SyncStatus_SYNC_STATUS_INITIALIZING
+	}
+
+	timeSince := time.Since(connInfo.LastUpdate)
 
 	switch {
 	case timeSince < 30*time.Second:

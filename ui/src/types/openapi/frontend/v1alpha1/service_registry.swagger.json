@@ -1550,12 +1550,13 @@
       "type": "string",
       "enum": [
         "SYNC_STATUS_UNSPECIFIED",
+        "SYNC_STATUS_INITIALIZING",
         "SYNC_STATUS_HEALTHY",
         "SYNC_STATUS_STALE",
         "SYNC_STATUS_DISCONNECTED"
       ],
       "default": "SYNC_STATUS_UNSPECIFIED",
-      "description": "SyncStatus represents the health of cluster synchronization.\n\n - SYNC_STATUS_HEALTHY: Recent updates within expected timeframe\n - SYNC_STATUS_STALE: No recent updates, potentially problematic\n - SYNC_STATUS_DISCONNECTED: Connection lost"
+      "description": "SyncStatus represents the health of cluster synchronization.\n\n - SYNC_STATUS_INITIALIZING: Connected but hasn't received full state yet\n - SYNC_STATUS_HEALTHY: Recent updates within expected timeframe\n - SYNC_STATUS_STALE: No recent updates, potentially problematic\n - SYNC_STATUS_DISCONNECTED: Connection lost"
     },
     "v1alpha1TcpProxyMatch": {
       "type": "object",

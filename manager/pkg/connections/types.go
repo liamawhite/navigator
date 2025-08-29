@@ -77,8 +77,9 @@ type ReadOptimizedIndexes struct {
 
 // ConnectionInfo provides information about an active connection
 type ConnectionInfo struct {
-	ClusterID    string
-	ConnectedAt  time.Time
-	LastUpdate   time.Time
-	ServiceCount int
+	ClusterID     string
+	ConnectedAt   time.Time
+	LastUpdate    time.Time
+	ServiceCount  int
+	StateReceived bool // Whether the connection has received a full cluster state
 }

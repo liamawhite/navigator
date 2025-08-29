@@ -54,3 +54,5 @@ export const useIstioResources = (serviceId: string, instanceId: string) => {
         enabled: !!serviceId && !!instanceId,
     });
 };
+
+export { useClusters } from './useClusters';
