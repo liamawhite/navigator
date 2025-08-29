@@ -32,6 +32,8 @@ import { ChevronDown, Server, Circle } from 'lucide-react';
 
 const getSyncStatusColor = (status?: v1alpha1SyncStatus): string => {
     switch (status) {
+        case 'SYNC_STATUS_INITIALIZING':
+            return 'bg-blue-500';
         case 'SYNC_STATUS_HEALTHY':
             return 'bg-green-500';
         case 'SYNC_STATUS_STALE':
@@ -45,6 +47,8 @@ const getSyncStatusColor = (status?: v1alpha1SyncStatus): string => {
 
 const getSyncStatusText = (status?: v1alpha1SyncStatus): string => {
     switch (status) {
+        case 'SYNC_STATUS_INITIALIZING':
+            return 'Initializing';
         case 'SYNC_STATUS_HEALTHY':
             return 'Healthy';
         case 'SYNC_STATUS_STALE':
@@ -127,6 +131,8 @@ export const ClusterSyncStatus: React.FC = () => {
         if (statuses.includes('SYNC_STATUS_DISCONNECTED'))
             return 'SYNC_STATUS_DISCONNECTED';
         if (statuses.includes('SYNC_STATUS_STALE')) return 'SYNC_STATUS_STALE';
+        if (statuses.includes('SYNC_STATUS_INITIALIZING'))
+            return 'SYNC_STATUS_INITIALIZING';
         return 'SYNC_STATUS_HEALTHY';
     };
 

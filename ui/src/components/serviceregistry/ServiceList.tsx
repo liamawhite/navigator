@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { useServices } from '../../hooks/useServices';
+import { useClusters } from '../../hooks/useClusters';
 import {
     Loader2,
     AlertCircle,
@@ -52,6 +53,7 @@ export const ServiceList: React.FC<ServiceListProps> = ({
     onServiceSelect,
 }) => {
     const { data: services, isLoading, error, isError } = useServices();
+    const { data: clusters } = useClusters();
     const [sortField, setSortField] = useState<SortField>('namespace');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -168,6 +170,37 @@ export const ServiceList: React.FC<ServiceListProps> = ({
     }
 
     if (!services || services.length === 0) {
+        // Check if all clusters are initializing
+        const allClustersInitializing =
+            clusters &&
+            clusters.length > 0 &&
+            clusters.every(
+                (cluster) => cluster.syncStatus === 'SYNC_STATUS_INITIALIZING'
+            );
+
+        if (allClustersInitializing) {
+            return (
+                <Card className="border-0 shadow-md border-blue-100 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                    <CardContent className="text-center py-12">
+                        <Loader2 className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-spin" />
+                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                            Initializing clusters
+                        </h3>
+                        <p className="text-muted-foreground mb-4">
+                            Connected to {clusters.length} cluster
+                            {clusters.length !== 1 ? 's' : ''} but still waiting
+                            for initial service discovery. This usually takes a
+                            few moments.
+                        </p>
+                        <p className="text-sm text-blue-600 dark:text-blue-400">
+                            Services will appear here once the initial sync is
+                            complete.
+                        </p>
+                    </CardContent>
+                </Card>
+            );
+        }
+
         return (
             <Card className="border-0 shadow-md">
                 <CardContent className="text-center py-12">

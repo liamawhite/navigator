@@ -178,10 +178,11 @@ func (m *Manager) GetConnectionInfo() map[string]ConnectionInfo {
 		}
 
 		result[clusterID] = ConnectionInfo{
-			ClusterID:    clusterID,
-			ConnectedAt:  connection.ConnectedAt,
-			LastUpdate:   connection.LastUpdate,
-			ServiceCount: serviceCount,
+			ClusterID:     clusterID,
+			ConnectedAt:   connection.ConnectedAt,
+			LastUpdate:    connection.LastUpdate,
+			ServiceCount:  serviceCount,
+			StateReceived: connection.ClusterState != nil,
 		}
 	}
 
