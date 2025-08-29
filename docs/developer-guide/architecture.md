@@ -4,7 +4,7 @@ Navigator runs all components on your local machine or a dedicated server outsid
 
 ## navctl local Architecture
 
-![navctl Local Architecture](./navctl-local-architecture.svg)
+![navctl Local Architecture](./diagrams/navctl-local-architecture.svg)
 
 **Characteristics:**
 - **Single process**: Manager, multiple Edge instances, and UI run within one `navctl local` process
