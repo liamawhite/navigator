@@ -13,8 +13,10 @@
 // limitations under the License.
 
 import { useState } from 'react';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { ClusterCollapseGroups } from '../../types/collapseGroups';
 import {
-    ChevronUp,
+    ChevronRight,
     ChevronDown,
     Target,
     Layers,
@@ -35,6 +37,7 @@ import type { v1alpha1ClusterSummary } from '@/types/generated/openapi-service_r
 
 interface ClustersTableProps {
     clusters: v1alpha1ClusterSummary[];
+    serviceId?: string;
 }
 
 type SortConfig = {
@@ -124,7 +127,17 @@ const ClusterGroup: React.FC<{
     sortConfig: SortConfig;
     handleSort: (key: string) => void;
     getSortIcon: (key: string) => React.ReactNode;
-}> = ({ title, clusters, sortConfig, handleSort, getSortIcon }) => {
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
+}> = ({
+    title,
+    clusters,
+    sortConfig,
+    handleSort,
+    getSortIcon,
+    isCollapsed,
+    onToggleCollapse,
+}) => {
     if (clusters.length === 0) return null;
 
     const sortedClusters = [...clusters].sort((a, b) => {
@@ -168,125 +181,151 @@ const ClusterGroup: React.FC<{
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
+                onClick={onToggleCollapse}
+            >
+                {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                )}
                 {getGroupIcon(title)}
                 {title} ({clusters.length})
             </h4>
-            <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            onClick={() => handleSort('serviceFqdn')}
-                        >
-                            <div className="flex items-center">
-                                Service
-                                {getSortIcon('serviceFqdn')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
-                            onClick={() => handleSort('direction')}
-                        >
-                            <div className="flex items-center">
-                                Direction
-                                {getSortIcon('direction')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-16"
-                            onClick={() => handleSort('port')}
-                        >
-                            <div className="flex items-center">
-                                Port
-                                {getSortIcon('port')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
-                            onClick={() => handleSort('subset')}
-                        >
-                            <div className="flex items-center">
-                                Subset
-                                {getSortIcon('subset')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-24"
-                            onClick={() => handleSort('type')}
-                        >
-                            <div className="flex items-center">
-                                Type
-                                {getSortIcon('type')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-32"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedClusters.map((cluster, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {cluster.serviceFqdn ||
-                                        cluster.name ||
-                                        'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell className="w-20">
-                                <Badge
-                                    variant={
-                                        cluster.direction === 'INBOUND'
-                                            ? 'default'
-                                            : cluster.direction === 'OUTBOUND'
-                                              ? 'secondary'
-                                              : 'outline'
-                                    }
-                                >
-                                    {cluster.direction?.toLowerCase() ||
-                                        'unknown'}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="w-16">
-                                <span className="font-mono text-sm">
-                                    {cluster.port || 'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell className="w-20">
-                                <span className="text-sm">
-                                    {cluster.subset || '-'}
-                                </span>
-                            </TableCell>
-                            <TableCell className="w-24">
-                                <Badge
-                                    variant={getClusterTypeVariant(
-                                        cluster.type
-                                    )}
-                                >
-                                    {formatClusterType(cluster.type)}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="w-32">
-                                <ConfigActions
-                                    name={cluster.name || 'Unknown'}
-                                    rawConfig={cluster.rawConfig || ''}
-                                    configType="Cluster"
-                                    copyId={`cluster-${cluster.name}`}
-                                />
-                            </TableCell>
+            {!isCollapsed && (
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50"
+                                onClick={() => handleSort('serviceFqdn')}
+                            >
+                                <div className="flex items-center">
+                                    Service
+                                    {getSortIcon('serviceFqdn')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-20"
+                                onClick={() => handleSort('direction')}
+                            >
+                                <div className="flex items-center">
+                                    Direction
+                                    {getSortIcon('direction')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-16"
+                                onClick={() => handleSort('port')}
+                            >
+                                <div className="flex items-center">
+                                    Port
+                                    {getSortIcon('port')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-20"
+                                onClick={() => handleSort('subset')}
+                            >
+                                <div className="flex items-center">
+                                    Subset
+                                    {getSortIcon('subset')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-24"
+                                onClick={() => handleSort('type')}
+                            >
+                                <div className="flex items-center">
+                                    Type
+                                    {getSortIcon('type')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-32"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedClusters.map((cluster, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {cluster.serviceFqdn ||
+                                            cluster.name ||
+                                            'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="w-20">
+                                    <Badge
+                                        variant={
+                                            cluster.direction === 'INBOUND'
+                                                ? 'default'
+                                                : cluster.direction ===
+                                                    'OUTBOUND'
+                                                  ? 'secondary'
+                                                  : 'outline'
+                                        }
+                                    >
+                                        {cluster.direction?.toLowerCase() ||
+                                            'unknown'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="w-16">
+                                    <span className="font-mono text-sm">
+                                        {cluster.port || 'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="w-20">
+                                    <span className="text-sm">
+                                        {cluster.subset || '-'}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="w-24">
+                                    <Badge
+                                        variant={getClusterTypeVariant(
+                                            cluster.type
+                                        )}
+                                    >
+                                        {formatClusterType(cluster.type)}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="w-32">
+                                    <ConfigActions
+                                        name={cluster.name || 'Unknown'}
+                                        rawConfig={cluster.rawConfig || ''}
+                                        configType="Cluster"
+                                        copyId={`cluster-${cluster.name}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };
 
-export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
+export const ClustersTable: React.FC<ClustersTableProps> = ({
+    clusters,
+    serviceId,
+}) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
     });
+
+    const storageKey = serviceId
+        ? `clusters-collapsed-${serviceId}`
+        : 'clusters-collapsed';
+
+    const { collapsedGroups, toggleGroupCollapse } =
+        useCollapsibleSections<ClusterCollapseGroups>(storageKey, {
+            service: false,
+            static: true, // Default closed for Static Clusters
+            dns: false,
+            special: false,
+        });
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -305,7 +344,7 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -329,13 +368,8 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
-            />
-            <ClusterGroup
-                title="Static Clusters"
-                clusters={groups.static}
-                sortConfig={sortConfig}
-                handleSort={handleSort}
-                getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.service}
+                onToggleCollapse={() => toggleGroupCollapse('service')}
             />
             <ClusterGroup
                 title="DNS-Based Clusters"
@@ -343,6 +377,8 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.dns}
+                onToggleCollapse={() => toggleGroupCollapse('dns')}
             />
             <ClusterGroup
                 title="Special Clusters"
@@ -350,6 +386,17 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.special}
+                onToggleCollapse={() => toggleGroupCollapse('special')}
+            />
+            <ClusterGroup
+                title="Static Clusters"
+                clusters={groups.static}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.static}
+                onToggleCollapse={() => toggleGroupCollapse('static')}
             />
         </div>
     );

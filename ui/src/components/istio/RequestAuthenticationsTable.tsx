@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Key } from 'lucide-react';
+import { ChevronRight, ChevronDown, Key } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -27,6 +27,8 @@ import type { v1alpha1RequestAuthentication } from '@/types/generated/openapi-se
 
 interface RequestAuthenticationsTableProps {
     requestAuthentications: v1alpha1RequestAuthentication[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -36,7 +38,7 @@ type SortConfig = {
 
 export const RequestAuthenticationsTable: React.FC<
     RequestAuthenticationsTableProps
-> = ({ requestAuthentications }) => {
+> = ({ requestAuthentications, isCollapsed = false, onToggleCollapse }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -59,7 +61,7 @@ export const RequestAuthenticationsTable: React.FC<
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -105,46 +107,61 @@ export const RequestAuthenticationsTable: React.FC<
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Key className="w-4 h-4 text-yellow-500" />
                 RequestAuthentications ({requestAuthentications.length})
             </h4>
-            <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedRequestAuthentications.map((auth, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {auth.name || 'Unknown'} /{' '}
-                                    {auth.namespace || 'Unknown'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={auth.name || 'Unknown'}
-                                    rawConfig={auth.rawConfig || ''}
-                                    configType="RequestAuthentication"
-                                    copyId={`request-auth-${auth.name || index}`}
-                                />
-                            </TableCell>
+            {!isCollapsed && (
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedRequestAuthentications.map((auth, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {auth.name || 'Unknown'} /{' '}
+                                        {auth.namespace || 'Unknown'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={auth.name || 'Unknown'}
+                                        rawConfig={auth.rawConfig || ''}
+                                        configType="RequestAuthentication"
+                                        copyId={`request-auth-${auth.name || index}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };

@@ -13,7 +13,15 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Target, Asterisk, Layers } from 'lucide-react';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { RouteCollapseGroups } from '../../types/collapseGroups';
+import {
+    ChevronRight,
+    ChevronDown,
+    Target,
+    Asterisk,
+    Layers,
+} from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -28,6 +36,7 @@ import type { v1alpha1RouteConfigSummary } from '@/types/generated/openapi-servi
 
 interface RoutesTableProps {
     routes: v1alpha1RouteConfigSummary[];
+    serviceId?: string;
 }
 
 type SortConfig = {
@@ -132,7 +141,17 @@ const RouteGroup: React.FC<{
     sortConfig: SortConfig;
     handleSort: (key: string) => void;
     getSortIcon: (key: string) => React.ReactNode;
-}> = ({ title, routes, sortConfig, handleSort, getSortIcon }) => {
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
+}> = ({
+    title,
+    routes,
+    sortConfig,
+    handleSort,
+    getSortIcon,
+    isCollapsed,
+    onToggleCollapse,
+}) => {
     if (routes.length === 0) return null;
 
     const sortedRoutes = [...routes].sort((a, b) => {
@@ -180,87 +199,112 @@ const RouteGroup: React.FC<{
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
+                onClick={onToggleCollapse}
+            >
+                {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                )}
                 {getGroupIcon(title)}
                 {title} ({routes.length})
             </h4>
-            <Table className="table-fixed w-full">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '60%' }}
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '15%' }}
-                            onClick={() => handleSort('type')}
-                        >
-                            <div className="flex items-center">
-                                Type
-                                {getSortIcon('type')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            style={{ width: '15%' }}
-                            onClick={() => handleSort('virtualHosts')}
-                        >
-                            <div className="flex items-center">
-                                Virtual Hosts
-                                {getSortIcon('virtualHosts')}
-                            </div>
-                        </TableHead>
-                        <TableHead style={{ width: '10%' }}></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedRoutes.map((route, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm truncate block">
-                                    {route.name || 'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge
-                                    variant={getRouteTypeVariant(route.type)}
-                                >
-                                    {formatRouteType(route.type)}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <span className="text-sm">
-                                    {route.virtualHosts?.length || 0}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={route.name || 'Unknown Route'}
-                                    rawConfig={route.rawConfig || ''}
-                                    configType="Route"
-                                    copyId={`route-${route.name || `unknown-${index}`}`}
-                                />
-                            </TableCell>
+            {!isCollapsed && (
+                <Table className="table-fixed w-full">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50"
+                                style={{ width: '60%' }}
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50"
+                                style={{ width: '15%' }}
+                                onClick={() => handleSort('type')}
+                            >
+                                <div className="flex items-center">
+                                    Type
+                                    {getSortIcon('type')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50"
+                                style={{ width: '15%' }}
+                                onClick={() => handleSort('virtualHosts')}
+                            >
+                                <div className="flex items-center">
+                                    Virtual Hosts
+                                    {getSortIcon('virtualHosts')}
+                                </div>
+                            </TableHead>
+                            <TableHead style={{ width: '10%' }}></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedRoutes.map((route, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm truncate block">
+                                        {route.name || 'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={getRouteTypeVariant(
+                                            route.type
+                                        )}
+                                    >
+                                        {formatRouteType(route.type)}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="text-sm">
+                                        {route.virtualHosts?.length || 0}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={route.name || 'Unknown Route'}
+                                        rawConfig={route.rawConfig || ''}
+                                        configType="Route"
+                                        copyId={`route-${route.name || `unknown-${index}`}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };
 
-export const RoutesTable: React.FC<RoutesTableProps> = ({ routes }) => {
+export const RoutesTable: React.FC<RoutesTableProps> = ({
+    routes,
+    serviceId,
+}) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
     });
+
+    const storageKey = serviceId
+        ? `routes-collapsed-${serviceId}`
+        : 'routes-collapsed';
+    const { collapsedGroups, toggleGroupCollapse } =
+        useCollapsibleSections<RouteCollapseGroups>(storageKey, {
+            serviceSpecific: false,
+            portBased: false,
+            static: true, // Default closed for Static Routes
+        });
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -279,7 +323,7 @@ export const RoutesTable: React.FC<RoutesTableProps> = ({ routes }) => {
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -303,6 +347,8 @@ export const RoutesTable: React.FC<RoutesTableProps> = ({ routes }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.serviceSpecific}
+                onToggleCollapse={() => toggleGroupCollapse('serviceSpecific')}
             />
             <RouteGroup
                 title="Port-Based Routes"
@@ -310,6 +356,8 @@ export const RoutesTable: React.FC<RoutesTableProps> = ({ routes }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.portBased}
+                onToggleCollapse={() => toggleGroupCollapse('portBased')}
             />
             <RouteGroup
                 title="Static Routes"
@@ -317,6 +365,8 @@ export const RoutesTable: React.FC<RoutesTableProps> = ({ routes }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.static}
+                onToggleCollapse={() => toggleGroupCollapse('static')}
             />
         </div>
     );

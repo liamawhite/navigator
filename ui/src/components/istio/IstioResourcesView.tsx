@@ -13,6 +13,8 @@
 // limitations under the License.
 
 import { useSearchParams } from 'react-router-dom';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { IstioResourceCollapseGroups } from '../../types/collapseGroups';
 import { useIstioResources } from '../../hooks/useServices';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -50,6 +52,23 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
         error,
     } = useIstioResources(serviceId, instanceId);
     const [searchParams, setSearchParams] = useSearchParams();
+
+    const storageKey = `istio-collapsed-${serviceId}`;
+    const {
+        collapsedGroups: collapsedSections,
+        toggleGroupCollapse: toggleSectionCollapse,
+    } = useCollapsibleSections<IstioResourceCollapseGroups>(storageKey, {
+        gateways: false,
+        virtualServices: false,
+        destinationRules: false,
+        serviceEntries: false,
+        sidecars: false,
+        requestAuthentications: false,
+        peerAuthentications: false,
+        authorizationPolicies: false,
+        envoyFilters: false,
+        wasmPlugins: false,
+    });
 
     // Get Istio tab from URL params, default to 'traffic'
     const availableIstioTabs = ['traffic', 'security', 'extensions'] as const;
@@ -158,13 +177,23 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                 <div className="space-y-6">
                     {istioResources.gateways &&
                         istioResources.gateways.length > 0 && (
-                            <GatewaysTable gateways={istioResources.gateways} />
+                            <GatewaysTable
+                                gateways={istioResources.gateways}
+                                isCollapsed={collapsedSections.gateways}
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse('gateways')
+                                }
+                            />
                         )}
 
                     {istioResources.virtualServices &&
                         istioResources.virtualServices.length > 0 && (
                             <VirtualServicesTable
                                 virtualServices={istioResources.virtualServices}
+                                isCollapsed={collapsedSections.virtualServices}
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse('virtualServices')
+                                }
                             />
                         )}
 
@@ -173,6 +202,10 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                             <DestinationRulesTable
                                 destinationRules={
                                     istioResources.destinationRules
+                                }
+                                isCollapsed={collapsedSections.destinationRules}
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse('destinationRules')
                                 }
                             />
                         )}
@@ -257,6 +290,14 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 requestAuthentications={
                                     istioResources.requestAuthentications
                                 }
+                                isCollapsed={
+                                    collapsedSections.requestAuthentications
+                                }
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse(
+                                        'requestAuthentications'
+                                    )
+                                }
                             />
                         )}
 
@@ -266,6 +307,12 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                                 peerAuthentications={
                                     istioResources.peerAuthentications
                                 }
+                                isCollapsed={
+                                    collapsedSections.peerAuthentications
+                                }
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse('peerAuthentications')
+                                }
                             />
                         )}
 
@@ -274,6 +321,14 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                             <AuthorizationPoliciesTable
                                 authorizationPolicies={
                                     istioResources.authorizationPolicies
+                                }
+                                isCollapsed={
+                                    collapsedSections.authorizationPolicies
+                                }
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse(
+                                        'authorizationPolicies'
+                                    )
                                 }
                             />
                         )}
@@ -324,13 +379,23 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                 <div className="space-y-6">
                     {istioResources.sidecars &&
                         istioResources.sidecars.length > 0 && (
-                            <SidecarsTable sidecars={istioResources.sidecars} />
+                            <SidecarsTable
+                                sidecars={istioResources.sidecars}
+                                isCollapsed={collapsedSections.sidecars}
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse('sidecars')
+                                }
+                            />
                         )}
 
                     {istioResources.envoyFilters &&
                         istioResources.envoyFilters.length > 0 && (
                             <EnvoyFiltersTable
                                 envoyFilters={istioResources.envoyFilters}
+                                isCollapsed={collapsedSections.envoyFilters}
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse('envoyFilters')
+                                }
                             />
                         )}
 
@@ -338,6 +403,10 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
                         istioResources.wasmPlugins.length > 0 && (
                             <WasmPluginsTable
                                 wasmPlugins={istioResources.wasmPlugins}
+                                isCollapsed={collapsedSections.wasmPlugins}
+                                onToggleCollapse={() =>
+                                    toggleSectionCollapse('wasmPlugins')
+                                }
                             />
                         )}
 

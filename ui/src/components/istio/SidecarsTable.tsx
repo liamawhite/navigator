@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Network } from 'lucide-react';
+import { ChevronRight, ChevronDown, Network } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -27,6 +27,8 @@ import type { v1alpha1Sidecar } from '@/types/generated/openapi-service_registry
 
 interface SidecarsTableProps {
     sidecars: v1alpha1Sidecar[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -34,7 +36,11 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const SidecarsTable: React.FC<SidecarsTableProps> = ({ sidecars }) => {
+export const SidecarsTable: React.FC<SidecarsTableProps> = ({
+    sidecars,
+    isCollapsed = false,
+    onToggleCollapse,
+}) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -57,7 +63,7 @@ export const SidecarsTable: React.FC<SidecarsTableProps> = ({ sidecars }) => {
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -102,46 +108,61 @@ export const SidecarsTable: React.FC<SidecarsTableProps> = ({ sidecars }) => {
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Network className="w-4 h-4 text-orange-500" />
                 Sidecars ({sidecars.length})
             </h4>
-            <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedSidecars.map((sidecar, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {sidecar.name || 'Unknown'} /{' '}
-                                    {sidecar.namespace || 'Unknown'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={sidecar.name || 'Unknown'}
-                                    rawConfig={sidecar.rawConfig || ''}
-                                    configType="Sidecar"
-                                    copyId={`sidecar-${sidecar.name || index}`}
-                                />
-                            </TableCell>
+            {!isCollapsed && (
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedSidecars.map((sidecar, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {sidecar.name || 'Unknown'} /{' '}
+                                        {sidecar.namespace || 'Unknown'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={sidecar.name || 'Unknown'}
+                                        rawConfig={sidecar.rawConfig || ''}
+                                        configType="Sidecar"
+                                        copyId={`sidecar-${sidecar.name || index}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };

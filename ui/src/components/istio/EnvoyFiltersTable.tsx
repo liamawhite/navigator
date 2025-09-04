@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Settings } from 'lucide-react';
+import { ChevronRight, ChevronDown, Settings } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -28,6 +28,8 @@ import type { v1alpha1EnvoyFilter } from '@/types/generated/openapi-service_regi
 
 interface EnvoyFiltersTableProps {
     envoyFilters: v1alpha1EnvoyFilter[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -37,6 +39,8 @@ type SortConfig = {
 
 export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
     envoyFilters,
+    isCollapsed = false,
+    onToggleCollapse,
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
@@ -60,7 +64,7 @@ export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -138,84 +142,102 @@ export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Settings className="w-4 h-4 text-red-500" />
                 EnvoyFilters ({envoyFilters.length})
             </h4>
-            <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
-                            onClick={() => handleSort('context')}
-                        >
-                            <div className="flex items-center">
-                                Context
-                                {getSortIcon('context')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
-                            onClick={() => handleSort('patches')}
-                        >
-                            <div className="flex items-center">
-                                Patches
-                                {getSortIcon('patches')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedEnvoyFilters.map((filter, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {filter.name || 'Unknown'} /{' '}
-                                    {filter.namespace || 'Unknown'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge
-                                    variant={getContextVariant(
-                                        filter.spec?.workloadSelector?.labels
-                                            ? 'sidecar'
-                                            : 'gateway'
-                                    )}
-                                >
-                                    {formatContext(
-                                        filter.spec?.workloadSelector?.labels
-                                            ? 'sidecar'
-                                            : 'gateway'
-                                    )}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <span className="text-sm">
-                                    {filter.spec?.configPatches?.length || 0}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={filter.name || 'Unknown'}
-                                    rawConfig={filter.rawConfig || ''}
-                                    configType="EnvoyFilter"
-                                    copyId={`envoy-filter-${filter.name || index}`}
-                                />
-                            </TableCell>
+            {!isCollapsed && (
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-32"
+                                onClick={() => handleSort('context')}
+                            >
+                                <div className="flex items-center">
+                                    Context
+                                    {getSortIcon('context')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-20"
+                                onClick={() => handleSort('patches')}
+                            >
+                                <div className="flex items-center">
+                                    Patches
+                                    {getSortIcon('patches')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedEnvoyFilters.map((filter, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {filter.name || 'Unknown'} /{' '}
+                                        {filter.namespace || 'Unknown'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={getContextVariant(
+                                            filter.spec?.workloadSelector
+                                                ?.labels
+                                                ? 'sidecar'
+                                                : 'gateway'
+                                        )}
+                                    >
+                                        {formatContext(
+                                            filter.spec?.workloadSelector
+                                                ?.labels
+                                                ? 'sidecar'
+                                                : 'gateway'
+                                        )}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="text-sm">
+                                        {filter.spec?.configPatches?.length ||
+                                            0}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={filter.name || 'Unknown'}
+                                        rawConfig={filter.rawConfig || ''}
+                                        configType="EnvoyFilter"
+                                        copyId={`envoy-filter-${filter.name || index}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };

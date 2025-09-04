@@ -32,7 +32,10 @@
       "Bash(npm audit:*)",
       "Bash(gh issue view:*)",
       "Bash(git restore:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npx tsc:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }

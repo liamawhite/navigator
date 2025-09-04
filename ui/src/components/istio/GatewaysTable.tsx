@@ -22,12 +22,14 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRightToLine, ChevronUp, ChevronDown } from 'lucide-react';
+import { ArrowRightToLine, ChevronRight, ChevronDown } from 'lucide-react';
 import { ConfigActions } from '../envoy';
 import type { v1alpha1Gateway } from '../../types/generated/openapi-service_registry';
 
 interface GatewaysTableProps {
     gateways: v1alpha1Gateway[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -35,7 +37,11 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const GatewaysTable: React.FC<GatewaysTableProps> = ({ gateways }) => {
+export const GatewaysTable: React.FC<GatewaysTableProps> = ({
+    gateways,
+    isCollapsed = false,
+    onToggleCollapse,
+}) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -58,7 +64,7 @@ export const GatewaysTable: React.FC<GatewaysTableProps> = ({ gateways }) => {
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -86,84 +92,100 @@ export const GatewaysTable: React.FC<GatewaysTableProps> = ({ gateways }) => {
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <ArrowRightToLine className="w-4 h-4 text-purple-500" />
                 Gateways ({gateways.length})
             </h4>
-            <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-48">Selector</TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedGateways.map((gateway, index) => {
-                        const selector = gateway.selector || {};
+            {!isCollapsed && (
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-48">Selector</TableHead>
+                            <TableHead className="w-20"></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedGateways.map((gateway, index) => {
+                            const selector = gateway.selector || {};
 
-                        return (
-                            <TableRow key={index}>
-                                <TableCell>
-                                    <span className="font-mono text-sm">
-                                        {gateway.name || 'Unknown'} /{' '}
-                                        {gateway.namespace || 'Unknown'}
-                                    </span>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {Object.entries(selector).length > 0 ? (
-                                            Object.entries(selector)
-                                                .slice(0, 2)
-                                                .map(([key, value], i) => (
-                                                    <Badge
-                                                        key={i}
-                                                        variant="secondary"
-                                                        className="text-xs"
-                                                    >
-                                                        {key}: {value}
-                                                    </Badge>
-                                                ))
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">
-                                                -
-                                            </span>
-                                        )}
-                                        {Object.entries(selector).length >
-                                            2 && (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-xs"
-                                            >
-                                                +
-                                                {Object.entries(selector)
-                                                    .length - 2}{' '}
-                                                more
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <ConfigActions
-                                        name={gateway.name || 'Gateway'}
-                                        rawConfig={gateway.rawConfig || ''}
-                                        configType="Gateway"
-                                        copyId={`gateway-${index}`}
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-            </Table>
+                            return (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        <span className="font-mono text-sm">
+                                            {gateway.name || 'Unknown'} /{' '}
+                                            {gateway.namespace || 'Unknown'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {Object.entries(selector).length >
+                                            0 ? (
+                                                Object.entries(selector)
+                                                    .slice(0, 2)
+                                                    .map(([key, value], i) => (
+                                                        <Badge
+                                                            key={i}
+                                                            variant="secondary"
+                                                            className="text-xs"
+                                                        >
+                                                            {key}: {value}
+                                                        </Badge>
+                                                    ))
+                                            ) : (
+                                                <span className="text-muted-foreground text-sm">
+                                                    -
+                                                </span>
+                                            )}
+                                            {Object.entries(selector).length >
+                                                2 && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs"
+                                                >
+                                                    +
+                                                    {Object.entries(selector)
+                                                        .length - 2}{' '}
+                                                    more
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <ConfigActions
+                                            name={gateway.name || 'Gateway'}
+                                            rawConfig={gateway.rawConfig || ''}
+                                            configType="Gateway"
+                                            copyId={`gateway-${index}`}
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };

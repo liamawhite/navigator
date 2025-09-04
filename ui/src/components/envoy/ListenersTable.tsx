@@ -13,8 +13,10 @@
 // limitations under the License.
 
 import { useState } from 'react';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { ListenerCollapseGroups } from '../../types/collapseGroups';
 import {
-    ChevronUp,
+    ChevronRight,
     ChevronDown,
     EthernetPort,
     Target,
@@ -32,9 +34,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ConfigActions } from '@/components/envoy/ConfigActions';
 import type { v1alpha1ListenerSummary } from '@/types/generated/openapi-service_registry';
+import { v1alpha1ProxyMode } from '@/types/generated/openapi-service_registry';
 
 interface ListenersTableProps {
     listeners: v1alpha1ListenerSummary[];
+    proxyMode?: v1alpha1ProxyMode;
+    serviceId?: string;
 }
 
 type SortConfig = {
@@ -183,7 +188,17 @@ const ListenerGroup: React.FC<{
     sortConfig: SortConfig;
     handleSort: (key: string) => void;
     getSortIcon: (key: string) => React.ReactNode;
-}> = ({ title, listeners, sortConfig, handleSort, getSortIcon }) => {
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
+}> = ({
+    title,
+    listeners,
+    sortConfig,
+    handleSort,
+    getSortIcon,
+    isCollapsed,
+    onToggleCollapse,
+}) => {
     if (listeners.length === 0) return null;
 
     const sortedListeners = [...listeners].sort((a, b) => {
@@ -215,6 +230,7 @@ const ListenerGroup: React.FC<{
     const getGroupIcon = (title: string) => {
         switch (title) {
             case 'Virtual Listeners':
+            case 'Gateway Listeners':
                 return <EthernetPort className="w-4 h-4 text-blue-500" />;
             case 'Service-Specific Listeners':
                 return <Target className="w-4 h-4 text-green-500" />;
@@ -229,88 +245,113 @@ const ListenerGroup: React.FC<{
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
+                onClick={onToggleCollapse}
+            >
+                {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                )}
                 {getGroupIcon(title)}
                 {title} ({listeners.length})
             </h4>
-            <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
-                            onClick={() => handleSort('address')}
-                        >
-                            <div className="flex items-center">
-                                Address:Port
-                                {getSortIcon('address')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
-                            onClick={() => handleSort('type')}
-                        >
-                            <div className="flex items-center">
-                                Type
-                                {getSortIcon('type')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedListeners.map((listener, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {listener.name || 'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {listener.address && listener.port
-                                        ? `${listener.address}:${listener.port}`
-                                        : listener.address ||
-                                          listener.port ||
-                                          'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={getTypeVariant(listener.type)}>
-                                    {formatListenerType(listener.type)}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={listener.name || 'Unknown'}
-                                    rawConfig={listener.rawConfig || ''}
-                                    configType="Listener"
-                                    copyId={`listener-${listener.name}`}
-                                />
-                            </TableCell>
+            {!isCollapsed && (
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-32"
+                                onClick={() => handleSort('address')}
+                            >
+                                <div className="flex items-center">
+                                    Address:Port
+                                    {getSortIcon('address')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-32"
+                                onClick={() => handleSort('type')}
+                            >
+                                <div className="flex items-center">
+                                    Type
+                                    {getSortIcon('type')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedListeners.map((listener, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {listener.name || 'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {listener.address && listener.port
+                                            ? `${listener.address}:${listener.port}`
+                                            : listener.address ||
+                                              listener.port ||
+                                              'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={getTypeVariant(listener.type)}
+                                    >
+                                        {formatListenerType(listener.type)}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={listener.name || 'Unknown'}
+                                        rawConfig={listener.rawConfig || ''}
+                                        configType="Listener"
+                                        copyId={`listener-${listener.name}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };
 
 export const ListenersTable: React.FC<ListenersTableProps> = ({
     listeners,
+    proxyMode,
+    serviceId,
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'port',
         direction: 'asc',
     });
+
+    const storageKey = serviceId
+        ? `listeners-collapsed-${serviceId}`
+        : 'listeners-collapsed';
+    const { collapsedGroups, toggleGroupCollapse } =
+        useCollapsibleSections<ListenerCollapseGroups>(storageKey, {
+            virtual: false,
+            service: false,
+            port: false,
+            proxy: true, // Default closed for Proxy Listeners
+        });
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -329,7 +370,7 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -348,11 +389,17 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
     return (
         <div className="space-y-6">
             <ListenerGroup
-                title="Virtual Listeners"
+                title={
+                    proxyMode === v1alpha1ProxyMode.GATEWAY
+                        ? 'Gateway Listeners'
+                        : 'Virtual Listeners'
+                }
                 listeners={groups.virtual}
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.virtual}
+                onToggleCollapse={() => toggleGroupCollapse('virtual')}
             />
             <ListenerGroup
                 title="Service-Specific Listeners"
@@ -360,6 +407,8 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.service}
+                onToggleCollapse={() => toggleGroupCollapse('service')}
             />
             <ListenerGroup
                 title="Port-Based Listeners"
@@ -367,6 +416,8 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.port}
+                onToggleCollapse={() => toggleGroupCollapse('port')}
             />
             <ListenerGroup
                 title="Proxy Listeners"
@@ -374,6 +425,8 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.proxy}
+                onToggleCollapse={() => toggleGroupCollapse('proxy')}
             />
         </div>
     );

@@ -671,6 +671,12 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                         proxyConfig.proxyConfig
                                                             .listeners || []
                                                     }
+                                                    proxyMode={
+                                                        proxyConfig.proxyConfig
+                                                            .bootstrap?.node
+                                                            ?.proxyMode
+                                                    }
+                                                    serviceId={serviceId}
                                                 />
                                             </TabsContent>
 
@@ -683,6 +689,7 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                         proxyConfig.proxyConfig
                                                             .clusters || []
                                                     }
+                                                    serviceId={serviceId}
                                                 />
                                             </TabsContent>
 
@@ -695,6 +702,7 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                         proxyConfig.proxyConfig
                                                             .endpoints || []
                                                     }
+                                                    serviceId={serviceId}
                                                 />
                                             </TabsContent>
 
@@ -707,6 +715,7 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                         proxyConfig.proxyConfig
                                                             .routes || []
                                                     }
+                                                    serviceId={serviceId}
                                                 />
                                             </TabsContent>
 
@@ -747,26 +756,34 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                         Containers (
                                         {(instance.containers || []).length})
                                     </h4>
-                                    <Table className="table-fixed">
+                                    <Table>
                                         <TableHeader>
                                             <TableRow>
+                                                <TableHead>Status</TableHead>
                                                 <TableHead>Name</TableHead>
                                                 <TableHead>Image</TableHead>
-                                                <TableHead className="text-right">
-                                                    Status
-                                                </TableHead>
-                                                <TableHead className="text-right">
-                                                    Ready
-                                                </TableHead>
-                                                <TableHead className="text-right">
-                                                    Restarts
-                                                </TableHead>
+                                                <TableHead>Restarts</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {(instance.containers || []).map(
                                                 (container, index) => (
                                                     <TableRow key={index}>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-1">
+                                                                <Circle
+                                                                    className={`w-3 h-3 fill-current ${
+                                                                        container.ready &&
+                                                                        container.status ===
+                                                                            'Running'
+                                                                            ? 'text-green-500'
+                                                                            : container.ready
+                                                                              ? 'text-yellow-500'
+                                                                              : 'text-red-500'
+                                                                    }`}
+                                                                />
+                                                            </div>
+                                                        </TableCell>
                                                         <TableCell>
                                                             <span className="font-mono text-sm">
                                                                 {container.name}
@@ -779,32 +796,7 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                                 }
                                                             </span>
                                                         </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Badge
-                                                                variant={
-                                                                    container.status ===
-                                                                    'Running'
-                                                                        ? 'default'
-                                                                        : 'secondary'
-                                                                }
-                                                            >
-                                                                {
-                                                                    container.status
-                                                                }
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <div className="flex justify-end">
-                                                                <Circle
-                                                                    className={`w-3 h-3 fill-current ${
-                                                                        container.ready
-                                                                            ? 'text-green-500'
-                                                                            : 'text-red-500'
-                                                                    }`}
-                                                                />
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
+                                                        <TableCell>
                                                             <span className="font-mono">
                                                                 {
                                                                     container.restartCount

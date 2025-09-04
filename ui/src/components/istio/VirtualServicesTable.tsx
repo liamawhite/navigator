@@ -22,12 +22,14 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Route, ChevronUp, ChevronDown } from 'lucide-react';
+import { Route, ChevronRight, ChevronDown } from 'lucide-react';
 import { ConfigActions } from '../envoy';
 import type { v1alpha1VirtualService } from '../../types/generated/openapi-service_registry';
 
 interface VirtualServicesTableProps {
     virtualServices: v1alpha1VirtualService[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -37,6 +39,8 @@ type SortConfig = {
 
 export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
     virtualServices,
+    isCollapsed = false,
+    onToggleCollapse,
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
@@ -60,7 +64,7 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -87,109 +91,126 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
     });
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Route className="w-4 h-4 text-blue-500" />
                 VirtualServices ({virtualServices.length})
             </h4>
-            <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-32">Hosts</TableHead>
-                        <TableHead className="w-32">Gateways</TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedVirtualServices.map((vs, index) => {
-                        const hosts = vs.hosts || [];
-                        const gateways = vs.gateways || [];
+            {!isCollapsed && (
+                <Table className="table-fixed">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-32">Hosts</TableHead>
+                            <TableHead className="w-32">Gateways</TableHead>
+                            <TableHead className="w-20"></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedVirtualServices.map((vs, index) => {
+                            const hosts = vs.hosts || [];
+                            const gateways = vs.gateways || [];
 
-                        return (
-                            <TableRow key={index}>
-                                <TableCell>
-                                    <span className="font-mono text-sm">
-                                        {vs.name || 'Unknown'} /{' '}
-                                        {vs.namespace || 'Unknown'}
-                                    </span>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {hosts.length > 0 ? (
-                                            hosts.slice(0, 3).map((host, i) => (
+                            return (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        <span className="font-mono text-sm">
+                                            {vs.name || 'Unknown'} /{' '}
+                                            {vs.namespace || 'Unknown'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {hosts.length > 0 ? (
+                                                hosts
+                                                    .slice(0, 3)
+                                                    .map((host, i) => (
+                                                        <Badge
+                                                            key={i}
+                                                            variant="secondary"
+                                                            className="text-xs"
+                                                        >
+                                                            {host}
+                                                        </Badge>
+                                                    ))
+                                            ) : (
+                                                <span className="text-muted-foreground text-sm">
+                                                    -
+                                                </span>
+                                            )}
+                                            {hosts.length > 3 && (
                                                 <Badge
-                                                    key={i}
-                                                    variant="secondary"
+                                                    variant="outline"
                                                     className="text-xs"
                                                 >
-                                                    {host}
+                                                    +{hosts.length - 3} more
                                                 </Badge>
-                                            ))
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">
-                                                -
-                                            </span>
-                                        )}
-                                        {hosts.length > 3 && (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-xs"
-                                            >
-                                                +{hosts.length - 3} more
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {gateways.length > 0 ? (
-                                            gateways
-                                                .slice(0, 2)
-                                                .map((gateway, i) => (
-                                                    <Badge
-                                                        key={i}
-                                                        variant="outline"
-                                                        className="text-xs"
-                                                    >
-                                                        {gateway}
-                                                    </Badge>
-                                                ))
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">
-                                                -
-                                            </span>
-                                        )}
-                                        {gateways.length > 2 && (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-xs"
-                                            >
-                                                +{gateways.length - 2} more
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <ConfigActions
-                                        name={vs.name || 'VirtualService'}
-                                        rawConfig={vs.rawConfig || ''}
-                                        configType="VirtualService"
-                                        copyId={`vs-${index}`}
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-            </Table>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {gateways.length > 0 ? (
+                                                gateways
+                                                    .slice(0, 2)
+                                                    .map((gateway, i) => (
+                                                        <Badge
+                                                            key={i}
+                                                            variant="outline"
+                                                            className="text-xs"
+                                                        >
+                                                            {gateway}
+                                                        </Badge>
+                                                    ))
+                                            ) : (
+                                                <span className="text-muted-foreground text-sm">
+                                                    -
+                                                </span>
+                                            )}
+                                            {gateways.length > 2 && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs"
+                                                >
+                                                    +{gateways.length - 2} more
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <ConfigActions
+                                            name={vs.name || 'VirtualService'}
+                                            rawConfig={vs.rawConfig || ''}
+                                            configType="VirtualService"
+                                            copyId={`vs-${index}`}
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     );
 };
