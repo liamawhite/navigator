@@ -248,6 +248,7 @@ func (h *HelmManager) installChart(ctx context.Context, chartName, version strin
 	installAction.Wait = config.Wait
 	installAction.Timeout = config.Timeout
 	installAction.Atomic = config.Atomic
+	// Disable validation due to incompatibility with newer Helm versions
 	installAction.DisableOpenAPIValidation = true
 	installAction.SkipSchemaValidation = true
 
