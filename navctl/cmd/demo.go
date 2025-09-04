@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"path/filepath"
 
+	"github.com/liamawhite/navigator/pkg/localenv/fortio"
 	"github.com/liamawhite/navigator/pkg/localenv/istio"
 	"github.com/liamawhite/navigator/pkg/localenv/kind"
 	"github.com/liamawhite/navigator/pkg/localenv/microservice"
@@ -179,8 +180,19 @@ and proxy analysis features.`,
 		}
 		logger.Info("✓ Istio gateway verification successful")
 
+		// Verify Prometheus addon
+		logger.Info("Step 2/3: Verifying Prometheus addon availability...")
+		promMgr := istio.NewPrometheusManager(absKubeconfigPath, "istio-system", logger)
+		if installed, err := promMgr.IsPrometheusInstalled(ctx); err != nil {
+			logger.Warn("Could not verify Prometheus installation", "error", err)
+		} else if !installed {
+			logger.Warn("Prometheus addon not found - metrics collection may be limited")
+		} else {
+			logger.Info("✓ Prometheus addon verification successful")
+		}
+
 		// Verify microservice chain
-		logger.Info("Step 2/2: Verifying microservice request chain...")
+		logger.Info("Step 3/3: Verifying microservice request chain...")
 		if err := microKustomizeMgr.VerifyMicroserviceChain(ctx); err != nil {
 			logger.Error("Microservice verification failed", "error", err)
 			logger.Info("Demo cluster ready but verification incomplete - try manual testing",
@@ -191,6 +203,16 @@ and proxy analysis features.`,
 				"http_port", kind.HTTPNodePort)
 		} else {
 			logger.Info("✓ Microservice verification successful - full chain working!")
+
+			// Start Fortio load generation
+			logger.Info("Starting continuous load generation at 5 RPS...")
+			fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "microservices", logger)
+			if err := fortioMgr.InstallFortio(ctx); err != nil {
+				logger.Warn("Failed to start Fortio load generator", "error", err)
+			} else {
+				logger.Info("✓ Load generation started - 5 RPS through full microservice chain")
+			}
+
 			logger.Info("🎉 Demo cluster ready and verified!",
 				"cluster", demoClusterName,
 				"kubeconfig", kubeconfigPath,
@@ -199,7 +221,8 @@ and proxy analysis features.`,
 				"test_url", "Gateway -> Frontend -> Backend -> Database chain verified",
 				"http_port", kind.HTTPNodePort,
 				"https_port", kind.HTTPSNodePort,
-				"status_port", kind.StatusNodePort)
+				"status_port", kind.StatusNodePort,
+				"prometheus_port", kind.PrometheusNodePort)
 
 			// Print curl examples for manual testing after all structured logging
 			fmt.Printf("\n🧪 Test the microservice chain manually:\n")
@@ -208,6 +231,8 @@ and proxy analysis features.`,
 			fmt.Printf("   curl -s \"http://localhost:%d\"                              # Frontend only\n", kind.HTTPNodePort)
 			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080\"             # Frontend -> Backend\n", kind.HTTPNodePort)
 			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database:8080\" # Full chain\n", kind.HTTPNodePort)
+			fmt.Printf("\n📊 Access Prometheus metrics:\n")
+			fmt.Printf("   http://localhost:%d\n", kind.PrometheusNodePort)
 			fmt.Printf("\n")
 		}
 
@@ -251,7 +276,21 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 
 		// Check if kubeconfig exists and try cleanup
 		if _, err := filepath.Abs(kubeconfigPath); err == nil {
-			// Try to clean up microservices first (best effort)
+			// Try to clean up Fortio load generator first (best effort)
+			logger.Info("Attempting Fortio cleanup")
+			fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "microservices", logger)
+			if running, err := fortioMgr.IsFortioRunning(ctx); err == nil && running {
+				logger.Info("Found Fortio load generator, cleaning up")
+				if err := fortioMgr.UninstallFortio(ctx); err != nil {
+					logger.Warn("Failed to uninstall Fortio load generator", "error", err)
+				} else {
+					logger.Info("Fortio load generator uninstalled successfully")
+				}
+			} else {
+				logger.Debug("No Fortio load generator found or could not check")
+			}
+
+			// Try to clean up microservices (best effort)
 			logger.Info("Attempting microservice cleanup")
 
 			microKustomizeMgr, err := microservice.NewKustomizeManager(absKubeconfigPath, logger)
@@ -271,7 +310,7 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 				}
 			}
 
-			// Then clean up Istio
+			// Then clean up Istio (including Prometheus addon)
 			logger.Info("Attempting Istio cleanup")
 
 			helmMgr, err := istio.NewHelmManager(absKubeconfigPath, "istio-system", logger)
@@ -284,7 +323,7 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 					if err := helmMgr.UninstallIstio(ctx, version); err != nil {
 						logger.Warn("Failed to uninstall Istio", "error", err)
 					} else {
-						logger.Info("Istio uninstalled successfully")
+						logger.Info("Istio and addons uninstalled successfully")
 					}
 				} else {
 					logger.Debug("No Istio installation found or could not check")
