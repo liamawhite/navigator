@@ -40,7 +40,8 @@ export function useLocalStorage<T>(
             // Validate stored data structure if validator is provided
             if (validator && !validator(parsedItem)) {
                 console.warn(
-                    `Invalid data structure in localStorage key "${prefixedKey}":`,
+                    'Invalid data structure in localStorage key: %s:',
+                    prefixedKey,
                     parsedItem
                 );
                 // Remove invalid data
