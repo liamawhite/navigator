@@ -299,15 +299,12 @@ export const RoutesTable: React.FC<RoutesTableProps> = ({
     const storageKey = serviceId
         ? `routes-collapsed-${serviceId}`
         : 'routes-collapsed';
-    const { collapsedGroups, toggleGroupCollapse } = useCollapsibleSections<RouteCollapseGroups>(
-        storageKey,
-        {
+    const { collapsedGroups, toggleGroupCollapse } =
+        useCollapsibleSections<RouteCollapseGroups>(storageKey, {
             serviceSpecific: false,
             portBased: false,
             static: true, // Default closed for Static Routes
-        }
-    );
-    };
+        });
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';

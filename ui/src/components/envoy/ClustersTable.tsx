@@ -318,17 +318,14 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({
     const storageKey = serviceId
         ? `clusters-collapsed-${serviceId}`
         : 'clusters-collapsed';
-    
-    const { collapsedGroups, toggleGroupCollapse } = useCollapsibleSections<ClusterCollapseGroups>(
-        storageKey,
-        {
+
+    const { collapsedGroups, toggleGroupCollapse } =
+        useCollapsibleSections<ClusterCollapseGroups>(storageKey, {
             service: false,
             static: true, // Default closed for Static Clusters
             dns: false,
             special: false,
-        }
-    );
-    };
+        });
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';

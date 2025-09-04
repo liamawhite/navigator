@@ -345,16 +345,13 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
     const storageKey = serviceId
         ? `listeners-collapsed-${serviceId}`
         : 'listeners-collapsed';
-    const { collapsedGroups, toggleGroupCollapse } = useCollapsibleSections<ListenerCollapseGroups>(
-        storageKey,
-        {
+    const { collapsedGroups, toggleGroupCollapse } =
+        useCollapsibleSections<ListenerCollapseGroups>(storageKey, {
             virtual: false,
             service: false,
             port: false,
             proxy: true, // Default closed for Proxy Listeners
-        }
-    );
-    };
+        });
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
