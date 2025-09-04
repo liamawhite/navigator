@@ -51,8 +51,7 @@ export function useLocalStorage<T>(
             return parsedItem;
         } catch (error) {
             console.warn(
-                `Failed to parse localStorage key "${prefixedKey}":`,
-                error
+                'Failed to parse localStorage key:', prefixedKey, error
             );
             // Remove corrupted data
             window.localStorage.removeItem(prefixedKey);
