@@ -13,10 +13,10 @@
 // limitations under the License.
 
 import { useState } from 'react';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 import {
-    ChevronUp,
-    ChevronDown,
     ChevronRight,
+    ChevronDown,
     Globe,
     Link,
     MapPin,
@@ -42,6 +42,7 @@ import {
 
 interface EndpointsTableProps {
     endpoints: v1alpha1EndpointSummary[];
+    serviceId?: string;
 }
 
 type SortConfig = {
@@ -131,6 +132,8 @@ const EndpointsGroup: React.FC<{
     getSortIcon: (key: string) => React.ReactNode;
     expandedClusters: Set<string>;
     toggleCluster: (clusterName: string) => void;
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
 }> = ({
     title,
     endpoints,
@@ -139,6 +142,8 @@ const EndpointsGroup: React.FC<{
     getSortIcon,
     expandedClusters,
     toggleCluster,
+    isCollapsed,
+    onToggleCollapse,
 }) => {
     if (endpoints.length === 0) return null;
 
@@ -193,11 +198,20 @@ const EndpointsGroup: React.FC<{
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4 
+                className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
+                onClick={onToggleCollapse}
+            >
+                {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                )}
                 {getGroupIcon(title)}
                 {title} ({endpoints.length})
             </h4>
-            <Table className="table-fixed">
+            {!isCollapsed && (
+                <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead className="w-8">
@@ -430,13 +444,15 @@ const EndpointsGroup: React.FC<{
                         );
                     })}
                 </TableBody>
-            </Table>
+                </Table>
+            )}
         </div>
     );
 };
 
 export const EndpointsTable: React.FC<EndpointsTableProps> = ({
     endpoints,
+    serviceId,
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'serviceFqdn',
@@ -445,6 +461,21 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
     const [expandedClusters, setExpandedClusters] = useState<Set<string>>(
         new Set()
     );
+
+    const storageKey = serviceId ? `endpoints-collapsed-${serviceId}` : 'endpoints-collapsed';
+    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<Record<string, boolean>>(storageKey, {
+        serviceDiscovery: false,
+        static: true, // Default closed for Static Clusters
+        dns: false,
+        special: false,
+    });
+
+    const toggleGroupCollapse = (groupKey: string) => {
+        setCollapsedGroups(prev => ({
+            ...prev,
+            [groupKey]: !prev[groupKey]
+        }));
+    };
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -463,7 +494,7 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -499,6 +530,8 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
                 getSortIcon={getSortIcon}
                 expandedClusters={expandedClusters}
                 toggleCluster={toggleCluster}
+                isCollapsed={collapsedGroups.serviceDiscovery}
+                onToggleCollapse={() => toggleGroupCollapse('serviceDiscovery')}
             />
             <EndpointsGroup
                 title="Static Clusters"
@@ -508,6 +541,8 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
                 getSortIcon={getSortIcon}
                 expandedClusters={expandedClusters}
                 toggleCluster={toggleCluster}
+                isCollapsed={collapsedGroups.static}
+                onToggleCollapse={() => toggleGroupCollapse('static')}
             />
             <EndpointsGroup
                 title="DNS-Based Clusters"
@@ -517,6 +552,8 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
                 getSortIcon={getSortIcon}
                 expandedClusters={expandedClusters}
                 toggleCluster={toggleCluster}
+                isCollapsed={collapsedGroups.dns}
+                onToggleCollapse={() => toggleGroupCollapse('dns')}
             />
             <EndpointsGroup
                 title="Special Clusters"
@@ -526,6 +563,8 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
                 getSortIcon={getSortIcon}
                 expandedClusters={expandedClusters}
                 toggleCluster={toggleCluster}
+                isCollapsed={collapsedGroups.special}
+                onToggleCollapse={() => toggleGroupCollapse('special')}
             />
         </div>
     );

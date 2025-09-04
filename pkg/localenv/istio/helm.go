@@ -113,7 +113,7 @@ func (h *HelmManager) InstallIstio(ctx context.Context, config IstioInstallConfi
 	components := []struct {
 		name        string
 		releaseName string
-		values      map[string]interface{}
+		values      map[string]any
 	}{
 		{
 			name:        "base",
@@ -248,6 +248,8 @@ func (h *HelmManager) installChart(ctx context.Context, chartName, version strin
 	installAction.Wait = config.Wait
 	installAction.Timeout = config.Timeout
 	installAction.Atomic = config.Atomic
+	installAction.DisableOpenAPIValidation = true
+	installAction.SkipSchemaValidation = true
 
 	// Install the chart
 	h.logger.Info("Installing chart with Helm", "chart", chartName, "release", config.ReleaseName, "wait", config.Wait, "timeout", config.Timeout)

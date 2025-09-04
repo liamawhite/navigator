@@ -22,12 +22,14 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Route, ChevronUp, ChevronDown } from 'lucide-react';
+import { Route, ChevronRight, ChevronDown } from 'lucide-react';
 import { ConfigActions } from '../envoy';
 import type { v1alpha1VirtualService } from '../../types/generated/openapi-service_registry';
 
 interface VirtualServicesTableProps {
     virtualServices: v1alpha1VirtualService[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -37,6 +39,8 @@ type SortConfig = {
 
 export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
     virtualServices,
+    isCollapsed = false,
+    onToggleCollapse,
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
@@ -60,7 +64,7 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -87,11 +91,22 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
     });
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4 
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse && (isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                ))}
                 <Route className="w-4 h-4 text-blue-500" />
                 VirtualServices ({virtualServices.length})
             </h4>
-            <Table className="table-fixed">
+            {!isCollapsed && (
+                <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead
@@ -189,7 +204,8 @@ export const VirtualServicesTable: React.FC<VirtualServicesTableProps> = ({
                         );
                     })}
                 </TableBody>
-            </Table>
+                </Table>
+            )}
         </div>
     );
 };

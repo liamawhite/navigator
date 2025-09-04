@@ -367,7 +367,6 @@ export const ServiceDetailPage: React.FC = () => {
                                         <TableHead>Pod</TableHead>
                                         <TableHead>Namespace</TableHead>
                                         <TableHead>Cluster</TableHead>
-                                        <TableHead>Envoy</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -383,7 +382,19 @@ export const ServiceDetailPage: React.FC = () => {
                                                 }
                                             >
                                                 <TableCell>
-                                                    <Circle className="w-3 h-3 text-green-500 fill-current" />
+                                                    <div className="flex items-center gap-1">
+                                                        <Circle className="w-3 h-3 text-green-500 fill-current" />
+                                                        {instance.envoyPresent && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Hexagon className="w-3 h-3 text-purple-600 cursor-help" />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Envoy sidecar proxy is present</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <span className="font-mono text-sm">
@@ -405,18 +416,6 @@ export const ServiceDetailPage: React.FC = () => {
                                                     <Badge variant="outline">
                                                         {instance.clusterName}
                                                     </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {instance.envoyPresent ? (
-                                                        <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                                                            <Hexagon className="w-3 h-3 mr-1 fill-current" />
-                                                            Present
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline">
-                                                            Not Present
-                                                        </Badge>
-                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         )

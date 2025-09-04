@@ -13,8 +13,9 @@
 // limitations under the License.
 
 import { useState } from 'react';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 import {
-    ChevronUp,
+    ChevronRight,
     ChevronDown,
     Target,
     Layers,
@@ -35,6 +36,7 @@ import type { v1alpha1ClusterSummary } from '@/types/generated/openapi-service_r
 
 interface ClustersTableProps {
     clusters: v1alpha1ClusterSummary[];
+    serviceId?: string;
 }
 
 type SortConfig = {
@@ -124,7 +126,9 @@ const ClusterGroup: React.FC<{
     sortConfig: SortConfig;
     handleSort: (key: string) => void;
     getSortIcon: (key: string) => React.ReactNode;
-}> = ({ title, clusters, sortConfig, handleSort, getSortIcon }) => {
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
+}> = ({ title, clusters, sortConfig, handleSort, getSortIcon, isCollapsed, onToggleCollapse }) => {
     if (clusters.length === 0) return null;
 
     const sortedClusters = [...clusters].sort((a, b) => {
@@ -168,11 +172,20 @@ const ClusterGroup: React.FC<{
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4 
+                className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
+                onClick={onToggleCollapse}
+            >
+                {isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                )}
                 {getGroupIcon(title)}
                 {title} ({clusters.length})
             </h4>
-            <Table className="table-fixed">
+            {!isCollapsed && (
+                <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead
@@ -277,16 +290,32 @@ const ClusterGroup: React.FC<{
                         </TableRow>
                     ))}
                 </TableBody>
-            </Table>
+                </Table>
+            )}
         </div>
     );
 };
 
-export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
+export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters, serviceId }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
     });
+
+    const storageKey = serviceId ? `clusters-collapsed-${serviceId}` : 'clusters-collapsed';
+    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<Record<string, boolean>>(storageKey, {
+        service: false,
+        static: true, // Default closed for Static Clusters
+        dns: false,
+        special: false,
+    });
+
+    const toggleGroupCollapse = (groupKey: string) => {
+        setCollapsedGroups(prev => ({
+            ...prev,
+            [groupKey]: !prev[groupKey]
+        }));
+    };
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -305,7 +334,7 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -329,13 +358,8 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
-            />
-            <ClusterGroup
-                title="Static Clusters"
-                clusters={groups.static}
-                sortConfig={sortConfig}
-                handleSort={handleSort}
-                getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.service}
+                onToggleCollapse={() => toggleGroupCollapse('service')}
             />
             <ClusterGroup
                 title="DNS-Based Clusters"
@@ -343,6 +367,8 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.dns}
+                onToggleCollapse={() => toggleGroupCollapse('dns')}
             />
             <ClusterGroup
                 title="Special Clusters"
@@ -350,6 +376,17 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({ clusters }) => {
                 sortConfig={sortConfig}
                 handleSort={handleSort}
                 getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.special}
+                onToggleCollapse={() => toggleGroupCollapse('special')}
+            />
+            <ClusterGroup
+                title="Static Clusters"
+                clusters={groups.static}
+                sortConfig={sortConfig}
+                handleSort={handleSort}
+                getSortIcon={getSortIcon}
+                isCollapsed={collapsedGroups.static}
+                onToggleCollapse={() => toggleGroupCollapse('static')}
             />
         </div>
     );

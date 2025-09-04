@@ -22,12 +22,14 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Target, ChevronUp, ChevronDown } from 'lucide-react';
+import { Target, ChevronRight, ChevronDown } from 'lucide-react';
 import { ConfigActions } from '../envoy';
 import type { v1alpha1DestinationRule } from '../../types/generated/openapi-service_registry';
 
 interface DestinationRulesTableProps {
     destinationRules: v1alpha1DestinationRule[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -37,6 +39,8 @@ type SortConfig = {
 
 export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
     destinationRules,
+    isCollapsed = false,
+    onToggleCollapse,
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
@@ -60,7 +64,7 @@ export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -88,11 +92,22 @@ export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4 
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse && (isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                ))}
                 <Target className="w-4 h-4 text-green-500" />
                 DestinationRules ({destinationRules.length})
             </h4>
-            <Table className="table-fixed">
+            {!isCollapsed && (
+                <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead
@@ -171,7 +186,8 @@ export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
                         );
                     })}
                 </TableBody>
-            </Table>
+                </Table>
+            )}
         </div>
     );
 };

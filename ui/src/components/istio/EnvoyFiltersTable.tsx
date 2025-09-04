@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Settings } from 'lucide-react';
+import { ChevronRight, ChevronDown, Settings } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -28,6 +28,8 @@ import type { v1alpha1EnvoyFilter } from '@/types/generated/openapi-service_regi
 
 interface EnvoyFiltersTableProps {
     envoyFilters: v1alpha1EnvoyFilter[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -37,6 +39,8 @@ type SortConfig = {
 
 export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
     envoyFilters,
+    isCollapsed = false,
+    onToggleCollapse,
 }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
@@ -60,7 +64,7 @@ export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -138,11 +142,22 @@ export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4 
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse && (isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                ))}
                 <Settings className="w-4 h-4 text-red-500" />
                 EnvoyFilters ({envoyFilters.length})
             </h4>
-            <Table className="table-fixed">
+            {!isCollapsed && (
+                <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead
@@ -215,7 +230,8 @@ export const EnvoyFiltersTable: React.FC<EnvoyFiltersTableProps> = ({
                         </TableRow>
                     ))}
                 </TableBody>
-            </Table>
+                </Table>
+            )}
         </div>
     );
 };

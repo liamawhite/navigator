@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, ShieldCheck } from 'lucide-react';
+import { ChevronRight, ChevronDown, ShieldCheck } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -27,6 +27,8 @@ import type { v1alpha1PeerAuthentication } from '@/types/generated/openapi-servi
 
 interface PeerAuthenticationsTableProps {
     peerAuthentications: v1alpha1PeerAuthentication[];
+    isCollapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 type SortConfig = {
@@ -36,7 +38,11 @@ type SortConfig = {
 
 export const PeerAuthenticationsTable: React.FC<
     PeerAuthenticationsTableProps
-> = ({ peerAuthentications }) => {
+> = ({ 
+    peerAuthentications,
+    isCollapsed = false,
+    onToggleCollapse,
+}) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -59,7 +65,7 @@ export const PeerAuthenticationsTable: React.FC<
             return null;
         }
         return sortConfig.direction === 'asc' ? (
-            <ChevronUp className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1" />
         ) : (
             <ChevronDown className="w-4 h-4 ml-1" />
         );
@@ -103,11 +109,22 @@ export const PeerAuthenticationsTable: React.FC<
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <h4 
+                className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
+                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                }`}
+                onClick={onToggleCollapse}
+            >
+                {onToggleCollapse && (isCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                ) : (
+                    <ChevronDown className="w-4 h-4" />
+                ))}
                 <ShieldCheck className="w-4 h-4 text-blue-600" />
                 PeerAuthentications ({peerAuthentications.length})
             </h4>
-            <Table className="table-fixed">
+            {!isCollapsed && (
+                <Table className="table-fixed">
                 <TableHeader>
                     <TableRow>
                         <TableHead
@@ -142,7 +159,8 @@ export const PeerAuthenticationsTable: React.FC<
                         </TableRow>
                     ))}
                 </TableBody>
-            </Table>
+                </Table>
+            )}
         </div>
     );
 };
