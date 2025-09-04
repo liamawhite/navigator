@@ -34,7 +34,7 @@ export function useLocalStorage<T>(
             return item ? JSON.parse(item) : defaultValue;
         } catch (error) {
             console.warn(
-                `Error reading localStorage key "${prefixedKey}":`,
+                'Error reading localStorage key:', prefixedKey,
                 error
             );
             return defaultValue;
@@ -58,7 +58,7 @@ export function useLocalStorage<T>(
             setStoredValue(valueToStore);
         } catch (error) {
             console.warn(
-                `Error setting localStorage key "${prefixedKey}":`,
+                'Error setting localStorage key:', prefixedKey,
                 error
             );
             // Still update the state even if localStorage fails
