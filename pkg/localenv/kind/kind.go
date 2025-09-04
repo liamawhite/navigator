@@ -35,6 +35,8 @@ const (
 	HTTPSNodePort = 30443
 	// StatusNodePort is the fixed NodePort for status/health checks (port 15021)
 	StatusNodePort = 31021
+	// PrometheusNodePort is the fixed NodePort for Prometheus metrics UI access (port 9090)
+	PrometheusNodePort = 30090
 )
 
 type KindManager struct {
@@ -174,11 +176,12 @@ func DefaultKindConfig(name string) KindClusterConfig {
 
 // DemoKindConfig returns a Kind configuration suitable for demo clusters with NodePort access
 func DemoKindConfig(name string) KindClusterConfig {
-	// Bind the specific fixed ports for Istio gateway access
+	// Bind the specific fixed ports for Istio gateway access and Prometheus metrics
 	portMaps := []string{
-		fmt.Sprintf("%d:%d", HTTPNodePort, HTTPNodePort),     // HTTP
-		fmt.Sprintf("%d:%d", HTTPSNodePort, HTTPSNodePort),   // HTTPS
-		fmt.Sprintf("%d:%d", StatusNodePort, StatusNodePort), // Status
+		fmt.Sprintf("%d:%d", HTTPNodePort, HTTPNodePort),             // HTTP - Microservices via Istio gateway
+		fmt.Sprintf("%d:%d", HTTPSNodePort, HTTPSNodePort),           // HTTPS - Microservices via Istio gateway
+		fmt.Sprintf("%d:%d", StatusNodePort, StatusNodePort),         // Status - Istio gateway health checks
+		fmt.Sprintf("%d:%d", PrometheusNodePort, PrometheusNodePort), // Prometheus - Metrics UI access
 	}
 
 	return KindClusterConfig{

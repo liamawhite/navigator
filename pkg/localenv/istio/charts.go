@@ -28,9 +28,9 @@ import (
 	"time"
 )
 
-// ChartFiles contains the embedded Istio Helm chart tar files
+// ChartFiles contains the embedded Istio Helm chart tar files and addon YAML files
 //
-//go:embed charts charts/* charts/*/*.tgz
+//go:embed charts charts/* charts/*/*.tgz charts/*/*.yaml
 var ChartFiles embed.FS
 
 // GetChartFS returns the embedded chart filesystem
@@ -262,3 +262,40 @@ func (i *memoryFileInfo) Mode() fs.FileMode  { return 0644 }
 func (i *memoryFileInfo) ModTime() time.Time { return time.Time{} }
 func (i *memoryFileInfo) IsDir() bool        { return i.isDir }
 func (i *memoryFileInfo) Sys() interface{}   { return nil }
+
+// GetPrometheusManifest returns the Prometheus addon manifest for a specific version
+func GetPrometheusManifest(version string) ([]byte, error) {
+	manifestPath := filepath.Join("charts", version, "prometheus.yaml")
+
+	data, err := fs.ReadFile(ChartFiles, manifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read Prometheus manifest for version %s: %w", version, err)
+	}
+
+	return data, nil
+}
+
+// ListAddons returns available addon manifests for a specific version
+func ListAddons(version string) ([]string, error) {
+	versionDir := filepath.Join("charts", version)
+	entries, err := fs.ReadDir(ChartFiles, versionDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read charts directory for version %s: %w", version, err)
+	}
+
+	var addons []string
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		if strings.HasSuffix(entry.Name(), ".yaml") {
+			addonName := strings.TrimSuffix(entry.Name(), ".yaml")
+			addons = append(addons, addonName)
+		}
+	}
+
+	sort.Strings(addons)
+	return addons, nil
+}

@@ -40,10 +40,11 @@ type HelmManager struct {
 
 // IstioInstallConfig defines configuration for Istio installation
 type IstioInstallConfig struct {
-	Version     string
-	Namespace   string
-	Values      map[string]interface{}
-	WaitTimeout time.Duration
+	Version           string
+	Namespace         string
+	Values            map[string]interface{}
+	WaitTimeout       time.Duration
+	InstallPrometheus bool
 }
 
 // ChartConfig defines configuration for individual chart installations
@@ -91,10 +92,11 @@ func NewHelmManager(kubeconfig, namespace string, logger *slog.Logger) (*HelmMan
 // DefaultIstioConfig returns default configuration for Istio installation
 func DefaultIstioConfig(version string) IstioInstallConfig {
 	return IstioInstallConfig{
-		Version:     version,
-		Namespace:   "istio-system",
-		Values:      map[string]interface{}{},
-		WaitTimeout: 5 * time.Minute,
+		Version:           version,
+		Namespace:         "istio-system",
+		Values:            map[string]interface{}{},
+		WaitTimeout:       5 * time.Minute,
+		InstallPrometheus: true,
 	}
 }
 
@@ -154,13 +156,36 @@ func (h *HelmManager) InstallIstio(ctx context.Context, config IstioInstallConfi
 		h.logger.Info("Successfully installed Istio component", "component", component.name, "release", component.releaseName)
 	}
 
+	// Install Prometheus addon if requested
+	if config.InstallPrometheus {
+		h.logger.Info("Installing Prometheus addon")
+		promMgr := NewPrometheusManager(h.kubeconfig, config.Namespace, h.logger)
+
+		if err := promMgr.InstallPrometheusAddon(ctx, config.Version); err != nil {
+			return fmt.Errorf("failed to install Prometheus addon: %w", err)
+		}
+
+		h.logger.Info("Prometheus addon installed successfully")
+	}
+
 	h.logger.Info("Istio installation completed successfully")
 	return nil
 }
 
-// UninstallIstio uninstalls Istio components in reverse order: gateway, istiod, base
+// UninstallIstio uninstalls Istio components in reverse order: prometheus, gateway, istiod, base
 func (h *HelmManager) UninstallIstio(ctx context.Context, version string) error {
 	h.logger.Info("Starting Istio uninstallation", "version", version)
+
+	// Try to uninstall Prometheus addon first (best effort)
+	promMgr := NewPrometheusManager(h.kubeconfig, h.namespace, h.logger)
+	if installed, err := promMgr.IsPrometheusInstalled(ctx); err == nil && installed {
+		h.logger.Info("Uninstalling Prometheus addon")
+		if err := promMgr.UninstallPrometheusAddon(ctx, version); err != nil {
+			h.logger.Warn("Failed to uninstall Prometheus addon", "error", err)
+		} else {
+			h.logger.Info("Prometheus addon uninstalled successfully")
+		}
+	}
 
 	// Uninstall components in reverse order
 	components := []string{
