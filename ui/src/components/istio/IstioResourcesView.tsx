@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import { useSearchParams } from 'react-router-dom';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { IstioResourceCollapseGroups } from '../../types/collapseGroups';
 import { useIstioResources } from '../../hooks/useServices';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -53,9 +54,10 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
     const [searchParams, setSearchParams] = useSearchParams();
 
     const storageKey = `istio-collapsed-${serviceId}`;
-    const [collapsedSections, setCollapsedSections] = useLocalStorage<
-        Record<string, boolean>
-    >(storageKey, {
+    const {
+        collapsedGroups: collapsedSections,
+        toggleGroupCollapse: toggleSectionCollapse,
+    } = useCollapsibleSections<IstioResourceCollapseGroups>(storageKey, {
         gateways: false,
         virtualServices: false,
         destinationRules: false,
@@ -67,13 +69,6 @@ export const IstioResourcesView: React.FC<IstioResourcesViewProps> = ({
         envoyFilters: false,
         wasmPlugins: false,
     });
-
-    const toggleSectionCollapse = (sectionKey: string) => {
-        setCollapsedSections((prev) => ({
-            ...prev,
-            [sectionKey]: !prev[sectionKey],
-        }));
-    };
 
     // Get Istio tab from URL params, default to 'traffic'
     const availableIstioTabs = ['traffic', 'security', 'extensions'] as const;

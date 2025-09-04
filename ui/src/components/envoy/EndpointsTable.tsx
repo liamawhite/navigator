@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { EndpointCollapseGroups } from '../../types/collapseGroups';
 import {
     ChevronRight,
     ChevronDown,
@@ -470,21 +471,13 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
     const storageKey = serviceId
         ? `endpoints-collapsed-${serviceId}`
         : 'endpoints-collapsed';
-    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<
-        Record<string, boolean>
-    >(storageKey, {
-        serviceDiscovery: false,
-        static: true, // Default closed for Static Clusters
-        dns: false,
-        special: false,
-    });
-
-    const toggleGroupCollapse = (groupKey: string) => {
-        setCollapsedGroups((prev) => ({
-            ...prev,
-            [groupKey]: !prev[groupKey],
-        }));
-    };
+    const { collapsedGroups, toggleGroupCollapse } =
+        useCollapsibleSections<EndpointCollapseGroups>(storageKey, {
+            serviceDiscovery: false,
+            static: true, // Default closed for Static Clusters
+            dns: false,
+            special: false,
+        });
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';

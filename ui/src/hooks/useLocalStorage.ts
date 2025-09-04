@@ -18,11 +18,13 @@ import { useState } from 'react';
  * Custom hook for persisting state in localStorage
  * @param key - The localStorage key to use
  * @param defaultValue - The default value to use if no stored value exists
+ * @param validator - Optional function to validate stored data structure
  * @returns A tuple of [value, setValue] similar to useState
  */
 export function useLocalStorage<T>(
     key: string,
-    defaultValue: T
+    defaultValue: T,
+    validator?: (data: unknown) => data is T
 ): [T, (value: T | ((prev: T) => T)) => void] {
     // Prefix all keys to avoid conflicts with other applications
     const prefixedKey = `navigator-${key}`;
@@ -31,12 +33,29 @@ export function useLocalStorage<T>(
     const [storedValue, setStoredValue] = useState<T>(() => {
         try {
             const item = window.localStorage.getItem(prefixedKey);
-            return item ? JSON.parse(item) : defaultValue;
+            if (!item) return defaultValue;
+
+            const parsedItem = JSON.parse(item);
+
+            // Validate stored data structure if validator is provided
+            if (validator && !validator(parsedItem)) {
+                console.warn(
+                    `Invalid data structure in localStorage key "${prefixedKey}":`,
+                    parsedItem
+                );
+                // Remove invalid data
+                window.localStorage.removeItem(prefixedKey);
+                return defaultValue;
+            }
+
+            return parsedItem;
         } catch (error) {
             console.warn(
-                'Error reading localStorage key:', prefixedKey,
+                `Failed to parse localStorage key "${prefixedKey}":`,
                 error
             );
+            // Remove corrupted data
+            window.localStorage.removeItem(prefixedKey);
             return defaultValue;
         }
     });
@@ -57,10 +76,7 @@ export function useLocalStorage<T>(
             // Save state
             setStoredValue(valueToStore);
         } catch (error) {
-            console.warn(
-                'Error setting localStorage key:', prefixedKey,
-                error
-            );
+            console.warn('Error setting localStorage key:', prefixedKey, error);
             // Still update the state even if localStorage fails
             const valueToStore =
                 value instanceof Function ? value(storedValue) : value;

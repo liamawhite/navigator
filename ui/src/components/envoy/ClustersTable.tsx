@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { ClusterCollapseGroups } from '../../types/collapseGroups';
 import {
     ChevronRight,
     ChevronDown,
@@ -317,20 +318,16 @@ export const ClustersTable: React.FC<ClustersTableProps> = ({
     const storageKey = serviceId
         ? `clusters-collapsed-${serviceId}`
         : 'clusters-collapsed';
-    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<
-        Record<string, boolean>
-    >(storageKey, {
-        service: false,
-        static: true, // Default closed for Static Clusters
-        dns: false,
-        special: false,
-    });
-
-    const toggleGroupCollapse = (groupKey: string) => {
-        setCollapsedGroups((prev) => ({
-            ...prev,
-            [groupKey]: !prev[groupKey],
-        }));
+    
+    const { collapsedGroups, toggleGroupCollapse } = useCollapsibleSections<ClusterCollapseGroups>(
+        storageKey,
+        {
+            service: false,
+            static: true, // Default closed for Static Clusters
+            dns: false,
+            special: false,
+        }
+    );
     };
 
     const handleSort = (key: string) => {

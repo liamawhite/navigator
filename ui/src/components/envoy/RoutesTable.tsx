@@ -13,7 +13,8 @@
 // limitations under the License.
 
 import { useState } from 'react';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useCollapsibleSections } from '../../hooks/useCollapsibleSections';
+import type { RouteCollapseGroups } from '../../types/collapseGroups';
 import {
     ChevronRight,
     ChevronDown,
@@ -298,19 +299,14 @@ export const RoutesTable: React.FC<RoutesTableProps> = ({
     const storageKey = serviceId
         ? `routes-collapsed-${serviceId}`
         : 'routes-collapsed';
-    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<
-        Record<string, boolean>
-    >(storageKey, {
-        serviceSpecific: false,
-        portBased: false,
-        static: true, // Default closed for Static Routes
-    });
-
-    const toggleGroupCollapse = (groupKey: string) => {
-        setCollapsedGroups((prev) => ({
-            ...prev,
-            [groupKey]: !prev[groupKey],
-        }));
+    const { collapsedGroups, toggleGroupCollapse } = useCollapsibleSections<RouteCollapseGroups>(
+        storageKey,
+        {
+            serviceSpecific: false,
+            portBased: false,
+            static: true, // Default closed for Static Routes
+        }
+    );
     };
 
     const handleSort = (key: string) => {
