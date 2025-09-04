@@ -778,8 +778,8 @@ export const ServiceInstanceDetailPage: React.FC = () => {
                                                                             'Running'
                                                                             ? 'text-green-500'
                                                                             : container.ready
-                                                                            ? 'text-yellow-500'
-                                                                            : 'text-red-500'
+                                                                              ? 'text-yellow-500'
+                                                                              : 'text-red-500'
                                                                     }`}
                                                                 />
                                                             </div>

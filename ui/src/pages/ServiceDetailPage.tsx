@@ -386,11 +386,18 @@ export const ServiceDetailPage: React.FC = () => {
                                                         <Circle className="w-3 h-3 text-green-500 fill-current" />
                                                         {instance.envoyPresent && (
                                                             <Tooltip>
-                                                                <TooltipTrigger asChild>
+                                                                <TooltipTrigger
+                                                                    asChild
+                                                                >
                                                                     <Hexagon className="w-3 h-3 text-purple-600 cursor-help" />
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
-                                                                    <p>Envoy sidecar proxy is present</p>
+                                                                    <p>
+                                                                        Envoy
+                                                                        sidecar
+                                                                        proxy is
+                                                                        present
+                                                                    </p>
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         )}

@@ -92,100 +92,103 @@ export const DestinationRulesTable: React.FC<DestinationRulesTableProps> = ({
 
     return (
         <div className="space-y-2">
-            <h4 
+            <h4
                 className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
-                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
                 }`}
                 onClick={onToggleCollapse}
             >
-                {onToggleCollapse && (isCollapsed ? (
-                    <ChevronRight className="w-4 h-4" />
-                ) : (
-                    <ChevronDown className="w-4 h-4" />
-                ))}
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Target className="w-4 h-4 text-green-500" />
                 DestinationRules ({destinationRules.length})
             </h4>
             {!isCollapsed && (
                 <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-40"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-64">Host</TableHead>
-                        <TableHead className="w-32">Subsets</TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedDestinationRules.map((dr, index) => {
-                        const subsets = dr.subsets || [];
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-40"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-64">Host</TableHead>
+                            <TableHead className="w-32">Subsets</TableHead>
+                            <TableHead className="w-20"></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedDestinationRules.map((dr, index) => {
+                            const subsets = dr.subsets || [];
 
-                        return (
-                            <TableRow key={index}>
-                                <TableCell>
-                                    <span className="font-mono text-sm">
-                                        {dr.name || 'Unknown'} /{' '}
-                                        {dr.namespace || 'Unknown'}
-                                    </span>
-                                </TableCell>
-                                <TableCell>
-                                    <span className="font-mono text-sm">
-                                        {dr.host || '-'}
-                                    </span>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {subsets.length > 0 ? (
-                                            subsets
-                                                .slice(0, 3)
-                                                .map((subset, i) => (
-                                                    <Badge
-                                                        key={i}
-                                                        variant="secondary"
-                                                        className="text-xs"
-                                                    >
-                                                        {subset.name ||
-                                                            `subset-${i}`}
-                                                    </Badge>
-                                                ))
-                                        ) : (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-xs text-muted-foreground"
-                                            >
-                                                none
-                                            </Badge>
-                                        )}
-                                        {subsets.length > 3 && (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-xs"
-                                            >
-                                                +{subsets.length - 3} more
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <ConfigActions
-                                        name={dr.name || 'DestinationRule'}
-                                        rawConfig={dr.rawConfig || ''}
-                                        configType="DestinationRule"
-                                        copyId={`dr-${index}`}
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
+                            return (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        <span className="font-mono text-sm">
+                                            {dr.name || 'Unknown'} /{' '}
+                                            {dr.namespace || 'Unknown'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className="font-mono text-sm">
+                                            {dr.host || '-'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {subsets.length > 0 ? (
+                                                subsets
+                                                    .slice(0, 3)
+                                                    .map((subset, i) => (
+                                                        <Badge
+                                                            key={i}
+                                                            variant="secondary"
+                                                            className="text-xs"
+                                                        >
+                                                            {subset.name ||
+                                                                `subset-${i}`}
+                                                        </Badge>
+                                                    ))
+                                            ) : (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs text-muted-foreground"
+                                                >
+                                                    none
+                                                </Badge>
+                                            )}
+                                            {subsets.length > 3 && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs"
+                                                >
+                                                    +{subsets.length - 3} more
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <ConfigActions
+                                            name={dr.name || 'DestinationRule'}
+                                            rawConfig={dr.rawConfig || ''}
+                                            configType="DestinationRule"
+                                            copyId={`dr-${index}`}
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
                 </Table>
             )}
         </div>

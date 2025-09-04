@@ -20,7 +20,10 @@ import { useState } from 'react';
  * @param defaultValue - The default value to use if no stored value exists
  * @returns A tuple of [value, setValue] similar to useState
  */
-export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T | ((prev: T) => T)) => void] {
+export function useLocalStorage<T>(
+    key: string,
+    defaultValue: T
+): [T, (value: T | ((prev: T) => T)) => void] {
     // Prefix all keys to avoid conflicts with other applications
     const prefixedKey = `navigator-${key}`;
 
@@ -30,7 +33,10 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T 
             const item = window.localStorage.getItem(prefixedKey);
             return item ? JSON.parse(item) : defaultValue;
         } catch (error) {
-            console.warn(`Error reading localStorage key "${prefixedKey}":`, error);
+            console.warn(
+                `Error reading localStorage key "${prefixedKey}":`,
+                error
+            );
             return defaultValue;
         }
     });
@@ -39,17 +45,25 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T 
     const setValue = (value: T | ((prev: T) => T)) => {
         try {
             // Allow value to be a function so we have the same API as useState
-            const valueToStore = value instanceof Function ? value(storedValue) : value;
-            
+            const valueToStore =
+                value instanceof Function ? value(storedValue) : value;
+
             // Save to local storage
-            window.localStorage.setItem(prefixedKey, JSON.stringify(valueToStore));
-            
+            window.localStorage.setItem(
+                prefixedKey,
+                JSON.stringify(valueToStore)
+            );
+
             // Save state
             setStoredValue(valueToStore);
         } catch (error) {
-            console.warn(`Error setting localStorage key "${prefixedKey}":`, error);
+            console.warn(
+                `Error setting localStorage key "${prefixedKey}":`,
+                error
+            );
             // Still update the state even if localStorage fails
-            const valueToStore = value instanceof Function ? value(storedValue) : value;
+            const valueToStore =
+                value instanceof Function ? value(storedValue) : value;
             setStoredValue(valueToStore);
         }
     };

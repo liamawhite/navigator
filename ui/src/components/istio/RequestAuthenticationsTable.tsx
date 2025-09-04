@@ -38,11 +38,7 @@ type SortConfig = {
 
 export const RequestAuthenticationsTable: React.FC<
     RequestAuthenticationsTableProps
-> = ({ 
-    requestAuthentications,
-    isCollapsed = false,
-    onToggleCollapse,
-}) => {
+> = ({ requestAuthentications, isCollapsed = false, onToggleCollapse }) => {
     const [sortConfig, setSortConfig] = useState<SortConfig>({
         key: 'name',
         direction: 'asc',
@@ -111,56 +107,59 @@ export const RequestAuthenticationsTable: React.FC<
 
     return (
         <div className="space-y-2">
-            <h4 
+            <h4
                 className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
-                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
                 }`}
                 onClick={onToggleCollapse}
             >
-                {onToggleCollapse && (isCollapsed ? (
-                    <ChevronRight className="w-4 h-4" />
-                ) : (
-                    <ChevronDown className="w-4 h-4" />
-                ))}
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Key className="w-4 h-4 text-yellow-500" />
                 RequestAuthentications ({requestAuthentications.length})
             </h4>
             {!isCollapsed && (
                 <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedRequestAuthentications.map((auth, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {auth.name || 'Unknown'} /{' '}
-                                    {auth.namespace || 'Unknown'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={auth.name || 'Unknown'}
-                                    rawConfig={auth.rawConfig || ''}
-                                    configType="RequestAuthentication"
-                                    copyId={`request-auth-${auth.name || index}`}
-                                />
-                            </TableCell>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedRequestAuthentications.map((auth, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {auth.name || 'Unknown'} /{' '}
+                                        {auth.namespace || 'Unknown'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={auth.name || 'Unknown'}
+                                        rawConfig={auth.rawConfig || ''}
+                                        configType="RequestAuthentication"
+                                        copyId={`request-auth-${auth.name || index}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
                 </Table>
             )}
         </div>

@@ -37,7 +37,7 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const GatewaysTable: React.FC<GatewaysTableProps> = ({ 
+export const GatewaysTable: React.FC<GatewaysTableProps> = ({
     gateways,
     isCollapsed = false,
     onToggleCollapse,
@@ -92,94 +92,98 @@ export const GatewaysTable: React.FC<GatewaysTableProps> = ({
 
     return (
         <div className="space-y-2">
-            <h4 
+            <h4
                 className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
-                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
                 }`}
                 onClick={onToggleCollapse}
             >
-                {onToggleCollapse && (isCollapsed ? (
-                    <ChevronRight className="w-4 h-4" />
-                ) : (
-                    <ChevronDown className="w-4 h-4" />
-                ))}
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <ArrowRightToLine className="w-4 h-4 text-purple-500" />
                 Gateways ({gateways.length})
             </h4>
             {!isCollapsed && (
                 <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-48">Selector</TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedGateways.map((gateway, index) => {
-                        const selector = gateway.selector || {};
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-48">Selector</TableHead>
+                            <TableHead className="w-20"></TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedGateways.map((gateway, index) => {
+                            const selector = gateway.selector || {};
 
-                        return (
-                            <TableRow key={index}>
-                                <TableCell>
-                                    <span className="font-mono text-sm">
-                                        {gateway.name || 'Unknown'} /{' '}
-                                        {gateway.namespace || 'Unknown'}
-                                    </span>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {Object.entries(selector).length > 0 ? (
-                                            Object.entries(selector)
-                                                .slice(0, 2)
-                                                .map(([key, value], i) => (
-                                                    <Badge
-                                                        key={i}
-                                                        variant="secondary"
-                                                        className="text-xs"
-                                                    >
-                                                        {key}: {value}
-                                                    </Badge>
-                                                ))
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">
-                                                -
-                                            </span>
-                                        )}
-                                        {Object.entries(selector).length >
-                                            2 && (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-xs"
-                                            >
-                                                +
-                                                {Object.entries(selector)
-                                                    .length - 2}{' '}
-                                                more
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <ConfigActions
-                                        name={gateway.name || 'Gateway'}
-                                        rawConfig={gateway.rawConfig || ''}
-                                        configType="Gateway"
-                                        copyId={`gateway-${index}`}
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
+                            return (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        <span className="font-mono text-sm">
+                                            {gateway.name || 'Unknown'} /{' '}
+                                            {gateway.namespace || 'Unknown'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {Object.entries(selector).length >
+                                            0 ? (
+                                                Object.entries(selector)
+                                                    .slice(0, 2)
+                                                    .map(([key, value], i) => (
+                                                        <Badge
+                                                            key={i}
+                                                            variant="secondary"
+                                                            className="text-xs"
+                                                        >
+                                                            {key}: {value}
+                                                        </Badge>
+                                                    ))
+                                            ) : (
+                                                <span className="text-muted-foreground text-sm">
+                                                    -
+                                                </span>
+                                            )}
+                                            {Object.entries(selector).length >
+                                                2 && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-xs"
+                                                >
+                                                    +
+                                                    {Object.entries(selector)
+                                                        .length - 2}{' '}
+                                                    more
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <ConfigActions
+                                            name={gateway.name || 'Gateway'}
+                                            rawConfig={gateway.rawConfig || ''}
+                                            configType="Gateway"
+                                            copyId={`gateway-${index}`}
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
                 </Table>
             )}
         </div>

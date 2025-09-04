@@ -36,7 +36,7 @@ type SortConfig = {
     direction: 'asc' | 'desc';
 } | null;
 
-export const SidecarsTable: React.FC<SidecarsTableProps> = ({ 
+export const SidecarsTable: React.FC<SidecarsTableProps> = ({
     sidecars,
     isCollapsed = false,
     onToggleCollapse,
@@ -108,56 +108,59 @@ export const SidecarsTable: React.FC<SidecarsTableProps> = ({
 
     return (
         <div className="space-y-2">
-            <h4 
+            <h4
                 className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
-                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
                 }`}
                 onClick={onToggleCollapse}
             >
-                {onToggleCollapse && (isCollapsed ? (
-                    <ChevronRight className="w-4 h-4" />
-                ) : (
-                    <ChevronDown className="w-4 h-4" />
-                ))}
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Network className="w-4 h-4 text-orange-500" />
                 Sidecars ({sidecars.length})
             </h4>
             {!isCollapsed && (
                 <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedSidecars.map((sidecar, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {sidecar.name || 'Unknown'} /{' '}
-                                    {sidecar.namespace || 'Unknown'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={sidecar.name || 'Unknown'}
-                                    rawConfig={sidecar.rawConfig || ''}
-                                    configType="Sidecar"
-                                    copyId={`sidecar-${sidecar.name || index}`}
-                                />
-                            </TableCell>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedSidecars.map((sidecar, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {sidecar.name || 'Unknown'} /{' '}
+                                        {sidecar.namespace || 'Unknown'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={sidecar.name || 'Unknown'}
+                                        rawConfig={sidecar.rawConfig || ''}
+                                        configType="Sidecar"
+                                        copyId={`sidecar-${sidecar.name || index}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
                 </Table>
             )}
         </div>

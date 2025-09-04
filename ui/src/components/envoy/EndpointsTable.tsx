@@ -198,7 +198,7 @@ const EndpointsGroup: React.FC<{
 
     return (
         <div className="space-y-2">
-            <h4 
+            <h4
                 className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
                 onClick={onToggleCollapse}
             >
@@ -212,238 +212,243 @@ const EndpointsGroup: React.FC<{
             </h4>
             {!isCollapsed && (
                 <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-8">
-                            {/* Expand/collapse column */}
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50"
-                            onClick={() => handleSort('serviceFqdn')}
-                        >
-                            <div className="flex items-center">
-                                Service
-                                {getSortIcon('serviceFqdn')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-16"
-                            onClick={() => handleSort('port')}
-                        >
-                            <div className="flex items-center">
-                                Port
-                                {getSortIcon('port')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
-                            onClick={() => handleSort('subset')}
-                        >
-                            <div className="flex items-center">
-                                Subset
-                                {getSortIcon('subset')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="text-right w-32">
-                            Health Summary
-                        </TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedClusters.map((cluster) => {
-                        const isExpanded = expandedClusters.has(
-                            cluster.clusterName || ''
-                        );
-                        const totalEndpoints = cluster.endpoints?.length || 0;
-                        const healthyEndpoints =
-                            cluster.endpoints?.filter(
-                                (ep) => ep.health === 'HEALTHY'
-                            ).length || 0;
-                        const unhealthyEndpoints =
-                            cluster.endpoints?.filter(
-                                (ep) => ep.health === 'UNHEALTHY'
-                            ).length || 0;
-                        const otherEndpoints =
-                            totalEndpoints -
-                            healthyEndpoints -
-                            unhealthyEndpoints;
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-8">
+                                {/* Expand/collapse column */}
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50"
+                                onClick={() => handleSort('serviceFqdn')}
+                            >
+                                <div className="flex items-center">
+                                    Service
+                                    {getSortIcon('serviceFqdn')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-16"
+                                onClick={() => handleSort('port')}
+                            >
+                                <div className="flex items-center">
+                                    Port
+                                    {getSortIcon('port')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-20"
+                                onClick={() => handleSort('subset')}
+                            >
+                                <div className="flex items-center">
+                                    Subset
+                                    {getSortIcon('subset')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="text-right w-32">
+                                Health Summary
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedClusters.map((cluster) => {
+                            const isExpanded = expandedClusters.has(
+                                cluster.clusterName || ''
+                            );
+                            const totalEndpoints =
+                                cluster.endpoints?.length || 0;
+                            const healthyEndpoints =
+                                cluster.endpoints?.filter(
+                                    (ep) => ep.health === 'HEALTHY'
+                                ).length || 0;
+                            const unhealthyEndpoints =
+                                cluster.endpoints?.filter(
+                                    (ep) => ep.health === 'UNHEALTHY'
+                                ).length || 0;
+                            const otherEndpoints =
+                                totalEndpoints -
+                                healthyEndpoints -
+                                unhealthyEndpoints;
 
-                        return (
-                            <>
-                                {/* Cluster row */}
-                                <TableRow
-                                    key={cluster.clusterName}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() =>
-                                        toggleCluster(cluster.clusterName || '')
-                                    }
-                                >
-                                    <TableCell className="w-8">
-                                        {totalEndpoints > 0 && (
-                                            <div className="flex items-center justify-center">
-                                                {isExpanded ? (
-                                                    <ChevronDown className="w-4 h-4" />
-                                                ) : (
-                                                    <ChevronRight className="w-4 h-4" />
+                            return (
+                                <>
+                                    {/* Cluster row */}
+                                    <TableRow
+                                        key={cluster.clusterName}
+                                        className="cursor-pointer hover:bg-muted/50"
+                                        onClick={() =>
+                                            toggleCluster(
+                                                cluster.clusterName || ''
+                                            )
+                                        }
+                                    >
+                                        <TableCell className="w-8">
+                                            {totalEndpoints > 0 && (
+                                                <div className="flex items-center justify-center">
+                                                    {isExpanded ? (
+                                                        <ChevronDown className="w-4 h-4" />
+                                                    ) : (
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    )}
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="font-mono text-sm">
+                                                {cluster.serviceFqdn ||
+                                                    cluster.clusterName ||
+                                                    'N/A'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="w-16">
+                                            <span className="font-mono text-sm">
+                                                {cluster.port || 'N/A'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="w-20">
+                                            <span className="text-sm">
+                                                {cluster.subset || '-'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-right w-32">
+                                            <div className="flex gap-1 justify-end">
+                                                {healthyEndpoints > 0 && (
+                                                    <Badge
+                                                        variant="default"
+                                                        className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                                                    >
+                                                        {healthyEndpoints}{' '}
+                                                        Healthy
+                                                    </Badge>
                                                 )}
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="font-mono text-sm">
-                                            {cluster.serviceFqdn ||
-                                                cluster.clusterName ||
-                                                'N/A'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="w-16">
-                                        <span className="font-mono text-sm">
-                                            {cluster.port || 'N/A'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="w-20">
-                                        <span className="text-sm">
-                                            {cluster.subset || '-'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-right w-32">
-                                        <div className="flex gap-1 justify-end">
-                                            {healthyEndpoints > 0 && (
-                                                <Badge
-                                                    variant="default"
-                                                    className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
-                                                >
-                                                    {healthyEndpoints} Healthy
-                                                </Badge>
-                                            )}
-                                            {unhealthyEndpoints > 0 && (
-                                                <Badge
-                                                    variant="destructive"
-                                                    className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
-                                                >
-                                                    {unhealthyEndpoints}{' '}
-                                                    Unhealthy
-                                                </Badge>
-                                            )}
-                                            {otherEndpoints > 0 && (
-                                                <Badge variant="secondary">
-                                                    {otherEndpoints} Other
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-
-                                {/* Expanded endpoint header */}
-                                {isExpanded && (
-                                    <TableRow className="bg-muted/10 border-b">
-                                        <TableCell className="w-8"></TableCell>
-                                        <TableCell colSpan={4}>
-                                            <div className="flex items-center gap-2 sm:gap-4 px-2">
-                                                <span className="text-xs font-medium text-muted-foreground w-4 flex-shrink-0">
-                                                    {/* Health indicator */}
-                                                </span>
-                                                <span className="text-xs font-medium text-muted-foreground flex-1 min-w-0">
-                                                    Host Identifier
-                                                </span>
-                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden sm:block">
-                                                    Type
-                                                </span>
-                                                <span className="text-xs font-medium text-muted-foreground w-16 sm:w-24 flex-shrink-0 hidden md:block">
-                                                    Locality
-                                                </span>
-                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden lg:block">
-                                                    Priority
-                                                </span>
-                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0">
-                                                    Weight
-                                                </span>
-                                                <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0"></span>
+                                                {unhealthyEndpoints > 0 && (
+                                                    <Badge
+                                                        variant="destructive"
+                                                        className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
+                                                    >
+                                                        {unhealthyEndpoints}{' '}
+                                                        Unhealthy
+                                                    </Badge>
+                                                )}
+                                                {otherEndpoints > 0 && (
+                                                    <Badge variant="secondary">
+                                                        {otherEndpoints} Other
+                                                    </Badge>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                )}
 
-                                {/* Expanded endpoint rows */}
-                                {isExpanded &&
-                                    cluster.endpoints?.map(
-                                        (endpoint, index) => {
-                                            const addressTypeInfo =
-                                                getAddressTypeInfo(
-                                                    endpoint.addressType
-                                                );
-                                            const Icon = addressTypeInfo.icon;
-
-                                            return (
-                                                <TableRow
-                                                    key={`${cluster.clusterName}-${index}`}
-                                                    className="bg-muted/25"
-                                                >
-                                                    <TableCell className="w-8"></TableCell>
-                                                    <TableCell colSpan={4}>
-                                                        <div className="flex items-center gap-2 sm:gap-4 px-2">
-                                                            <div className="w-4 flex items-center justify-start flex-shrink-0">
-                                                                {getHealthIndicator(
-                                                                    endpoint.health
-                                                                )}
-                                                            </div>
-                                                            <span className="font-mono text-xs text-muted-foreground flex-1 min-w-0 break-all">
-                                                                {endpoint.hostIdentifier ||
-                                                                    'N/A'}
-                                                            </span>
-                                                            <div className="flex items-center gap-1 w-12 sm:w-16 flex-shrink-0 hidden sm:flex">
-                                                                <Icon
-                                                                    className={`w-3 h-3 ${addressTypeInfo.color}`}
-                                                                />
-                                                                <span
-                                                                    className={`text-xs ${addressTypeInfo.color} hidden sm:inline`}
-                                                                >
-                                                                    {
-                                                                        addressTypeInfo.label
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1 w-16 sm:w-24 flex-shrink-0 hidden md:flex">
-                                                                <MapPin className="w-3 h-3 text-blue-600 flex-shrink-0" />
-                                                                <span className="text-xs text-muted-foreground truncate">
-                                                                    {formatLocality(
-                                                                        endpoint.locality
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-xs text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden lg:block text-center">
-                                                                {endpoint.priority ||
-                                                                    0}
-                                                            </span>
-                                                            <span className="text-xs text-muted-foreground w-12 sm:w-16 flex-shrink-0 text-center">
-                                                                {endpoint.weight ||
-                                                                    'N/A'}
-                                                            </span>
-                                                            <div className="w-12 sm:w-16 flex-shrink-0">
-                                                                <ConfigActions
-                                                                    name={
-                                                                        endpoint.hostIdentifier ||
-                                                                        'Unknown'
-                                                                    }
-                                                                    rawConfig={JSON.stringify(
-                                                                        endpoint,
-                                                                        null,
-                                                                        2
-                                                                    )}
-                                                                    configType="Endpoint"
-                                                                    copyId={`endpoint-${cluster.clusterName}-${index}`}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        }
+                                    {/* Expanded endpoint header */}
+                                    {isExpanded && (
+                                        <TableRow className="bg-muted/10 border-b">
+                                            <TableCell className="w-8"></TableCell>
+                                            <TableCell colSpan={4}>
+                                                <div className="flex items-center gap-2 sm:gap-4 px-2">
+                                                    <span className="text-xs font-medium text-muted-foreground w-4 flex-shrink-0">
+                                                        {/* Health indicator */}
+                                                    </span>
+                                                    <span className="text-xs font-medium text-muted-foreground flex-1 min-w-0">
+                                                        Host Identifier
+                                                    </span>
+                                                    <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden sm:block">
+                                                        Type
+                                                    </span>
+                                                    <span className="text-xs font-medium text-muted-foreground w-16 sm:w-24 flex-shrink-0 hidden md:block">
+                                                        Locality
+                                                    </span>
+                                                    <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden lg:block">
+                                                        Priority
+                                                    </span>
+                                                    <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0">
+                                                        Weight
+                                                    </span>
+                                                    <span className="text-xs font-medium text-muted-foreground w-12 sm:w-16 flex-shrink-0"></span>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
                                     )}
-                            </>
-                        );
-                    })}
-                </TableBody>
+
+                                    {/* Expanded endpoint rows */}
+                                    {isExpanded &&
+                                        cluster.endpoints?.map(
+                                            (endpoint, index) => {
+                                                const addressTypeInfo =
+                                                    getAddressTypeInfo(
+                                                        endpoint.addressType
+                                                    );
+                                                const Icon =
+                                                    addressTypeInfo.icon;
+
+                                                return (
+                                                    <TableRow
+                                                        key={`${cluster.clusterName}-${index}`}
+                                                        className="bg-muted/25"
+                                                    >
+                                                        <TableCell className="w-8"></TableCell>
+                                                        <TableCell colSpan={4}>
+                                                            <div className="flex items-center gap-2 sm:gap-4 px-2">
+                                                                <div className="w-4 flex items-center justify-start flex-shrink-0">
+                                                                    {getHealthIndicator(
+                                                                        endpoint.health
+                                                                    )}
+                                                                </div>
+                                                                <span className="font-mono text-xs text-muted-foreground flex-1 min-w-0 break-all">
+                                                                    {endpoint.hostIdentifier ||
+                                                                        'N/A'}
+                                                                </span>
+                                                                <div className="flex items-center gap-1 w-12 sm:w-16 flex-shrink-0 hidden sm:flex">
+                                                                    <Icon
+                                                                        className={`w-3 h-3 ${addressTypeInfo.color}`}
+                                                                    />
+                                                                    <span
+                                                                        className={`text-xs ${addressTypeInfo.color} hidden sm:inline`}
+                                                                    >
+                                                                        {
+                                                                            addressTypeInfo.label
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1 w-16 sm:w-24 flex-shrink-0 hidden md:flex">
+                                                                    <MapPin className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                                                    <span className="text-xs text-muted-foreground truncate">
+                                                                        {formatLocality(
+                                                                            endpoint.locality
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-xs text-muted-foreground w-12 sm:w-16 flex-shrink-0 hidden lg:block text-center">
+                                                                    {endpoint.priority ||
+                                                                        0}
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground w-12 sm:w-16 flex-shrink-0 text-center">
+                                                                    {endpoint.weight ||
+                                                                        'N/A'}
+                                                                </span>
+                                                                <div className="w-12 sm:w-16 flex-shrink-0">
+                                                                    <ConfigActions
+                                                                        name={
+                                                                            endpoint.hostIdentifier ||
+                                                                            'Unknown'
+                                                                        }
+                                                                        rawConfig={JSON.stringify(
+                                                                            endpoint,
+                                                                            null,
+                                                                            2
+                                                                        )}
+                                                                        configType="Endpoint"
+                                                                        copyId={`endpoint-${cluster.clusterName}-${index}`}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            }
+                                        )}
+                                </>
+                            );
+                        })}
+                    </TableBody>
                 </Table>
             )}
         </div>
@@ -462,8 +467,12 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
         new Set()
     );
 
-    const storageKey = serviceId ? `endpoints-collapsed-${serviceId}` : 'endpoints-collapsed';
-    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<Record<string, boolean>>(storageKey, {
+    const storageKey = serviceId
+        ? `endpoints-collapsed-${serviceId}`
+        : 'endpoints-collapsed';
+    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<
+        Record<string, boolean>
+    >(storageKey, {
         serviceDiscovery: false,
         static: true, // Default closed for Static Clusters
         dns: false,
@@ -471,9 +480,9 @@ export const EndpointsTable: React.FC<EndpointsTableProps> = ({
     });
 
     const toggleGroupCollapse = (groupKey: string) => {
-        setCollapsedGroups(prev => ({
+        setCollapsedGroups((prev) => ({
             ...prev,
-            [groupKey]: !prev[groupKey]
+            [groupKey]: !prev[groupKey],
         }));
     };
 

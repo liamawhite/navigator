@@ -189,7 +189,15 @@ const ListenerGroup: React.FC<{
     getSortIcon: (key: string) => React.ReactNode;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
-}> = ({ title, listeners, sortConfig, handleSort, getSortIcon, isCollapsed, onToggleCollapse }) => {
+}> = ({
+    title,
+    listeners,
+    sortConfig,
+    handleSort,
+    getSortIcon,
+    isCollapsed,
+    onToggleCollapse,
+}) => {
     if (listeners.length === 0) return null;
 
     const sortedListeners = [...listeners].sort((a, b) => {
@@ -236,7 +244,7 @@ const ListenerGroup: React.FC<{
 
     return (
         <div className="space-y-2">
-            <h4 
+            <h4
                 className="text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors"
                 onClick={onToggleCollapse}
             >
@@ -250,71 +258,73 @@ const ListenerGroup: React.FC<{
             </h4>
             {!isCollapsed && (
                 <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
-                            onClick={() => handleSort('address')}
-                        >
-                            <div className="flex items-center">
-                                Address:Port
-                                {getSortIcon('address')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
-                            onClick={() => handleSort('type')}
-                        >
-                            <div className="flex items-center">
-                                Type
-                                {getSortIcon('type')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedListeners.map((listener, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {listener.name || 'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {listener.address && listener.port
-                                        ? `${listener.address}:${listener.port}`
-                                        : listener.address ||
-                                          listener.port ||
-                                          'N/A'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={getTypeVariant(listener.type)}>
-                                    {formatListenerType(listener.type)}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={listener.name || 'Unknown'}
-                                    rawConfig={listener.rawConfig || ''}
-                                    configType="Listener"
-                                    copyId={`listener-${listener.name}`}
-                                />
-                            </TableCell>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-32"
+                                onClick={() => handleSort('address')}
+                            >
+                                <div className="flex items-center">
+                                    Address:Port
+                                    {getSortIcon('address')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-32"
+                                onClick={() => handleSort('type')}
+                            >
+                                <div className="flex items-center">
+                                    Type
+                                    {getSortIcon('type')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedListeners.map((listener, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {listener.name || 'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {listener.address && listener.port
+                                            ? `${listener.address}:${listener.port}`
+                                            : listener.address ||
+                                              listener.port ||
+                                              'N/A'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={getTypeVariant(listener.type)}
+                                    >
+                                        {formatListenerType(listener.type)}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={listener.name || 'Unknown'}
+                                        rawConfig={listener.rawConfig || ''}
+                                        configType="Listener"
+                                        copyId={`listener-${listener.name}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
                 </Table>
             )}
         </div>
@@ -331,8 +341,12 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
         direction: 'asc',
     });
 
-    const storageKey = serviceId ? `listeners-collapsed-${serviceId}` : 'listeners-collapsed';
-    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<Record<string, boolean>>(storageKey, {
+    const storageKey = serviceId
+        ? `listeners-collapsed-${serviceId}`
+        : 'listeners-collapsed';
+    const [collapsedGroups, setCollapsedGroups] = useLocalStorage<
+        Record<string, boolean>
+    >(storageKey, {
         virtual: false,
         service: false,
         port: false,
@@ -340,9 +354,9 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
     });
 
     const toggleGroupCollapse = (groupKey: string) => {
-        setCollapsedGroups(prev => ({
+        setCollapsedGroups((prev) => ({
             ...prev,
-            [groupKey]: !prev[groupKey]
+            [groupKey]: !prev[groupKey],
         }));
     };
 
@@ -382,7 +396,11 @@ export const ListenersTable: React.FC<ListenersTableProps> = ({
     return (
         <div className="space-y-6">
             <ListenerGroup
-                title={proxyMode === v1alpha1ProxyMode.GATEWAY ? 'Gateway Listeners' : 'Virtual Listeners'}
+                title={
+                    proxyMode === v1alpha1ProxyMode.GATEWAY
+                        ? 'Gateway Listeners'
+                        : 'Virtual Listeners'
+                }
                 listeners={groups.virtual}
                 sortConfig={sortConfig}
                 handleSort={handleSort}

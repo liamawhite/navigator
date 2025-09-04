@@ -144,88 +144,91 @@ export const WasmPluginsTable: React.FC<WasmPluginsTableProps> = ({
 
     return (
         <div className="space-y-2">
-            <h4 
+            <h4
                 className={`text-sm font-medium text-muted-foreground flex items-center gap-2 ${
-                    onToggleCollapse ? 'cursor-pointer hover:text-foreground transition-colors' : ''
+                    onToggleCollapse
+                        ? 'cursor-pointer hover:text-foreground transition-colors'
+                        : ''
                 }`}
                 onClick={onToggleCollapse}
             >
-                {onToggleCollapse && (isCollapsed ? (
-                    <ChevronRight className="w-4 h-4" />
-                ) : (
-                    <ChevronDown className="w-4 h-4" />
-                ))}
+                {onToggleCollapse &&
+                    (isCollapsed ? (
+                        <ChevronRight className="w-4 h-4" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4" />
+                    ))}
                 <Settings className="w-4 h-4 text-indigo-500" />
                 WasmPlugins ({wasmPlugins.length})
             </h4>
             {!isCollapsed && (
                 <Table className="table-fixed">
-                <TableHeader>
-                    <TableRow>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-48"
-                            onClick={() => handleSort('name')}
-                        >
-                            <div className="flex items-center">
-                                Name / Namespace
-                                {getSortIcon('name')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-32"
-                            onClick={() => handleSort('phase')}
-                        >
-                            <div className="flex items-center">
-                                Phase
-                                {getSortIcon('phase')}
-                            </div>
-                        </TableHead>
-                        <TableHead
-                            className="cursor-pointer select-none hover:bg-muted/50 w-20"
-                            onClick={() => handleSort('priority')}
-                        >
-                            <div className="flex items-center">
-                                Priority
-                                {getSortIcon('priority')}
-                            </div>
-                        </TableHead>
-                        <TableHead className="w-20"></TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {sortedWasmPlugins.map((plugin, index) => (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <span className="font-mono text-sm">
-                                    {plugin.name || 'Unknown'} /{' '}
-                                    {plugin.namespace || 'Unknown'}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge
-                                    variant={getPhaseVariant(
-                                        plugin.spec?.phase
-                                    )}
-                                >
-                                    {formatPhase(plugin.spec?.phase)}
-                                </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <span className="text-sm">
-                                    {plugin.spec?.priority || 0}
-                                </span>
-                            </TableCell>
-                            <TableCell>
-                                <ConfigActions
-                                    name={plugin.name || 'Unknown'}
-                                    rawConfig={plugin.rawConfig || ''}
-                                    configType="WasmPlugin"
-                                    copyId={`wasm-plugin-${plugin.name || index}`}
-                                />
-                            </TableCell>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-48"
+                                onClick={() => handleSort('name')}
+                            >
+                                <div className="flex items-center">
+                                    Name / Namespace
+                                    {getSortIcon('name')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-32"
+                                onClick={() => handleSort('phase')}
+                            >
+                                <div className="flex items-center">
+                                    Phase
+                                    {getSortIcon('phase')}
+                                </div>
+                            </TableHead>
+                            <TableHead
+                                className="cursor-pointer select-none hover:bg-muted/50 w-20"
+                                onClick={() => handleSort('priority')}
+                            >
+                                <div className="flex items-center">
+                                    Priority
+                                    {getSortIcon('priority')}
+                                </div>
+                            </TableHead>
+                            <TableHead className="w-20"></TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
+                    </TableHeader>
+                    <TableBody>
+                        {sortedWasmPlugins.map((plugin, index) => (
+                            <TableRow key={index}>
+                                <TableCell>
+                                    <span className="font-mono text-sm">
+                                        {plugin.name || 'Unknown'} /{' '}
+                                        {plugin.namespace || 'Unknown'}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={getPhaseVariant(
+                                            plugin.spec?.phase
+                                        )}
+                                    >
+                                        {formatPhase(plugin.spec?.phase)}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="text-sm">
+                                        {plugin.spec?.priority || 0}
+                                    </span>
+                                </TableCell>
+                                <TableCell>
+                                    <ConfigActions
+                                        name={plugin.name || 'Unknown'}
+                                        rawConfig={plugin.rawConfig || ''}
+                                        configType="WasmPlugin"
+                                        copyId={`wasm-plugin-${plugin.name || index}`}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
                 </Table>
             )}
         </div>
