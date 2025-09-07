@@ -23,7 +23,7 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -X github.com/liamawhite/navigator/pkg/version.version=$(VERSION) -X github.com/liamawhite/navigator/pkg/version.commit=$(COMMIT) -X github.com/liamawhite/navigator/pkg/version.date=$(DATE)
 
-.PHONY: build build-edge build-manager build-navctl build-ui 
+.PHONY: build build-edge build-manager build-navctl build-navctl-dev build-ui build-ui-dev
 .PHONY: check clean dirty format generate generate-cli-docs lint local test-unit
 
 check: generate format lint test-unit dirty
@@ -77,6 +77,13 @@ build-navctl:
 	@go generate ./ui/...
 	@go build -ldflags "$(LDFLAGS)" -o bin/navctl navctl/main.go
 	@echo "✅ Navctl binary built successfully: bin/navctl"
+
+build-navctl-dev:
+	@echo "🔨 Building navctl binary with development UI (dev mode for error details)..."
+	@mkdir -p bin
+	@cd ui && npm ci && npm run build:dev
+	@go build -ldflags "$(LDFLAGS)" -o bin/navctl navctl/main.go
+	@echo "✅ Navctl binary built successfully: bin/navctl (with dev UI for debugging)"
 
 build-ui:
 	@echo "🔨 Building UI assets..."

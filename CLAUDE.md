@@ -49,6 +49,44 @@ Navigator is an edge computing platform that provides Kubernetes service discove
 4. UI queries manager's HTTP gateway for service information
 5. On-demand proxy analysis: Manager requests detailed config from specific edges
 
+### Metrics Architecture
+
+Navigator includes a generic metrics provider system that allows integration with various metrics backends. The first implementation supports Prometheus.
+
+**Core Components:**
+- **Generic Provider Interface** (`edge/pkg/metrics/`): Abstract interface for metrics providers
+- **Prometheus Provider** (`edge/pkg/metrics/prometheus/`): Implements Prometheus API client
+- **Edge Integration**: Metrics collection during cluster state sync
+- **Manager Aggregation**: Metrics data aggregated across multiple clusters
+- **Frontend API**: Service metrics exposed via REST API
+- **Health Monitoring**: Metrics provider connectivity status
+
+**Metrics Flow:**
+1. Edge configures metrics provider (Prometheus endpoint)
+2. During cluster sync, edge queries metrics for discovered services
+3. Service metrics (request rate, error rate, latency percentiles) sent to manager
+4. Manager aggregates metrics from multiple clusters per service
+5. Frontend API exposes metrics data for UI consumption
+6. UI displays real-time service metrics and provider health status
+
+**Configuration:**
+```bash
+# Enable Prometheus metrics collection in edge service
+./bin/edge --metrics-enabled --metrics-type prometheus --metrics-endpoint http://prometheus:9090
+
+# Enable metrics in navctl local (metrics are inferred from endpoint presence)
+./bin/navctl local --metrics-endpoint http://localhost:9090
+
+# With custom metrics settings
+./bin/navctl local --metrics-endpoint http://prometheus.istio-system:9090 --metrics-type prometheus --metrics-timeout 15
+```
+
+**Supported Metrics:**
+- Request rate (requests/second)
+- Error rate (percentage)
+- Latency percentiles (P50, P95, P99)
+- Provider health and connectivity status
+
 ## Installation
 
 ### Stable Release (Recommended)

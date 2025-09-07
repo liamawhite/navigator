@@ -131,6 +131,26 @@ func (m *Manager) UpdateClusterState(clusterID string, clusterState *v1alpha1.Cl
 	return nil
 }
 
+// UpdateCapabilities updates the capabilities for a connection
+func (m *Manager) UpdateCapabilities(clusterID string, capabilities *v1alpha1.EdgeCapabilities) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	connection, exists := m.connections[clusterID]
+	if !exists {
+		return fmt.Errorf("no active connection for cluster %s", clusterID)
+	}
+
+	connection.Capabilities = capabilities
+	connection.LastUpdate = time.Now()
+
+	m.logger.Debug("connection capabilities updated",
+		"cluster_id", clusterID,
+		"metrics_enabled", capabilities != nil && capabilities.MetricsEnabled)
+
+	return nil
+}
+
 // GetClusterState returns the current cluster state for a cluster
 func (m *Manager) GetClusterState(clusterID string) (*v1alpha1.ClusterState, error) {
 	m.mu.RLock()
@@ -178,11 +198,12 @@ func (m *Manager) GetConnectionInfo() map[string]ConnectionInfo {
 		}
 
 		result[clusterID] = ConnectionInfo{
-			ClusterID:     clusterID,
-			ConnectedAt:   connection.ConnectedAt,
-			LastUpdate:    connection.LastUpdate,
-			ServiceCount:  serviceCount,
-			StateReceived: connection.ClusterState != nil,
+			ClusterID:      clusterID,
+			ConnectedAt:    connection.ConnectedAt,
+			LastUpdate:     connection.LastUpdate,
+			ServiceCount:   serviceCount,
+			StateReceived:  connection.ClusterState != nil,
+			MetricsEnabled: connection.Capabilities != nil && connection.Capabilities.MetricsEnabled,
 		}
 	}
 

@@ -8,6 +8,7 @@ Welcome to the Navigator development documentation. This section is designed for
 - [Architecture](architecture.md) - High-level system design and components
 - [Cluster State Synchronization](cluster-state-sync.md) - Edge-to-manager state streaming
 - [Proxy Information Retrieval](proxy-information-retrieval.md) - On-demand proxy analysis
+- [Metrics System](metrics-system.md) - Technical details of the metrics subsystem
 - [Contributing](contributing.md) - How to contribute to Navigator
 - [Diagrams](diagrams/) - Architecture diagrams and visual references
 

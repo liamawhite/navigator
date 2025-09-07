@@ -6,6 +6,8 @@ This guide helps you get started with Navigator and covers common usage patterns
 
 - [Installation](installation.md) - How to install Navigator
 - [Getting Started](getting-started.md) - Quick start guide
+- [Metrics Guide](metrics.md) - Comprehensive metrics setup and configuration
+- [UI Navigation](ui-navigation.md) - Detailed guide to the web interface
 - [CLI Reference](../reference/cli/) - Complete navctl command reference
 
 ## Overview

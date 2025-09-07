@@ -3,8 +3,22 @@
 
 ## Table of Contents
 
-- [frontend/v1alpha1/service_registry.proto](#frontend_v1alpha1_service_registry-proto)
+- [frontend/v1alpha1/cluster_registry.proto](#frontend_v1alpha1_cluster_registry-proto)
     - [ClusterSyncInfo](#navigator-frontend-v1alpha1-ClusterSyncInfo)
+    - [ListClustersRequest](#navigator-frontend-v1alpha1-ListClustersRequest)
+    - [ListClustersResponse](#navigator-frontend-v1alpha1-ListClustersResponse)
+  
+    - [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus)
+  
+    - [ClusterRegistryService](#navigator-frontend-v1alpha1-ClusterRegistryService)
+  
+- [frontend/v1alpha1/metrics_service.proto](#frontend_v1alpha1_metrics_service-proto)
+    - [GetServiceGraphMetricsRequest](#navigator-frontend-v1alpha1-GetServiceGraphMetricsRequest)
+    - [GetServiceGraphMetricsResponse](#navigator-frontend-v1alpha1-GetServiceGraphMetricsResponse)
+  
+    - [MetricsService](#navigator-frontend-v1alpha1-MetricsService)
+  
+- [frontend/v1alpha1/service_registry.proto](#frontend_v1alpha1_service_registry-proto)
     - [Container](#navigator-frontend-v1alpha1-Container)
     - [GetIstioResourcesRequest](#navigator-frontend-v1alpha1-GetIstioResourcesRequest)
     - [GetIstioResourcesResponse](#navigator-frontend-v1alpha1-GetIstioResourcesResponse)
@@ -14,8 +28,6 @@
     - [GetServiceInstanceResponse](#navigator-frontend-v1alpha1-GetServiceInstanceResponse)
     - [GetServiceRequest](#navigator-frontend-v1alpha1-GetServiceRequest)
     - [GetServiceResponse](#navigator-frontend-v1alpha1-GetServiceResponse)
-    - [ListClustersRequest](#navigator-frontend-v1alpha1-ListClustersRequest)
-    - [ListClustersResponse](#navigator-frontend-v1alpha1-ListClustersResponse)
     - [ListServicesRequest](#navigator-frontend-v1alpha1-ListServicesRequest)
     - [ListServicesResponse](#navigator-frontend-v1alpha1-ListServicesResponse)
     - [Service](#navigator-frontend-v1alpha1-Service)
@@ -26,11 +38,158 @@
     - [ServiceInstanceDetail.AnnotationsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-AnnotationsEntry)
     - [ServiceInstanceDetail.LabelsEntry](#navigator-frontend-v1alpha1-ServiceInstanceDetail-LabelsEntry)
   
-    - [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus)
-  
     - [ServiceRegistryService](#navigator-frontend-v1alpha1-ServiceRegistryService)
   
 - [Scalar Value Types](#scalar-value-types)
+
+
+
+<a name="frontend_v1alpha1_cluster_registry-proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## frontend/v1alpha1/cluster_registry.proto
+
+
+
+<a name="navigator-frontend-v1alpha1-ClusterSyncInfo"></a>
+
+### ClusterSyncInfo
+ClusterSyncInfo contains synchronization status and metadata for a connected cluster.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| cluster_id | [string](#string) |  | cluster_id uniquely identifies this cluster. |
+| connected_at | [string](#string) |  | connected_at is when this cluster initially connected to the manager (RFC3339 format). |
+| last_update | [string](#string) |  | last_update is when the last sync occurred (RFC3339 format). |
+| service_count | [int32](#int32) |  | service_count is the number of services currently synced from this cluster. |
+| sync_status | [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus) |  | sync_status indicates the health of the sync based on last_update timing. |
+| metrics_enabled | [bool](#bool) |  | metrics_enabled indicates whether this cluster&#39;s edge supports metrics collection. |
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-ListClustersRequest"></a>
+
+### ListClustersRequest
+ListClustersRequest for retrieving cluster sync information.
+
+Currently no filters needed, but structured for future extensibility.
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-ListClustersResponse"></a>
+
+### ListClustersResponse
+ListClustersResponse contains the list of all connected clusters and their sync status.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| clusters | [ClusterSyncInfo](#navigator-frontend-v1alpha1-ClusterSyncInfo) | repeated | clusters contains information about each connected cluster&#39;s sync status. |
+
+
+
+
+
+ 
+
+
+<a name="navigator-frontend-v1alpha1-SyncStatus"></a>
+
+### SyncStatus
+SyncStatus represents the health of cluster synchronization.
+
+| Name | Number | Description |
+| ---- | ------ | ----------- |
+| SYNC_STATUS_UNSPECIFIED | 0 |  |
+| SYNC_STATUS_INITIALIZING | 1 | Connected but hasn&#39;t received full state yet |
+| SYNC_STATUS_HEALTHY | 2 | Recent updates within expected timeframe |
+| SYNC_STATUS_STALE | 3 | No recent updates, potentially problematic |
+| SYNC_STATUS_DISCONNECTED | 4 | Connection lost |
+
+
+ 
+
+ 
+
+
+<a name="navigator-frontend-v1alpha1-ClusterRegistryService"></a>
+
+### ClusterRegistryService
+ClusterRegistryService provides APIs for cluster management and monitoring.
+
+| Method Name | Request Type | Response Type | Description |
+| ----------- | ------------ | ------------- | ------------|
+| ListClusters | [ListClustersRequest](#navigator-frontend-v1alpha1-ListClustersRequest) | [ListClustersResponse](#navigator-frontend-v1alpha1-ListClustersResponse) | ListClusters returns sync state information for all connected clusters. |
+
+ 
+
+
+
+<a name="frontend_v1alpha1_metrics_service-proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## frontend/v1alpha1/metrics_service.proto
+
+
+
+<a name="navigator-frontend-v1alpha1-GetServiceGraphMetricsRequest"></a>
+
+### GetServiceGraphMetricsRequest
+GetServiceGraphMetricsRequest specifies filters for service graph metrics.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| namespaces | [string](#string) | repeated | namespaces filters metrics to only include these namespaces. |
+| clusters | [string](#string) | repeated | clusters filters metrics to only include these clusters. |
+| start_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | start_time specifies the start time for the metrics query (required). Must be in the past (before current time). |
+| end_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | end_time specifies the end time for the metrics query (required). Must be in the past (before current time) and after start_time. |
+
+
+
+
+
+
+<a name="navigator-frontend-v1alpha1-GetServiceGraphMetricsResponse"></a>
+
+### GetServiceGraphMetricsResponse
+GetServiceGraphMetricsResponse contains service-to-service graph metrics.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| pairs | [navigator.types.v1alpha1.ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics) | repeated | pairs contains the service-to-service metrics. |
+| timestamp | [string](#string) |  | timestamp is when these metrics were collected (RFC3339 format). |
+| clusters_queried | [string](#string) | repeated | clusters_queried lists the clusters that were queried for these metrics. |
+
+
+
+
+
+ 
+
+ 
+
+ 
+
+
+<a name="navigator-frontend-v1alpha1-MetricsService"></a>
+
+### MetricsService
+MetricsService provides APIs for service mesh metrics and observability.
+
+| Method Name | Request Type | Response Type | Description |
+| ----------- | ------------ | ------------- | ------------|
+| GetServiceGraphMetrics | [GetServiceGraphMetricsRequest](#navigator-frontend-v1alpha1-GetServiceGraphMetricsRequest) | [GetServiceGraphMetricsResponse](#navigator-frontend-v1alpha1-GetServiceGraphMetricsResponse) | GetServiceGraphMetrics returns service-to-service graph metrics across the mesh. |
+
+ 
 
 
 
@@ -38,25 +197,6 @@
 <p align="right"><a href="#top">Top</a></p>
 
 ## frontend/v1alpha1/service_registry.proto
-
-
-
-<a name="navigator-frontend-v1alpha1-ClusterSyncInfo"></a>
-
-### ClusterSyncInfo
-ClusterSyncInfo represents the sync state of a connected edge cluster.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| cluster_id | [string](#string) |  | cluster_id is the unique identifier for the edge cluster. |
-| connected_at | [string](#string) |  | connected_at is when the connection was established (RFC3339 format). |
-| last_update | [string](#string) |  | last_update is when the last sync occurred (RFC3339 format). |
-| service_count | [int32](#int32) |  | service_count is the number of services currently synced from this cluster. |
-| sync_status | [SyncStatus](#navigator-frontend-v1alpha1-SyncStatus) |  | sync_status indicates the health of the sync based on last_update timing. |
-
-
-
 
 
 
@@ -205,33 +345,6 @@ GetServiceResponse contains the requested service details.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | service | [Service](#navigator-frontend-v1alpha1-Service) |  | service contains the detailed service information. |
-
-
-
-
-
-
-<a name="navigator-frontend-v1alpha1-ListClustersRequest"></a>
-
-### ListClustersRequest
-ListClustersRequest for retrieving cluster sync information.
-
-Currently no filters needed, but structured for future extensibility.
-
-
-
-
-
-
-<a name="navigator-frontend-v1alpha1-ListClustersResponse"></a>
-
-### ListClustersResponse
-ListClustersResponse contains sync state for all connected clusters.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| clusters | [ClusterSyncInfo](#navigator-frontend-v1alpha1-ClusterSyncInfo) | repeated | clusters is the list of connected clusters with their sync state. |
 
 
 
@@ -403,21 +516,6 @@ ServiceInstanceDetail represents detailed information about a specific service i
 
  
 
-
-<a name="navigator-frontend-v1alpha1-SyncStatus"></a>
-
-### SyncStatus
-SyncStatus represents the health of cluster synchronization.
-
-| Name | Number | Description |
-| ---- | ------ | ----------- |
-| SYNC_STATUS_UNSPECIFIED | 0 |  |
-| SYNC_STATUS_INITIALIZING | 1 | Connected but hasn&#39;t received full state yet |
-| SYNC_STATUS_HEALTHY | 2 | Recent updates within expected timeframe |
-| SYNC_STATUS_STALE | 3 | No recent updates, potentially problematic |
-| SYNC_STATUS_DISCONNECTED | 4 | Connection lost |
-
-
  
 
  
@@ -436,7 +534,6 @@ It enables listing and retrieving services from multiple Kubernetes clusters via
 | GetServiceInstance | [GetServiceInstanceRequest](#navigator-frontend-v1alpha1-GetServiceInstanceRequest) | [GetServiceInstanceResponse](#navigator-frontend-v1alpha1-GetServiceInstanceResponse) | GetServiceInstance returns detailed information about a specific service instance. |
 | GetProxyConfig | [GetProxyConfigRequest](#navigator-frontend-v1alpha1-GetProxyConfigRequest) | [GetProxyConfigResponse](#navigator-frontend-v1alpha1-GetProxyConfigResponse) | GetProxyConfig retrieves the Envoy proxy configuration for a specific service instance. |
 | GetIstioResources | [GetIstioResourcesRequest](#navigator-frontend-v1alpha1-GetIstioResourcesRequest) | [GetIstioResourcesResponse](#navigator-frontend-v1alpha1-GetIstioResourcesResponse) | GetIstioResources retrieves the Istio configuration resources for a specific service instance. |
-| ListClusters | [ListClustersRequest](#navigator-frontend-v1alpha1-ListClustersRequest) | [ListClustersResponse](#navigator-frontend-v1alpha1-ListClustersResponse) | ListClusters returns sync state information for all connected clusters. |
 
  
 

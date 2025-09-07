@@ -18,6 +18,8 @@ package navigator.backend.v1alpha1;
 
 import "backend/v1alpha1/clusterstate.proto";
 import "types/v1alpha1/proxy_types.proto";
+import "types/v1alpha1/metrics_types.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 
@@ -40,6 +42,9 @@ message ConnectRequest {
     
     // proxy_config_response is sent in response to a proxy config request from the manager.
     ProxyConfigResponse proxy_config_response = 3;
+    
+    // service_graph_metrics_response is sent in response to a service graph metrics request from the manager.
+    ServiceGraphMetricsResponse service_graph_metrics_response = 4;
   }
 }
 
@@ -55,13 +60,25 @@ message ConnectResponse {
     
     // proxy_config_request asks the edge process to provide proxy config for a specific pod.
     ProxyConfigRequest proxy_config_request = 3;
+    
+    // service_graph_metrics_request asks the edge process to provide service graph metrics.
+    ServiceGraphMetricsRequest service_graph_metrics_request = 4;
   }
+}
+
+// EdgeCapabilities describes what features an edge process supports.
+message EdgeCapabilities {
+  // metrics_enabled indicates whether this edge process supports metrics collection.
+  bool metrics_enabled = 1;
 }
 
 // ClusterIdentification is sent by the edge process to identify which cluster it manages.
 message ClusterIdentification {
   // cluster_id is a unique identifier for the cluster this edge manages.
   string cluster_id = 1;
+  
+  // capabilities describe what features this edge process supports.
+  EdgeCapabilities capabilities = 2;
 }
 
 // ConnectionAck acknowledges cluster identification and indicates connection status.
@@ -104,3 +121,34 @@ message ProxyConfigResponse {
     string error_message = 3;
   }
 }
+
+// ServiceGraphMetricsRequest is sent by the manager to request service graph metrics.
+message ServiceGraphMetricsRequest {
+  // request_id is a unique identifier for this request, used for correlating the response.
+  string request_id = 1;
+  
+  // filters specify which metrics to include based on source and destination attributes.
+  navigator.types.v1alpha1.GraphMetricsFilters filters = 2;
+  
+  // start_time specifies the start time for the metrics query (required).
+  google.protobuf.Timestamp start_time = 3;
+  
+  // end_time specifies the end time for the metrics query (required).
+  google.protobuf.Timestamp end_time = 4;
+}
+
+
+// ServiceGraphMetricsResponse is sent by the edge process in response to a service graph metrics request.
+message ServiceGraphMetricsResponse {
+  // request_id matches the request_id from the corresponding ServiceGraphMetricsRequest.
+  string request_id = 1;
+  
+  oneof result {
+    // service_graph_metrics contains the service-to-service metrics data.
+    navigator.types.v1alpha1.ServiceGraphMetrics service_graph_metrics = 2;
+    
+    // error_message indicates that the service graph metrics could not be retrieved.
+    string error_message = 3;
+  }
+}
+

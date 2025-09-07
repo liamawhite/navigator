@@ -15,7 +15,6 @@ export type { v1alpha1BootstrapSummary } from './models/v1alpha1BootstrapSummary
 export { v1alpha1ClusterDirection } from './models/v1alpha1ClusterDirection';
 export type { v1alpha1ClusterManagerInfo } from './models/v1alpha1ClusterManagerInfo';
 export type { v1alpha1ClusterSummary } from './models/v1alpha1ClusterSummary';
-export type { v1alpha1ClusterSyncInfo } from './models/v1alpha1ClusterSyncInfo';
 export { v1alpha1ClusterType } from './models/v1alpha1ClusterType';
 export type { v1alpha1ConfigSourceInfo } from './models/v1alpha1ConfigSourceInfo';
 export type { v1alpha1Container } from './models/v1alpha1Container';
@@ -35,7 +34,6 @@ export type { v1alpha1GetServiceInstanceResponse } from './models/v1alpha1GetSer
 export type { v1alpha1GetServiceResponse } from './models/v1alpha1GetServiceResponse';
 export type { v1alpha1HeaderMatchInfo } from './models/v1alpha1HeaderMatchInfo';
 export type { v1alpha1HttpRouteMatch } from './models/v1alpha1HttpRouteMatch';
-export type { v1alpha1ListClustersResponse } from './models/v1alpha1ListClustersResponse';
 export type { v1alpha1ListenerDestination } from './models/v1alpha1ListenerDestination';
 export type { v1alpha1ListenerMatch } from './models/v1alpha1ListenerMatch';
 export type { v1alpha1ListenerRule } from './models/v1alpha1ListenerRule';
@@ -60,7 +58,6 @@ export type { v1alpha1ServiceEntry } from './models/v1alpha1ServiceEntry';
 export type { v1alpha1ServiceInstance } from './models/v1alpha1ServiceInstance';
 export type { v1alpha1ServiceInstanceDetail } from './models/v1alpha1ServiceInstanceDetail';
 export type { v1alpha1Sidecar } from './models/v1alpha1Sidecar';
-export { v1alpha1SyncStatus } from './models/v1alpha1SyncStatus';
 export type { v1alpha1TcpProxyMatch } from './models/v1alpha1TcpProxyMatch';
 export type { v1alpha1VirtualHostInfo } from './models/v1alpha1VirtualHostInfo';
 export type { v1alpha1VirtualService } from './models/v1alpha1VirtualService';

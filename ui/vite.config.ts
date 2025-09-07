@@ -19,13 +19,27 @@ import path from 'path';
 const __dirname = path.resolve();
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     plugins: [react()],
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
         },
     },
+    define:
+        mode === 'development'
+            ? {
+                  __DEV__: true,
+                  'process.env.NODE_ENV': '"development"',
+              }
+            : {},
+    build:
+        mode === 'development'
+            ? {
+                  minify: false,
+                  sourcemap: true,
+              }
+            : {},
     server: {
         open: true,
         proxy: {
@@ -55,4 +69,4 @@ export default defineConfig({
             },
         },
     },
-});
+}));

@@ -27,6 +27,7 @@ type Connection struct {
 	LastUpdate   time.Time
 	Stream       v1alpha1.ManagerService_ConnectServer
 	ClusterState *v1alpha1.ClusterState
+	Capabilities *v1alpha1.EdgeCapabilities
 }
 
 // AggregatedService represents a service consolidated across multiple clusters
@@ -77,9 +78,10 @@ type ReadOptimizedIndexes struct {
 
 // ConnectionInfo provides information about an active connection
 type ConnectionInfo struct {
-	ClusterID     string
-	ConnectedAt   time.Time
-	LastUpdate    time.Time
-	ServiceCount  int
-	StateReceived bool // Whether the connection has received a full cluster state
+	ClusterID      string
+	ConnectedAt    time.Time
+	LastUpdate     time.Time
+	ServiceCount   int
+	StateReceived  bool // Whether the connection has received a full cluster state
+	MetricsEnabled bool // Whether this edge supports metrics collection
 }

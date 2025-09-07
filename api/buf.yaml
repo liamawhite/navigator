@@ -8,3 +8,4 @@ lint:
 deps:
   - buf.build/googleapis/googleapis
   - buf.build/envoyproxy/envoy
+  - buf.build/bufbuild/protovalidate

@@ -34,11 +34,13 @@ import (
 
 	"github.com/liamawhite/navigator/edge/pkg/config"
 	"github.com/liamawhite/navigator/edge/pkg/kubernetes"
+	"github.com/liamawhite/navigator/edge/pkg/metrics"
+	"github.com/liamawhite/navigator/edge/pkg/metrics/prometheus"
 	"github.com/liamawhite/navigator/edge/pkg/proxy"
 	edgeService "github.com/liamawhite/navigator/edge/pkg/service"
 	managerConfig "github.com/liamawhite/navigator/manager/pkg/config"
 	"github.com/liamawhite/navigator/manager/pkg/connections"
-	managerService "github.com/liamawhite/navigator/manager/pkg/service"
+	managerServer "github.com/liamawhite/navigator/manager/pkg/server"
 	"github.com/liamawhite/navigator/navctl/pkg/ui"
 	"github.com/liamawhite/navigator/pkg/istio/proxy/client"
 	"github.com/liamawhite/navigator/pkg/logging"
@@ -53,6 +55,10 @@ var (
 	disableUI      bool
 	uiPort         int
 	noBrowser      bool
+	// Metrics flags (enabled is inferred from presence of endpoint)
+	metricsType     string
+	metricsEndpoint string
+	metricsTimeout  int
 )
 
 // localCmd represents the local command
@@ -182,7 +188,7 @@ func runLocal(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func startManagerService(ctx context.Context, logger *slog.Logger) (*managerService.ManagerService, error) {
+func startManagerService(ctx context.Context, logger *slog.Logger) (*managerServer.ManagerServer, error) {
 	// Create manager config
 	cfg := &managerConfig.Config{
 		Port:           managerPort,
@@ -194,16 +200,16 @@ func startManagerService(ctx context.Context, logger *slog.Logger) (*managerServ
 	// Create connections manager
 	connectionManager := connections.NewManager(logging.For("manager"))
 
-	// Create manager service
-	managerSvc, err := managerService.NewManagerService(cfg, connectionManager, logging.For("manager"))
+	// Create manager server
+	managerSvc, err := managerServer.NewManagerServer(cfg, connectionManager, logging.For("manager"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create manager service: %w", err)
+		return nil, fmt.Errorf("failed to create manager server: %w", err)
 	}
 
-	// Start manager service in goroutine
+	// Start manager server in goroutine
 	go func() {
 		if err := managerSvc.Start(); err != nil {
-			logger.Error("manager service error", "error", err)
+			logger.Error("manager server error", "error", err)
 		}
 	}()
 
@@ -225,6 +231,21 @@ func startEdgeServiceForContext(ctx context.Context, contextName string, logger 
 		logger.Info("extracted cluster ID from kubeconfig", "context", contextName, "cluster_id", clusterID)
 	}
 
+	// Create metrics configuration (enabled if endpoint provided)
+	metricsConfig := metrics.Config{
+		Enabled:       metricsEndpoint != "", // Infer enabled from presence of endpoint
+		Type:          metrics.ProviderType(metricsType),
+		Endpoint:      metricsEndpoint,
+		QueryInterval: 30, // Default query interval
+		Timeout:       metricsTimeout,
+	}
+
+	if metricsConfig.Enabled {
+		logger.Info("metrics enabled", "context", contextName, "type", metricsType, "endpoint", metricsEndpoint)
+	} else {
+		logger.Info("metrics disabled", "context", contextName, "reason", "no endpoint provided")
+	}
+
 	// Create edge config with context-specific kubeconfig overrides
 	cfg := &config.Config{
 		KubeconfigPath:  kubeconfig,
@@ -234,6 +255,7 @@ func startEdgeServiceForContext(ctx context.Context, contextName string, logger 
 		LogLevel:        logLevel,
 		LogFormat:       logFormat,
 		MaxMessageSize:  maxMessageSize,
+		MetricsConfig:   metricsConfig,
 	}
 
 	// Create Kubernetes client with specific context
@@ -250,9 +272,19 @@ func startEdgeServiceForContext(ctx context.Context, contextName string, logger 
 	proxyLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "proxy")
 	proxyService := proxy.NewProxyService(adminClient, proxyLogger)
 
+	// Create metrics provider
+	metricsLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "metrics")
+	metricsRegistry := metrics.NewRegistry()
+	prometheus.RegisterWithRegistry(metricsRegistry)
+
+	metricsProvider, err := metricsRegistry.Create(cfg.GetMetricsConfig(), metricsLogger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create metrics provider for context '%s': %w", contextName, err)
+	}
+
 	// Create edge service
 	edgeLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "edge")
-	edgeSvc, err := edgeService.NewEdgeService(cfg, k8sClient, proxyService, edgeLogger)
+	edgeSvc, err := edgeService.NewEdgeService(cfg, k8sClient, proxyService, metricsProvider, edgeLogger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create edge service for context '%s': %w", contextName, err)
 	}
@@ -576,6 +608,11 @@ func init() {
 	localCmd.Flags().BoolVar(&disableUI, "disable-ui", false, "Disable UI server")
 	localCmd.Flags().IntVar(&uiPort, "ui-port", 8082, "Port for UI server")
 	localCmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Don't open browser automatically")
+
+	// Metrics flags
+	localCmd.Flags().StringVar(&metricsType, "metrics-type", "prometheus", "Metrics provider type (prometheus)")
+	localCmd.Flags().StringVar(&metricsEndpoint, "metrics-endpoint", "", "Metrics provider endpoint accessible from this machine (e.g., http://prometheus:9090). Enables metrics if provided.")
+	localCmd.Flags().IntVar(&metricsTimeout, "metrics-timeout", 10, "Metrics query timeout in seconds")
 
 	// kube-config is optional with default value
 }

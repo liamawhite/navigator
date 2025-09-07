@@ -25,6 +25,11 @@
 - [types/v1alpha1/kubernetes_types.proto](#types_v1alpha1_kubernetes_types-proto)
     - [ServiceType](#navigator-types-v1alpha1-ServiceType)
   
+- [types/v1alpha1/metrics_types.proto](#types_v1alpha1_metrics_types-proto)
+    - [GraphMetricsFilters](#navigator-types-v1alpha1-GraphMetricsFilters)
+    - [ServiceGraphMetrics](#navigator-types-v1alpha1-ServiceGraphMetrics)
+    - [ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics)
+  
 - [types/v1alpha1/proxy_types.proto](#types_v1alpha1_proxy_types-proto)
     - [BootstrapSummary](#navigator-types-v1alpha1-BootstrapSummary)
     - [ClusterManagerInfo](#navigator-types-v1alpha1-ClusterManagerInfo)
@@ -408,6 +413,77 @@ ServiceType indicates the type of Kubernetes service.
 | LOAD_BALANCER | 3 | LOAD_BALANCER exposes the service externally using a cloud provider&#39;s load balancer. |
 | EXTERNAL_NAME | 4 | EXTERNAL_NAME maps the service to the contents of the externalName field. |
 
+
+ 
+
+ 
+
+ 
+
+
+
+<a name="types_v1alpha1_metrics_types-proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## types/v1alpha1/metrics_types.proto
+
+
+
+<a name="navigator-types-v1alpha1-GraphMetricsFilters"></a>
+
+### GraphMetricsFilters
+GraphMetricsFilters specify filters for service graph metrics queries.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| namespaces | [string](#string) | repeated | namespaces filters metrics to only include these namespaces. |
+| clusters | [string](#string) | repeated | clusters filters metrics to only include these clusters. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-ServiceGraphMetrics"></a>
+
+### ServiceGraphMetrics
+ServiceGraphMetrics contains service-to-service metrics for a cluster.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| pairs | [ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics) | repeated | pairs contains the service-to-service metrics. |
+| cluster_id | [string](#string) |  | cluster_id is the ID of the cluster these metrics came from. |
+| timestamp | [string](#string) |  | timestamp is when these metrics were collected (RFC3339 format). |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-ServicePairMetrics"></a>
+
+### ServicePairMetrics
+ServicePairMetrics represents metrics between a source and destination service.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| source_cluster | [string](#string) |  | source_cluster is the cluster name of the source service. |
+| source_namespace | [string](#string) |  | source_namespace is the namespace of the source service. |
+| source_service | [string](#string) |  | source_service is the service name of the source service. |
+| destination_cluster | [string](#string) |  | destination_cluster is the cluster name of the destination service. |
+| destination_namespace | [string](#string) |  | destination_namespace is the namespace of the destination service. |
+| destination_service | [string](#string) |  | destination_service is the service name of the destination service. |
+| error_rate | [double](#double) |  | error_rate is the error rate in requests per second. |
+| request_rate | [double](#double) |  | request_rate is the request rate in requests per second. |
+
+
+
+
+
+ 
 
  
 

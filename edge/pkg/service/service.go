@@ -22,17 +22,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/liamawhite/navigator/edge/pkg/interfaces"
+	"github.com/liamawhite/navigator/edge/pkg/metrics"
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // KubernetesClient interface for dependency injection
 type KubernetesClient interface {
 	GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error)
+	GetClusterStateWithMetrics(ctx context.Context, metricsProvider interfaces.MetricsProvider) (*v1alpha1.ClusterState, error)
 }
 
 // ProxyService interface for dependency injection
@@ -47,27 +51,29 @@ type Config interface {
 	GetManagerEndpoint() string
 	GetSyncInterval() int
 	GetMaxMessageSize() int
+	GetMetricsConfig() metrics.Config
 	Validate() error
 }
 
 // EdgeService manages the connection to the manager and handles cluster state synchronization
 type EdgeService struct {
-	config       Config
-	k8sClient    KubernetesClient
-	proxyService ProxyService
-	logger       *slog.Logger
-	client       v1alpha1.ManagerServiceClient
-	conn         *grpc.ClientConn
-	stream       v1alpha1.ManagerService_ConnectClient
-	connected    bool
-	mu           sync.RWMutex
-	ctx          context.Context
-	cancel       context.CancelFunc
-	wg           sync.WaitGroup
+	config          Config
+	k8sClient       KubernetesClient
+	proxyService    ProxyService
+	metricsProvider interfaces.MetricsProvider
+	logger          *slog.Logger
+	client          v1alpha1.ManagerServiceClient
+	conn            *grpc.ClientConn
+	stream          v1alpha1.ManagerService_ConnectClient
+	connected       bool
+	mu              sync.RWMutex
+	ctx             context.Context
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
 }
 
 // NewEdgeService creates a new edge service
-func NewEdgeService(config Config, k8sClient KubernetesClient, proxyService ProxyService, logger *slog.Logger) (*EdgeService, error) {
+func NewEdgeService(config Config, k8sClient KubernetesClient, proxyService ProxyService, metricsProvider interfaces.MetricsProvider, logger *slog.Logger) (*EdgeService, error) {
 	// Validate configuration first
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid edge configuration: %w", err)
@@ -75,12 +81,13 @@ func NewEdgeService(config Config, k8sClient KubernetesClient, proxyService Prox
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &EdgeService{
-		config:       config,
-		k8sClient:    k8sClient,
-		proxyService: proxyService,
-		logger:       logger,
-		ctx:          ctx,
-		cancel:       cancel,
+		config:          config,
+		k8sClient:       k8sClient,
+		proxyService:    proxyService,
+		metricsProvider: metricsProvider,
+		logger:          logger,
+		ctx:             ctx,
+		cancel:          cancel,
 	}, nil
 }
 
@@ -113,6 +120,13 @@ func (e *EdgeService) Stop() error {
 
 	// Wait for goroutines to finish
 	e.wg.Wait()
+
+	// Close metrics provider
+	if e.metricsProvider != nil {
+		if err := e.metricsProvider.Close(); err != nil {
+			e.logger.Error("failed to close metrics provider", "error", err)
+		}
+	}
 
 	// Close connection
 	if e.conn != nil {
@@ -175,6 +189,9 @@ func (e *EdgeService) sendClusterIdentification() error {
 		Message: &v1alpha1.ConnectRequest_ClusterIdentification{
 			ClusterIdentification: &v1alpha1.ClusterIdentification{
 				ClusterId: e.config.GetClusterID(),
+				Capabilities: &v1alpha1.EdgeCapabilities{
+					MetricsEnabled: e.metricsProvider != nil && e.metricsProvider.GetProviderInfo().Type != metrics.ProviderTypeNone,
+				},
 			},
 		},
 	}
@@ -246,8 +263,8 @@ func (e *EdgeService) syncClusterState() error {
 		return fmt.Errorf("not connected to manager")
 	}
 
-	// Get cluster state from Kubernetes
-	clusterState, err := e.k8sClient.GetClusterState(e.ctx)
+	// Get cluster state from Kubernetes with metrics
+	clusterState, err := e.k8sClient.GetClusterStateWithMetrics(e.ctx, e.metricsProvider)
 	if err != nil {
 		return fmt.Errorf("failed to get cluster state: %w", err)
 	}
@@ -399,6 +416,8 @@ func (e *EdgeService) processIncomingMessage(resp *v1alpha1.ConnectResponse) err
 	switch msg := resp.Message.(type) {
 	case *v1alpha1.ConnectResponse_ProxyConfigRequest:
 		return e.processProxyConfigRequest(msg.ProxyConfigRequest)
+	case *v1alpha1.ConnectResponse_ServiceGraphMetricsRequest:
+		return e.processServiceGraphMetricsRequest(msg.ServiceGraphMetricsRequest)
 	case *v1alpha1.ConnectResponse_Error:
 		e.logger.Error("received error from manager", "error_code", msg.Error.ErrorCode, "error_message", msg.Error.ErrorMessage)
 		return fmt.Errorf("manager error: %s", msg.Error.ErrorMessage)
@@ -466,4 +485,135 @@ func (e *EdgeService) processProxyConfigRequest(req *v1alpha1.ProxyConfigRequest
 
 	e.logger.Debug("proxy config response sent", "request_id", req.RequestId)
 	return nil
+}
+
+// processServiceGraphMetricsRequest handles service graph metrics requests from the manager
+func (e *EdgeService) processServiceGraphMetricsRequest(req *v1alpha1.ServiceGraphMetricsRequest) error {
+	e.logger.Info("processing mesh metrics request", "request_id", req.RequestId)
+
+	// Create response message
+	resp := &v1alpha1.ConnectRequest{
+		Message: &v1alpha1.ConnectRequest_ServiceGraphMetricsResponse{
+			ServiceGraphMetricsResponse: &v1alpha1.ServiceGraphMetricsResponse{
+				RequestId: req.RequestId,
+			},
+		},
+	}
+
+	// Check if metrics provider is available and enabled
+	if e.metricsProvider == nil || e.metricsProvider.GetProviderInfo().Type == metrics.ProviderTypeNone {
+		err := fmt.Errorf("metrics provider not available")
+		e.logger.Error("mesh metrics request failed", "request_id", req.RequestId, "error", err)
+		resp.Message.(*v1alpha1.ConnectRequest_ServiceGraphMetricsResponse).ServiceGraphMetricsResponse.Result = &v1alpha1.ServiceGraphMetricsResponse_ErrorMessage{
+			ErrorMessage: err.Error(),
+		}
+	} else {
+		// Convert filters and execute query
+		query, err := convertMeshMetricsFilters(req.Filters, req.StartTime, req.EndTime)
+		if err != nil {
+			e.logger.Error("invalid mesh metrics request", "request_id", req.RequestId, "error", err)
+			resp.Message.(*v1alpha1.ConnectRequest_ServiceGraphMetricsResponse).ServiceGraphMetricsResponse.Result = &v1alpha1.ServiceGraphMetricsResponse_ErrorMessage{
+				ErrorMessage: err.Error(),
+			}
+		} else {
+			meshMetrics, err := e.metricsProvider.GetServiceGraphMetrics(e.ctx, query)
+
+			if err != nil {
+				e.logger.Error("failed to get mesh metrics",
+					"request_id", req.RequestId,
+					"error", err)
+
+				resp.Message.(*v1alpha1.ConnectRequest_ServiceGraphMetricsResponse).ServiceGraphMetricsResponse.Result = &v1alpha1.ServiceGraphMetricsResponse_ErrorMessage{
+					ErrorMessage: err.Error(),
+				}
+			} else {
+				e.logger.Info("successfully retrieved mesh metrics",
+					"request_id", req.RequestId,
+					"pairs_count", len(meshMetrics.Pairs))
+
+				// Convert to protobuf format
+				e.logger.Debug("converting service graph metrics to protobuf", "pairs_count", len(meshMetrics.Pairs), "cluster_id", e.config.GetClusterID())
+				protoMeshMetrics := convertServiceGraphMetricsToProto(meshMetrics, e.config.GetClusterID())
+
+				resp.Message.(*v1alpha1.ConnectRequest_ServiceGraphMetricsResponse).ServiceGraphMetricsResponse.Result = &v1alpha1.ServiceGraphMetricsResponse_ServiceGraphMetrics{
+					ServiceGraphMetrics: protoMeshMetrics,
+				}
+				e.logger.Debug("service graph metrics response prepared", "request_id", req.RequestId, "pairs_count", len(protoMeshMetrics.Pairs))
+			}
+		}
+	}
+
+	// Send response back to manager
+	e.mu.RLock()
+	stream := e.stream
+	e.mu.RUnlock()
+
+	if stream == nil {
+		return fmt.Errorf("no active stream to send mesh metrics response")
+	}
+
+	if err := stream.Send(resp); err != nil {
+		e.logger.Error("failed to send mesh metrics response", "request_id", req.RequestId, "error", err)
+		return fmt.Errorf("failed to send mesh metrics response: %w", err)
+	}
+
+	e.logger.Debug("mesh metrics response sent", "request_id", req.RequestId)
+	return nil
+}
+
+// convertMeshMetricsFilters converts protobuf filters to Go types
+func convertMeshMetricsFilters(protoFilters *types.GraphMetricsFilters, startTime, endTime *timestamppb.Timestamp) (metrics.MeshMetricsQuery, error) {
+	var filters metrics.MeshMetricsFilters
+
+	if protoFilters != nil {
+		filters.Namespaces = protoFilters.Namespaces
+		filters.Clusters = protoFilters.Clusters
+	}
+
+	// Validate that timestamps are provided
+	if startTime == nil {
+		return metrics.MeshMetricsQuery{}, fmt.Errorf("start_time is required")
+	}
+	if endTime == nil {
+		return metrics.MeshMetricsQuery{}, fmt.Errorf("end_time is required")
+	}
+
+	// Convert timestamps
+	start := startTime.AsTime()
+	end := endTime.AsTime()
+
+	// Validate time range
+	if end.Before(start) {
+		return metrics.MeshMetricsQuery{}, fmt.Errorf("end_time must be after start_time")
+	}
+
+	return metrics.MeshMetricsQuery{
+		Filters:   filters,
+		StartTime: start,
+		EndTime:   end,
+	}, nil
+}
+
+// convertServiceGraphMetricsToProto converts Go service graph metrics to protobuf format
+func convertServiceGraphMetricsToProto(meshMetrics *metrics.ServiceGraphMetrics, clusterID string) *types.ServiceGraphMetrics {
+	pairs := make([]*types.ServicePairMetrics, len(meshMetrics.Pairs))
+
+	for i, pair := range meshMetrics.Pairs {
+		pairs[i] = &types.ServicePairMetrics{
+			SourceCluster:        pair.SourceCluster,
+			SourceNamespace:      pair.SourceNamespace,
+			SourceService:        pair.SourceService,
+			DestinationCluster:   pair.DestinationCluster,
+			DestinationNamespace: pair.DestinationNamespace,
+			DestinationService:   pair.DestinationService,
+			ErrorRate:            pair.ErrorRate,
+			RequestRate:          pair.RequestRate,
+		}
+	}
+
+	return &types.ServiceGraphMetrics{
+		Pairs:     pairs,
+		ClusterId: clusterID,
+		Timestamp: meshMetrics.Timestamp.Format("2006-01-02T15:04:05Z07:00"),
+	}
 }

@@ -1,0 +1,178 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "frontend/v1alpha1/metrics_service.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "MetricsService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1alpha1/metrics/graph": {
+      "get": {
+        "summary": "GetServiceGraphMetrics returns service-to-service graph metrics across the mesh.",
+        "operationId": "MetricsService_GetServiceGraphMetrics",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetServiceGraphMetricsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "namespaces",
+            "description": "namespaces filters metrics to only include these namespaces.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "clusters",
+            "description": "clusters filters metrics to only include these clusters.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "startTime",
+            "description": "start_time specifies the start time for the metrics query (required).\nMust be in the past (before current time).",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endTime",
+            "description": "end_time specifies the end time for the metrics query (required).\nMust be in the past (before current time) and after start_time.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          }
+        ],
+        "tags": [
+          "MetricsService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1alpha1GetServiceGraphMetricsResponse": {
+      "type": "object",
+      "properties": {
+        "pairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+          },
+          "description": "pairs contains the service-to-service metrics."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "timestamp is when these metrics were collected (RFC3339 format)."
+        },
+        "clustersQueried": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "clusters_queried lists the clusters that were queried for these metrics."
+        }
+      },
+      "description": "GetServiceGraphMetricsResponse contains service-to-service graph metrics."
+    },
+    "v1alpha1ServicePairMetrics": {
+      "type": "object",
+      "properties": {
+        "sourceCluster": {
+          "type": "string",
+          "description": "source_cluster is the cluster name of the source service."
+        },
+        "sourceNamespace": {
+          "type": "string",
+          "description": "source_namespace is the namespace of the source service."
+        },
+        "sourceService": {
+          "type": "string",
+          "description": "source_service is the service name of the source service."
+        },
+        "destinationCluster": {
+          "type": "string",
+          "description": "destination_cluster is the cluster name of the destination service."
+        },
+        "destinationNamespace": {
+          "type": "string",
+          "description": "destination_namespace is the namespace of the destination service."
+        },
+        "destinationService": {
+          "type": "string",
+          "description": "destination_service is the service name of the destination service."
+        },
+        "errorRate": {
+          "type": "number",
+          "format": "double",
+          "description": "error_rate is the error rate in requests per second."
+        },
+        "requestRate": {
+          "type": "number",
+          "format": "double",
+          "description": "request_rate is the request rate in requests per second."
+        }
+      },
+      "description": "ServicePairMetrics represents metrics between a source and destination service."
+    }
+  }
+}

@@ -28,7 +28,13 @@ import type {
     v1alpha1ClusterSyncInfo,
     v1alpha1SyncStatus,
 } from '../types/generated/openapi-service_registry';
-import { ChevronDown, Server, Circle } from 'lucide-react';
+import { ChevronDown, Server, Circle, AlertTriangle } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from './ui/tooltip';
 
 const getSyncStatusColor = (status?: v1alpha1SyncStatus): string => {
     switch (status) {
@@ -90,6 +96,19 @@ const getTimeAgo = (timestamp?: string): string => {
     }
 };
 
+const hasMixedMetricsCapability = (
+    clusters: v1alpha1ClusterSyncInfo[]
+): boolean => {
+    if (clusters.length === 0) return false;
+
+    const metricsEnabled = clusters.map((c) => c.metricsEnabled);
+    const hasMetrics = metricsEnabled.some((enabled) => enabled);
+    const hasNoMetrics = metricsEnabled.some((enabled) => !enabled);
+
+    // Return true only if some clusters have metrics but not all
+    return hasMetrics && hasNoMetrics;
+};
+
 export const ClusterSyncStatus: React.FC = () => {
     const [clusters, setClusters] = useState<v1alpha1ClusterSyncInfo[]>([]);
     const [loading, setLoading] = useState(true);
@@ -137,94 +156,122 @@ export const ClusterSyncStatus: React.FC = () => {
     };
 
     const overallStatus = getOverallStatus();
+    const showMetricsWarning = hasMixedMetricsCapability(clusters);
 
     return (
-        <DropdownMenu onOpenChange={setIsOpen}>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2 cursor-pointer"
-                >
-                    <Server className="h-4 w-4" />
-                    <Circle
-                        className={`h-2 w-2 rounded-full ${getSyncStatusColor(overallStatus)}`}
-                    />
-                    <span className="hidden sm:inline">
-                        {clusters.length} cluster
-                        {clusters.length !== 1 ? 's' : ''}
-                    </span>
-                    <ChevronDown className="h-3 w-3" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel className="flex items-center gap-2">
-                    <Server className="h-4 w-4" />
-                    Cluster Sync Status
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
+        <TooltipProvider>
+            <DropdownMenu onOpenChange={setIsOpen}>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 cursor-pointer"
+                    >
+                        <Server className="h-4 w-4" />
+                        <Circle
+                            className={`h-2 w-2 rounded-full ${getSyncStatusColor(overallStatus)}`}
+                        />
+                        {showMetricsWarning && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>
+                                        Some clusters have metrics capabilities
+                                        while others don't
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                        <span className="hidden sm:inline">
+                            {clusters.length} cluster
+                            {clusters.length !== 1 ? 's' : ''}
+                        </span>
+                        <ChevronDown className="h-3 w-3" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className="flex items-center gap-2">
+                        <Server className="h-4 w-4" />
+                        Cluster Sync Status
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
 
-                {loading && (
-                    <DropdownMenuItem disabled>
-                        Loading cluster status...
-                    </DropdownMenuItem>
-                )}
-
-                {error && (
-                    <DropdownMenuItem disabled className="text-red-600">
-                        {error}
-                    </DropdownMenuItem>
-                )}
-
-                {!loading && !error && clusters.length === 0 && (
-                    <DropdownMenuItem disabled>
-                        No clusters connected
-                    </DropdownMenuItem>
-                )}
-
-                {!loading &&
-                    !error &&
-                    clusters.map((cluster) => (
-                        <DropdownMenuItem
-                            key={cluster.clusterId}
-                            className="flex-col items-start gap-1 p-3"
-                        >
-                            <div className="flex items-center gap-2 w-full">
-                                <Circle
-                                    className={`h-2 w-2 rounded-full ${getSyncStatusColor(cluster.syncStatus)}`}
-                                />
-                                <span className="font-medium">
-                                    {cluster.clusterId}
-                                </span>
-                                <Badge variant="secondary" className="ml-auto">
-                                    {getSyncStatusText(cluster.syncStatus)}
-                                </Badge>
-                            </div>
-                            <div className="text-xs text-muted-foreground ml-4 space-y-1">
-                                <div>Services: {cluster.serviceCount || 0}</div>
-                                <div>
-                                    Last sync: {getTimeAgo(cluster.lastUpdate)}
-                                </div>
-                                <div>
-                                    Connected:{' '}
-                                    {formatTimestamp(cluster.connectedAt)}
-                                </div>
-                            </div>
+                    {loading && (
+                        <DropdownMenuItem disabled>
+                            Loading cluster status...
                         </DropdownMenuItem>
-                    ))}
+                    )}
 
-                {!loading && !error && clusters.length > 0 && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                            className="text-xs text-muted-foreground justify-center"
-                            disabled
-                        >
-                            Refreshes every 30 seconds
+                    {error && (
+                        <DropdownMenuItem disabled className="text-red-600">
+                            {error}
                         </DropdownMenuItem>
-                    </>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
+                    )}
+
+                    {!loading && !error && clusters.length === 0 && (
+                        <DropdownMenuItem disabled>
+                            No clusters connected
+                        </DropdownMenuItem>
+                    )}
+
+                    {!loading &&
+                        !error &&
+                        clusters.map((cluster) => (
+                            <DropdownMenuItem
+                                key={cluster.clusterId}
+                                className="flex-col items-start gap-1 p-3"
+                            >
+                                <div className="flex items-center gap-2 w-full">
+                                    <Circle
+                                        className={`h-2 w-2 rounded-full ${getSyncStatusColor(cluster.syncStatus)}`}
+                                    />
+                                    <span className="font-medium">
+                                        {cluster.clusterId}
+                                    </span>
+                                    <Badge
+                                        variant="secondary"
+                                        className="ml-auto"
+                                    >
+                                        {getSyncStatusText(cluster.syncStatus)}
+                                    </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground ml-4 space-y-1">
+                                    <div>
+                                        Services: {cluster.serviceCount || 0}
+                                    </div>
+                                    <div>
+                                        Metrics:{' '}
+                                        {cluster.metricsEnabled
+                                            ? 'Enabled'
+                                            : 'Disabled'}
+                                    </div>
+                                    <div>
+                                        Last sync:{' '}
+                                        {getTimeAgo(cluster.lastUpdate)}
+                                    </div>
+                                    <div>
+                                        Connected:{' '}
+                                        {formatTimestamp(cluster.connectedAt)}
+                                    </div>
+                                </div>
+                            </DropdownMenuItem>
+                        ))}
+
+                    {!loading && !error && clusters.length > 0 && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                className="text-xs text-muted-foreground justify-center"
+                                disabled
+                            >
+                                Refreshes every 30 seconds
+                            </DropdownMenuItem>
+                        </>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </TooltipProvider>
     );
 };

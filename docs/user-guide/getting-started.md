@@ -91,8 +91,48 @@ When connected to multiple contexts, Navigator creates one edge service per cont
 **Browser Doesn't Open**
 - Use `--no-browser` flag and manually navigate to http://localhost:8082
 
+## Metrics and Service Graph
+
+Navigator provides optional metrics integration to visualize service-to-service communication patterns and performance metrics.
+
+### Enabling Metrics
+
+To enable metrics collection, provide a metrics endpoint when starting Navigator:
+
+```bash
+# With Prometheus endpoint
+navctl local --metrics-endpoint http://localhost:9090
+
+# With Istio Prometheus addon (port-forwarded)
+kubectl port-forward -n istio-system service/prometheus 9090:9090
+navctl local --metrics-endpoint http://localhost:9090
+
+# With custom Prometheus instance
+navctl local --metrics-endpoint http://prometheus.monitoring:9090 --metrics-timeout 15
+```
+
+### Service Graph View
+
+When metrics are enabled, Navigator provides a **Topology** view that shows:
+
+- **Service-to-service communication**: Visual representation of how services communicate
+- **Request rates**: Real-time request volume between services
+- **Error rates**: Service communication failures and error percentages  
+- **Performance metrics**: Latency percentiles and response times
+- **Multi-cluster view**: Unified metrics across all connected clusters
+
+The topology view is automatically available when any connected edge has metrics capabilities enabled.
+
+### Prerequisites
+
+Metrics collection requires a compatible metrics provider:
+
+- **Prometheus**: The most common choice, especially with Istio service mesh
+- **Custom providers**: Future support for other metrics backends
+
 ## Next Steps
 
 - Learn about all available commands in the [CLI Reference](../reference/cli/)
+- Explore detailed metrics setup in the [Metrics Guide](metrics.md)
 - Explore the [Developer Guide](../developer-guide/) for architecture details
 - Review the [API Reference](../reference/api/) for integration options

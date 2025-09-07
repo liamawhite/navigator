@@ -42,15 +42,18 @@ navctl local [flags]
 ### Options
 
 ```
-      --contexts strings       Comma-separated list of kubeconfig contexts to use (uses current context if not specified)
-      --disable-ui             Disable UI server
-  -h, --help                   help for local
-  -k, --kube-config string     Path to kubeconfig file (default "~/.kube/config")
-      --manager-host string    Host for manager service (default "localhost")
-      --manager-port int       Port for manager service (default 8080)
-      --max-message-size int   Maximum gRPC message size in MB (default 10)
-      --no-browser             Don't open browser automatically
-      --ui-port int            Port for UI server (default 8082)
+      --contexts strings          Comma-separated list of kubeconfig contexts to use (uses current context if not specified)
+      --disable-ui                Disable UI server
+  -h, --help                      help for local
+  -k, --kube-config string        Path to kubeconfig file (default "~/.kube/config")
+      --manager-host string       Host for manager service (default "localhost")
+      --manager-port int          Port for manager service (default 8080)
+      --max-message-size int      Maximum gRPC message size in MB (default 10)
+      --metrics-endpoint string   Metrics provider endpoint accessible from this machine (e.g., http://prometheus:9090). Enables metrics if provided.
+      --metrics-timeout int       Metrics query timeout in seconds (default 10)
+      --metrics-type string       Metrics provider type (prometheus) (default "prometheus")
+      --no-browser                Don't open browser automatically
+      --ui-port int               Port for UI server (default 8082)
 ```
 
 ### Options inherited from parent commands
