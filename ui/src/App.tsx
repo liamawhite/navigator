@@ -18,6 +18,7 @@ import { ThemeProvider } from './components/theme-provider';
 import { HomePage } from './pages/HomePage';
 import { ServiceDetailPage } from './pages/ServiceDetailPage';
 import { ServiceInstanceDetailPage } from './pages/ServiceInstanceDetailPage';
+import { TopologyPage } from './pages/TopologyPage';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -35,6 +36,7 @@ function App() {
                 <Router>
                     <Routes>
                         <Route path="/" element={<HomePage />} />
+                        <Route path="/topology" element={<TopologyPage />} />
                         <Route
                             path="/services/:id"
                             element={<ServiceDetailPage />}

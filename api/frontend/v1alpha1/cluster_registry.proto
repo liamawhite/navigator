@@ -1,0 +1,70 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package navigator.frontend.v1alpha1;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1";
+
+// ClusterRegistryService provides APIs for cluster management and monitoring.
+service ClusterRegistryService {
+  // ListClusters returns sync state information for all connected clusters.
+  rpc ListClusters(ListClustersRequest) returns (ListClustersResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/clusters"};
+  }
+}
+
+// ListClustersRequest for retrieving cluster sync information.
+message ListClustersRequest {
+  // Currently no filters needed, but structured for future extensibility.
+}
+
+// ListClustersResponse contains the list of all connected clusters and their sync status.
+message ListClustersResponse {
+  // clusters contains information about each connected cluster's sync status.
+  repeated ClusterSyncInfo clusters = 1;
+}
+
+// ClusterSyncInfo contains synchronization status and metadata for a connected cluster.
+message ClusterSyncInfo {
+  // cluster_id uniquely identifies this cluster.
+  string cluster_id = 1;
+
+  // connected_at is when this cluster initially connected to the manager (RFC3339 format).
+  string connected_at = 2;
+
+  // last_update is when the last sync occurred (RFC3339 format).
+  string last_update = 3;
+
+  // service_count is the number of services currently synced from this cluster.
+  int32 service_count = 4;
+
+  // sync_status indicates the health of the sync based on last_update timing.
+  SyncStatus sync_status = 5;
+  
+  // metrics_enabled indicates whether this cluster's edge supports metrics collection.
+  bool metrics_enabled = 6;
+}
+
+// SyncStatus represents the health of cluster synchronization.
+enum SyncStatus {
+  SYNC_STATUS_UNSPECIFIED = 0;
+  SYNC_STATUS_INITIALIZING = 1; // Connected but hasn't received full state yet
+  SYNC_STATUS_HEALTHY = 2; // Recent updates within expected timeframe
+  SYNC_STATUS_STALE = 3; // No recent updates, potentially problematic
+  SYNC_STATUS_DISCONNECTED = 4; // Connection lost
+}

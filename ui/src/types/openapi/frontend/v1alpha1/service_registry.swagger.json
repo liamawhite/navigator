@@ -16,29 +16,6 @@
     "application/json"
   ],
   "paths": {
-    "/api/v1alpha1/clusters": {
-      "get": {
-        "summary": "ListClusters returns sync state information for all connected clusters.",
-        "operationId": "ServiceRegistryService_ListClusters",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1alpha1ListClustersResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "ServiceRegistryService"
-        ]
-      }
-    },
     "/api/v1alpha1/services": {
       "get": {
         "summary": "ListServices returns all services in the specified namespace, or all namespaces if not specified.\nServices are aggregated across all connected clusters.",
@@ -395,33 +372,6 @@
         }
       },
       "title": "ClusterSummary contains essential cluster configuration information"
-    },
-    "v1alpha1ClusterSyncInfo": {
-      "type": "object",
-      "properties": {
-        "clusterId": {
-          "type": "string",
-          "description": "cluster_id is the unique identifier for the edge cluster."
-        },
-        "connectedAt": {
-          "type": "string",
-          "description": "connected_at is when the connection was established (RFC3339 format)."
-        },
-        "lastUpdate": {
-          "type": "string",
-          "description": "last_update is when the last sync occurred (RFC3339 format)."
-        },
-        "serviceCount": {
-          "type": "integer",
-          "format": "int32",
-          "description": "service_count is the number of services currently synced from this cluster."
-        },
-        "syncStatus": {
-          "$ref": "#/definitions/v1alpha1SyncStatus",
-          "description": "sync_status indicates the health of the sync based on last_update timing."
-        }
-      },
-      "description": "ClusterSyncInfo represents the sync state of a connected edge cluster."
     },
     "v1alpha1ClusterType": {
       "type": "string",
@@ -925,20 +875,6 @@
         }
       },
       "title": "HttpRouteMatch represents HTTP route matching criteria (from HTTP connection manager)"
-    },
-    "v1alpha1ListClustersResponse": {
-      "type": "object",
-      "properties": {
-        "clusters": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1alpha1ClusterSyncInfo"
-          },
-          "description": "clusters is the list of connected clusters with their sync state."
-        }
-      },
-      "description": "ListClustersResponse contains sync state for all connected clusters."
     },
     "v1alpha1ListServicesResponse": {
       "type": "object",
@@ -1545,18 +1481,6 @@
         }
       },
       "description": "Sidecar represents an Istio Sidecar resource."
-    },
-    "v1alpha1SyncStatus": {
-      "type": "string",
-      "enum": [
-        "SYNC_STATUS_UNSPECIFIED",
-        "SYNC_STATUS_INITIALIZING",
-        "SYNC_STATUS_HEALTHY",
-        "SYNC_STATUS_STALE",
-        "SYNC_STATUS_DISCONNECTED"
-      ],
-      "default": "SYNC_STATUS_UNSPECIFIED",
-      "description": "SyncStatus represents the health of cluster synchronization.\n\n - SYNC_STATUS_INITIALIZING: Connected but hasn't received full state yet\n - SYNC_STATUS_HEALTHY: Recent updates within expected timeframe\n - SYNC_STATUS_STALE: No recent updates, potentially problematic\n - SYNC_STATUS_DISCONNECTED: Connection lost"
     },
     "v1alpha1TcpProxyMatch": {
       "type": "object",

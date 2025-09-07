@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/liamawhite/navigator/edge/pkg/interfaces"
+	"github.com/liamawhite/navigator/edge/pkg/metrics"
 	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
@@ -33,6 +35,13 @@ type mockKubernetesClient struct {
 }
 
 func (m *mockKubernetesClient) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.clusterState, nil
+}
+
+func (m *mockKubernetesClient) GetClusterStateWithMetrics(ctx context.Context, metricsProvider interfaces.MetricsProvider) (*v1alpha1.ClusterState, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -64,6 +73,26 @@ type mockConfig struct {
 	maxMessageSize  int
 }
 
+// mockMetricsProvider implements the MetricsProvider interface for testing
+type mockMetricsProvider struct {
+	err error
+}
+
+func (m *mockMetricsProvider) GetProviderInfo() metrics.ProviderInfo {
+	return metrics.ProviderInfo{
+		Type:     metrics.ProviderTypePrometheus,
+		Endpoint: "http://localhost:9090",
+	}
+}
+
+func (m *mockMetricsProvider) GetServiceGraphMetrics(ctx context.Context, query metrics.MeshMetricsQuery) (*metrics.ServiceGraphMetrics, error) {
+	return nil, m.err
+}
+
+func (m *mockMetricsProvider) Close() error {
+	return m.err
+}
+
 func (m *mockConfig) GetClusterID() string {
 	return m.clusterID
 }
@@ -78,6 +107,15 @@ func (m *mockConfig) GetSyncInterval() int {
 
 func (m *mockConfig) GetMaxMessageSize() int {
 	return m.maxMessageSize
+}
+
+func (m *mockConfig) GetMetricsConfig() metrics.Config {
+	return metrics.Config{
+		Enabled:  false,
+		Timeout:  30,
+		Type:     "prometheus",
+		Endpoint: "http://localhost:9090",
+	}
 }
 
 func (m *mockConfig) Validate() error {
@@ -138,7 +176,7 @@ func TestEdgeService_shouldReconnect(t *testing.T) {
 	mockProxy := &mockProxyService{}
 	logger := logging.For("test")
 
-	edgeService, err := NewEdgeService(config, mockK8s, mockProxy, logger)
+	edgeService, err := NewEdgeService(config, mockK8s, mockProxy, &mockMetricsProvider{}, logger)
 	assert.NoError(t, err)
 	assert.NotNil(t, edgeService)
 
@@ -181,7 +219,7 @@ func TestNewEdgeService(t *testing.T) {
 			mockProxy := &mockProxyService{}
 			logger := logging.For("test")
 
-			edgeService, err := NewEdgeService(tt.config, mockK8s, mockProxy, logger)
+			edgeService, err := NewEdgeService(tt.config, mockK8s, mockProxy, &mockMetricsProvider{}, logger)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, edgeService)
@@ -268,7 +306,7 @@ func TestEdgeService_syncClusterState(t *testing.T) {
 
 			mockProxy := &mockProxyService{}
 			logger := logging.For("test")
-			edgeService, err := NewEdgeService(config, mockK8s, mockProxy, logger)
+			edgeService, err := NewEdgeService(config, mockK8s, mockProxy, &mockMetricsProvider{}, logger)
 			assert.NoError(t, err)
 			assert.NotNil(t, edgeService)
 

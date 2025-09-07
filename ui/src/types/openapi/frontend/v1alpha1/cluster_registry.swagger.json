@@ -1,0 +1,130 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "frontend/v1alpha1/cluster_registry.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "ClusterRegistryService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1alpha1/clusters": {
+      "get": {
+        "summary": "ListClusters returns sync state information for all connected clusters.",
+        "operationId": "ClusterRegistryService_ListClusters",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ListClustersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "ClusterRegistryService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1alpha1ClusterSyncInfo": {
+      "type": "object",
+      "properties": {
+        "clusterId": {
+          "type": "string",
+          "description": "cluster_id uniquely identifies this cluster."
+        },
+        "connectedAt": {
+          "type": "string",
+          "description": "connected_at is when this cluster initially connected to the manager (RFC3339 format)."
+        },
+        "lastUpdate": {
+          "type": "string",
+          "description": "last_update is when the last sync occurred (RFC3339 format)."
+        },
+        "serviceCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "service_count is the number of services currently synced from this cluster."
+        },
+        "syncStatus": {
+          "$ref": "#/definitions/v1alpha1SyncStatus",
+          "description": "sync_status indicates the health of the sync based on last_update timing."
+        },
+        "metricsEnabled": {
+          "type": "boolean",
+          "description": "metrics_enabled indicates whether this cluster's edge supports metrics collection."
+        }
+      },
+      "description": "ClusterSyncInfo contains synchronization status and metadata for a connected cluster."
+    },
+    "v1alpha1ListClustersResponse": {
+      "type": "object",
+      "properties": {
+        "clusters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ClusterSyncInfo"
+          },
+          "description": "clusters contains information about each connected cluster's sync status."
+        }
+      },
+      "description": "ListClustersResponse contains the list of all connected clusters and their sync status."
+    },
+    "v1alpha1SyncStatus": {
+      "type": "string",
+      "enum": [
+        "SYNC_STATUS_UNSPECIFIED",
+        "SYNC_STATUS_INITIALIZING",
+        "SYNC_STATUS_HEALTHY",
+        "SYNC_STATUS_STALE",
+        "SYNC_STATUS_DISCONNECTED"
+      ],
+      "default": "SYNC_STATUS_UNSPECIFIED",
+      "description": "SyncStatus represents the health of cluster synchronization.\n\n - SYNC_STATUS_INITIALIZING: Connected but hasn't received full state yet\n - SYNC_STATUS_HEALTHY: Recent updates within expected timeframe\n - SYNC_STATUS_STALE: No recent updates, potentially problematic\n - SYNC_STATUS_DISCONNECTED: Connection lost"
+    }
+  }
+}

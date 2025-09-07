@@ -22,6 +22,10 @@ import type {
     v1alpha1ClusterSyncInfo,
     v1alpha1GetIstioResourcesResponse,
 } from '../types/generated/openapi-service_registry';
+import type {
+    v1alpha1GetServiceGraphMetricsResponse,
+    v1alpha1ServicePairMetrics,
+} from '../types/generated/openapi-metrics_service';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -82,6 +86,28 @@ export const serviceApi = {
             `/api/v1alpha1/services/${serviceId}/instances/${instanceId}/istio-resources`
         );
         return response.data;
+    },
+};
+
+export const metricsApi = {
+    getServiceGraphMetrics: async (params?: {
+        namespaces?: string[];
+        clusters?: string[];
+        startTime?: string;
+        endTime?: string;
+    }): Promise<v1alpha1ServicePairMetrics[]> => {
+        const response = await api.get<v1alpha1GetServiceGraphMetricsResponse>(
+            '/api/v1alpha1/metrics/graph',
+            {
+                params: {
+                    namespaces: params?.namespaces,
+                    clusters: params?.clusters,
+                    startTime: params?.startTime,
+                    endTime: params?.endTime,
+                },
+            }
+        );
+        return response.data.pairs || [];
     },
 };
 

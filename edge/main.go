@@ -23,6 +23,8 @@ import (
 
 	"github.com/liamawhite/navigator/edge/pkg/config"
 	"github.com/liamawhite/navigator/edge/pkg/kubernetes"
+	"github.com/liamawhite/navigator/edge/pkg/metrics"
+	"github.com/liamawhite/navigator/edge/pkg/metrics/prometheus"
 	"github.com/liamawhite/navigator/edge/pkg/proxy"
 	"github.com/liamawhite/navigator/edge/pkg/service"
 	"github.com/liamawhite/navigator/pkg/istio/proxy/client"
@@ -53,8 +55,18 @@ func main() {
 	// Create proxy service for handling proxy configuration requests
 	proxyService := proxy.NewProxyService(adminClient, logger)
 
+	// Create metrics provider
+	metricsRegistry := metrics.NewRegistry()
+	prometheus.RegisterWithRegistry(metricsRegistry)
+
+	metricsProvider, err := metricsRegistry.Create(cfg.GetMetricsConfig(), logger)
+	if err != nil {
+		logger.Error("failed to create metrics provider", "error", err)
+		os.Exit(1)
+	}
+
 	// Create edge service
-	edgeService, err := service.NewEdgeService(cfg, k8sClient, proxyService, logger)
+	edgeService, err := service.NewEdgeService(cfg, k8sClient, proxyService, metricsProvider, logger)
 	if err != nil {
 		logger.Error("failed to create edge service", "error", err)
 		os.Exit(1)

@@ -17,6 +17,8 @@ package config
 import (
 	"flag"
 	"fmt"
+
+	"github.com/liamawhite/navigator/edge/pkg/metrics"
 )
 
 // Config holds the configuration for the edge service
@@ -28,6 +30,7 @@ type Config struct {
 	LogLevel        string
 	LogFormat       string
 	MaxMessageSize  int // Maximum gRPC message size in MB
+	MetricsConfig   metrics.Config
 }
 
 // ParseFlags parses command line flags and returns a Config
@@ -41,6 +44,13 @@ func ParseFlags() (*Config, error) {
 	flag.StringVar(&config.LogLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	flag.StringVar(&config.LogFormat, "log-format", "text", "Log format (text, json)")
 	flag.IntVar(&config.MaxMessageSize, "max-message-size", 10, "Maximum gRPC message size in MB")
+
+	// Metrics configuration
+	flag.BoolVar(&config.MetricsConfig.Enabled, "metrics-enabled", false, "Enable metrics collection")
+	flag.StringVar(&config.MetricsConfig.Endpoint, "metrics-endpoint", "", "Metrics provider endpoint URL")
+	flag.StringVar((*string)(&config.MetricsConfig.Type), "metrics-type", "none", "Metrics provider type (none, prometheus)")
+	flag.IntVar(&config.MetricsConfig.QueryInterval, "metrics-query-interval", 30, "Metrics query interval in seconds")
+	flag.IntVar(&config.MetricsConfig.Timeout, "metrics-timeout", 10, "Metrics query timeout in seconds")
 
 	flag.Parse()
 
@@ -73,6 +83,11 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("max-message-size must be greater than 0")
 	}
 
+	// Validate metrics configuration
+	if err := c.MetricsConfig.Validate(); err != nil {
+		return fmt.Errorf("metrics configuration error: %w", err)
+	}
+
 	return nil
 }
 
@@ -94,4 +109,9 @@ func (c *Config) GetSyncInterval() int {
 // GetMaxMessageSize returns the maximum gRPC message size in bytes
 func (c *Config) GetMaxMessageSize() int {
 	return c.MaxMessageSize * 1024 * 1024 // Convert MB to bytes
+}
+
+// GetMetricsConfig returns the metrics configuration
+func (c *Config) GetMetricsConfig() metrics.Config {
+	return c.MetricsConfig
 }

@@ -1,0 +1,67 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package navigator.types.v1alpha1;
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/types/v1alpha1";
+
+// ServicePairMetrics represents metrics between a source and destination service.
+message ServicePairMetrics {
+  // source_cluster is the cluster name of the source service.
+  string source_cluster = 1;
+  
+  // source_namespace is the namespace of the source service.
+  string source_namespace = 2;
+  
+  // source_service is the service name of the source service.
+  string source_service = 3;
+  
+  // destination_cluster is the cluster name of the destination service.
+  string destination_cluster = 4;
+  
+  // destination_namespace is the namespace of the destination service.
+  string destination_namespace = 5;
+  
+  // destination_service is the service name of the destination service.
+  string destination_service = 6;
+  
+  // error_rate is the error rate in requests per second.
+  double error_rate = 7;
+  
+  // request_rate is the request rate in requests per second.
+  double request_rate = 8;
+}
+
+// GraphMetricsFilters specify filters for service graph metrics queries.
+message GraphMetricsFilters {
+  // namespaces filters metrics to only include these namespaces.
+  repeated string namespaces = 1;
+  
+  // clusters filters metrics to only include these clusters.
+  repeated string clusters = 2;
+}
+
+// ServiceGraphMetrics contains service-to-service metrics for a cluster.
+message ServiceGraphMetrics {
+  // pairs contains the service-to-service metrics.
+  repeated ServicePairMetrics pairs = 1;
+  
+  // cluster_id is the ID of the cluster these metrics came from.
+  string cluster_id = 2;
+  
+  // timestamp is when these metrics were collected (RFC3339 format).
+  string timestamp = 3;
+}

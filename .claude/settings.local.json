@@ -35,7 +35,14 @@
       "Bash(npm run lint)",
       "Bash(npx tsc:*)",
       "Bash(npx prettier:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(buf mod update:*)",
+      "WebFetch(domain:buf.build)",
+      "Bash(buf dep update:*)",
+      "Bash(go mod:*)",
+      "Bash(golangci-lint run:*)",
+      "Bash(npx shadcn@latest add select:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": []
   }

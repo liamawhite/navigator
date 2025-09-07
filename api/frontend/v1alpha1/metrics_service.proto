@@ -1,0 +1,68 @@
+// Copyright 2025 Navigator Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package navigator.frontend.v1alpha1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "types/v1alpha1/metrics_types.proto";
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1";
+
+// MetricsService provides APIs for service mesh metrics and observability.
+service MetricsService {
+  // GetServiceGraphMetrics returns service-to-service graph metrics across the mesh.
+  rpc GetServiceGraphMetrics(GetServiceGraphMetricsRequest) returns (GetServiceGraphMetricsResponse) {
+    option (google.api.http) = {get: "/api/v1alpha1/metrics/graph"};
+  }
+}
+
+// GetServiceGraphMetricsRequest specifies filters for service graph metrics.
+message GetServiceGraphMetricsRequest {
+  option (buf.validate.message).cel = {
+    id: "time_range_validation"
+    message: "end_time must be after start_time"
+    expression: "this.end_time > this.start_time"
+  };
+
+  // namespaces filters metrics to only include these namespaces.
+  repeated string namespaces = 1;
+  
+  // clusters filters metrics to only include these clusters.
+  repeated string clusters = 2;
+  
+  // start_time specifies the start time for the metrics query (required).
+  // Must be in the past (before current time).
+  google.protobuf.Timestamp start_time = 3 [(buf.validate.field).required = true, (buf.validate.field).timestamp.lt_now = true];
+  
+  // end_time specifies the end time for the metrics query (required).
+  // Must be in the past (before current time) and after start_time.
+  google.protobuf.Timestamp end_time = 4 [(buf.validate.field).required = true, (buf.validate.field).timestamp.lt_now = true];
+}
+
+// GetServiceGraphMetricsResponse contains service-to-service graph metrics.
+message GetServiceGraphMetricsResponse {
+  // pairs contains the service-to-service metrics.
+  repeated navigator.types.v1alpha1.ServicePairMetrics pairs = 1;
+  
+  // timestamp is when these metrics were collected (RFC3339 format).
+  string timestamp = 2;
+  
+  // clusters_queried lists the clusters that were queried for these metrics.
+  repeated string clusters_queried = 3;
+}
+

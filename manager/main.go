@@ -23,7 +23,7 @@ import (
 
 	"github.com/liamawhite/navigator/manager/pkg/config"
 	"github.com/liamawhite/navigator/manager/pkg/connections"
-	"github.com/liamawhite/navigator/manager/pkg/service"
+	"github.com/liamawhite/navigator/manager/pkg/server"
 	"github.com/liamawhite/navigator/pkg/logging"
 )
 
@@ -41,16 +41,16 @@ func main() {
 	// Create connections manager
 	connectionManager := connections.NewManager(logger)
 
-	// Create manager service
-	managerService, err := service.NewManagerService(cfg, connectionManager, logger)
+	// Create manager server
+	managerServer, err := server.NewManagerServer(cfg, connectionManager, logger)
 	if err != nil {
 		logger.Error("failed to create manager service", "error", err)
 		os.Exit(1)
 	}
 
-	// Start manager service
-	if err := managerService.Start(); err != nil {
-		logger.Error("failed to start manager service", "error", err)
+	// Start manager server
+	if err := managerServer.Start(); err != nil {
+		logger.Error("failed to start manager server", "error", err)
 		os.Exit(1)
 	}
 
@@ -71,11 +71,11 @@ func main() {
 	}
 
 	// Graceful shutdown
-	logger.Info("shutting down manager service")
-	if err := managerService.Stop(); err != nil {
+	logger.Info("shutting down manager server")
+	if err := managerServer.Stop(); err != nil {
 		logger.Error("error during shutdown", "error", err)
 		os.Exit(1)
 	}
 
-	logger.Info("manager service stopped")
+	logger.Info("manager server stopped")
 }
