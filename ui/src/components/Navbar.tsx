@@ -16,7 +16,12 @@ import { useState, useEffect } from 'react';
 import { ModeToggle } from './mode-toggle';
 import { ClusterSyncStatus } from './ClusterSyncStatus';
 import { Button } from './ui/button';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/tooltip';
+import {
+    Tooltip,
+    TooltipTrigger,
+    TooltipContent,
+    TooltipProvider,
+} from './ui/tooltip';
 import { useLocation, Link } from 'react-router-dom';
 import { List, Waypoints } from 'lucide-react';
 import { serviceApi } from '../utils/api';
@@ -84,7 +89,9 @@ export const Navbar: React.FC = () => {
                                     {hasMetricsCapability ? (
                                         <Button
                                             variant={
-                                                isTopologyView ? 'secondary' : 'ghost'
+                                                isTopologyView
+                                                    ? 'secondary'
+                                                    : 'ghost'
                                             }
                                             size="sm"
                                             asChild
@@ -105,7 +112,9 @@ export const Navbar: React.FC = () => {
                                                         variant="ghost"
                                                         size="sm"
                                                         className="opacity-50 cursor-not-allowed"
-                                                        onClick={(e) => e.preventDefault()}
+                                                        onClick={(e) =>
+                                                            e.preventDefault()
+                                                        }
                                                     >
                                                         <span className="flex items-center gap-2">
                                                             <Waypoints className="h-4 w-4" />
@@ -114,7 +123,11 @@ export const Navbar: React.FC = () => {
                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>Topology view requires at least one cluster with metrics enabled</p>
+                                                    <p>
+                                                        Topology view requires
+                                                        at least one cluster
+                                                        with metrics enabled
+                                                    </p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>

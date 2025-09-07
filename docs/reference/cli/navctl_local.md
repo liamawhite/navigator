@@ -35,7 +35,6 @@ Examples:
   navctl local --kube-config ~/.kube/config --contexts "*-prod"
 
 Available contexts will be shown from your kubeconfig file.
-
 ```
 navctl local [flags]
 ```
@@ -64,121 +63,7 @@ navctl local [flags]
       --log-level string    Log level (debug, info, warn, error) (default "info")
 ```
 
-## Examples
-
-### Basic Usage
-
-Start Navigator with current kubeconfig context:
-```bash
-navctl local
-```
-
-Start with specific contexts:
-```bash
-navctl local --contexts context1,context2,context3
-```
-
-### Metrics Integration Examples
-
-Enable metrics with Prometheus endpoint:
-```bash
-# Basic Prometheus integration
-navctl local --metrics-endpoint http://localhost:9090
-
-# With custom timeout
-navctl local --metrics-endpoint http://prometheus:9090 --metrics-timeout 15
-```
-
-#### Istio with Prometheus Addon
-
-Port-forward Prometheus from Istio and start Navigator:
-```bash
-# Terminal 1: Port-forward Prometheus
-kubectl port-forward -n istio-system service/prometheus 9090:9090
-
-# Terminal 2: Start Navigator with metrics
-navctl local --metrics-endpoint http://localhost:9090
-```
-
-#### External Prometheus Setup
-
-Connect to external Prometheus instance:
-```bash
-navctl local \
-  --metrics-endpoint http://prometheus.monitoring.svc.cluster.local:9090 \
-  --metrics-timeout 30
-```
-
-### Multi-cluster with Metrics
-
-Monitor multiple production clusters with metrics:
-```bash
-navctl local \
-  --contexts "*-prod" \
-  --metrics-endpoint http://prometheus.global.monitoring:9090 \
-  --metrics-timeout 20
-```
-
-### Development Workflow
-
-Development setup with debug logging and metrics:
-```bash
-navctl local \
-  --metrics-endpoint http://localhost:9090 \
-  --log-level debug \
-  --log-format json \
-  --no-browser
-```
-
-### Custom Port Configuration
-
-Use custom ports to avoid conflicts:
-```bash
-navctl local \
-  --manager-port 9090 \
-  --ui-port 3001 \
-  --metrics-endpoint http://localhost:15090
-```
-
-### Production Deployment
-
-Production setup with multiple clusters and metrics:
-```bash
-navctl local \
-  --contexts "prod-us-east,prod-us-west,prod-eu-central" \
-  --metrics-endpoint http://prometheus.prod.monitoring:9090 \
-  --metrics-timeout 30 \
-  --max-message-size 20 \
-  --manager-port 8080 \
-  --ui-port 8082 \
-  --no-browser
-```
-
-### Troubleshooting Examples
-
-Debug metrics connectivity issues:
-```bash
-# Test metrics provider connectivity first
-curl -f http://localhost:9090/api/v1/query?query=up
-
-# Start Navigator with debug logging
-navctl local \
-  --metrics-endpoint http://localhost:9090 \
-  --log-level debug \
-  --log-format json
-```
-
-Verify Istio metrics availability:
-```bash
-# Check for Istio request metrics
-curl 'http://localhost:9090/api/v1/query?query=istio_requests_total' | jq '.data.result | length'
-
-# Start Navigator if metrics are available
-navctl local --metrics-endpoint http://localhost:9090
-```
-
 ### SEE ALSO
 
 * [navctl](navctl.md)	 - Navigator control plane CLI
-* [Metrics Guide](../../user-guide/metrics.md) - Detailed metrics setup and configuration
 
