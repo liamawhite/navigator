@@ -56,9 +56,10 @@ var (
 	uiPort         int
 	noBrowser      bool
 	// Metrics flags (enabled is inferred from presence of endpoint)
-	metricsType     string
-	metricsEndpoint string
-	metricsTimeout  int
+	metricsType       string
+	metricsEndpoint   string
+	metricsTimeout    int
+	metricsAuthBearer string
 )
 
 // localCmd represents the local command
@@ -238,6 +239,7 @@ func startEdgeServiceForContext(ctx context.Context, contextName string, logger 
 		Endpoint:      metricsEndpoint,
 		QueryInterval: 30, // Default query interval
 		Timeout:       metricsTimeout,
+		BearerToken:   metricsAuthBearer,
 	}
 
 	if metricsConfig.Enabled {
@@ -613,6 +615,7 @@ func init() {
 	localCmd.Flags().StringVar(&metricsType, "metrics-type", "prometheus", "Metrics provider type (prometheus)")
 	localCmd.Flags().StringVar(&metricsEndpoint, "metrics-endpoint", "", "Metrics provider endpoint accessible from this machine (e.g., http://prometheus:9090). Enables metrics if provided.")
 	localCmd.Flags().IntVar(&metricsTimeout, "metrics-timeout", 10, "Metrics query timeout in seconds")
+	localCmd.Flags().StringVar(&metricsAuthBearer, "metrics-auth-bearer", "", "Bearer token for metrics provider authentication")
 
 	// kube-config is optional with default value
 }

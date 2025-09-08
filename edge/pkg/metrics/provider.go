@@ -42,8 +42,8 @@ type Config struct {
 	QueryInterval int `json:"query_interval" yaml:"query_interval"`
 	// Timeout is the timeout for metrics queries (in seconds)
 	Timeout int `json:"timeout" yaml:"timeout"`
-	// Authentication configuration (provider-specific)
-	Auth map[string]string `json:"auth,omitempty" yaml:"auth,omitempty"`
+	// BearerToken for bearer token authentication
+	BearerToken string `json:"bearer_token,omitempty" yaml:"bearer_token,omitempty"`
 }
 
 // Validate validates the metrics configuration

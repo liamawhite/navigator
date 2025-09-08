@@ -51,6 +51,7 @@ func ParseFlags() (*Config, error) {
 	flag.StringVar((*string)(&config.MetricsConfig.Type), "metrics-type", "none", "Metrics provider type (none, prometheus)")
 	flag.IntVar(&config.MetricsConfig.QueryInterval, "metrics-query-interval", 30, "Metrics query interval in seconds")
 	flag.IntVar(&config.MetricsConfig.Timeout, "metrics-timeout", 10, "Metrics query timeout in seconds")
+	flag.StringVar(&config.MetricsConfig.BearerToken, "metrics-auth-bearer", "", "Bearer token for metrics provider authentication")
 
 	flag.Parse()
 

@@ -36,7 +36,16 @@ func NewProvider(config metrics.Config, logger *slog.Logger) (*Provider, error) 
 		return nil, err
 	}
 
-	client, err := NewClient(config.Endpoint, time.Duration(config.Timeout)*time.Second, logger)
+	// Build client options
+	var clientOpts []ClientOption
+	if config.BearerToken != "" {
+		clientOpts = append(clientOpts, WithBearerToken(config.BearerToken))
+	}
+	if config.Timeout > 0 {
+		clientOpts = append(clientOpts, WithTimeout(time.Duration(config.Timeout)*time.Second))
+	}
+
+	client, err := NewClient(config.Endpoint, logger, clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Prometheus client: %w", err)
 	}
