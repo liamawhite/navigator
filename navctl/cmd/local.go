@@ -56,10 +56,10 @@ var (
 	uiPort         int
 	noBrowser      bool
 	// Metrics flags (enabled is inferred from presence of endpoint)
-	metricsType        string
-	metricsEndpoint    string
-	metricsTimeout     int
-	metricsAuthBearer  string
+	metricsType       string
+	metricsEndpoint   string
+	metricsTimeout    int
+	metricsAuthBearer string
 )
 
 // localCmd represents the local command

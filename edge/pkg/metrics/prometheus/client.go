@@ -66,12 +66,12 @@ func (rt *BearerTokenRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	if rt.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+rt.Token)
 	}
-	
+
 	next := rt.Next
 	if next == nil {
 		next = http.DefaultTransport
 	}
-	
+
 	return next.RoundTrip(req)
 }
 
