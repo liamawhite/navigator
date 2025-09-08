@@ -14,5 +14,6 @@ spec:
   - hosts:
     - "./database.microservices.svc.cluster.local"
     - "istio-system/*"
+    - "./example.com"
   outboundTrafficPolicy:
     mode: REGISTRY_ONLY

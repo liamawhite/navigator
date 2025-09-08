@@ -92,9 +92,14 @@ func NewHelmManager(kubeconfig, namespace string, logger *slog.Logger) (*HelmMan
 // DefaultIstioConfig returns default configuration for Istio installation
 func DefaultIstioConfig(version string) IstioInstallConfig {
 	return IstioInstallConfig{
-		Version:           version,
-		Namespace:         "istio-system",
-		Values:            map[string]interface{}{},
+		Version:   version,
+		Namespace: "istio-system",
+		Values: map[string]interface{}{
+			"meshConfig": map[string]interface{}{
+				"accessLogFile":   "/dev/stdout",
+				"accessLogFormat": "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% %RESPONSE_CODE_DETAILS% %CONNECTION_TERMINATION_DETAILS% \"%UPSTREAM_TRANSPORT_FAILURE_REASON%\" %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\" %UPSTREAM_CLUSTER% %UPSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_LOCAL_ADDRESS% %DOWNSTREAM_REMOTE_ADDRESS% %REQUESTED_SERVER_NAME% %ROUTE_NAME%\n",
+			},
+		},
 		WaitTimeout:       5 * time.Minute,
 		InstallPrometheus: true,
 	}

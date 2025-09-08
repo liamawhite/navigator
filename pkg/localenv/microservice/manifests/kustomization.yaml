@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - gateway.yaml
   - peerauthentication.yaml
+  - external-serviceentry.yaml
   - frontend
   - backend
   - database
