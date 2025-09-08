@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	fortioNamespace = "microservices"
+	fortioNamespace = "load-generator"
 	fortioPodName   = "fortio-load"
 )
 
@@ -58,14 +58,25 @@ func NewFortioManager(kubeconfig, namespace string, logger *slog.Logger) *Fortio
 func (f *FortioManager) InstallFortio(ctx context.Context) error {
 	f.logger.Info("Installing Fortio load generator", "namespace", f.namespace)
 
-	// Get the manifest file path
-	manifestPath, err := f.getFortioManifestPath()
+	// Get the namespace manifest file path
+	namespaceManifestPath, err := f.getNamespaceManifestPath()
 	if err != nil {
-		return fmt.Errorf("failed to get manifest path: %w", err)
+		return fmt.Errorf("failed to get namespace manifest path: %w", err)
 	}
 
-	// Apply the manifest using kubectl
-	if err := f.applyManifest(ctx, manifestPath); err != nil {
+	// Apply the namespace manifest first
+	if err := f.applyManifest(ctx, namespaceManifestPath); err != nil {
+		return fmt.Errorf("failed to apply namespace manifest: %w", err)
+	}
+
+	// Get the Fortio manifest file path
+	fortioManifestPath, err := f.getFortioManifestPath()
+	if err != nil {
+		return fmt.Errorf("failed to get Fortio manifest path: %w", err)
+	}
+
+	// Apply the Fortio manifest using kubectl
+	if err := f.applyManifest(ctx, fortioManifestPath); err != nil {
 		return fmt.Errorf("failed to apply Fortio manifest: %w", err)
 	}
 
@@ -155,6 +166,25 @@ func (f *FortioManager) GetFortioLogs(ctx context.Context) (string, error) {
 	}
 
 	return string(output), nil
+}
+
+// getNamespaceManifestPath returns the path to the namespace manifest file
+func (f *FortioManager) getNamespaceManifestPath() (string, error) {
+	// Get the directory of this Go file
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("failed to get current file path")
+	}
+
+	// Build path to manifests directory
+	manifestPath := filepath.Join(filepath.Dir(currentFile), "manifests", "load-generator-namespace.yaml")
+
+	// Check if the file exists
+	if _, err := os.Stat(manifestPath); err != nil {
+		return "", fmt.Errorf("namespace manifest file not found at %s: %w", manifestPath, err)
+	}
+
+	return manifestPath, nil
 }
 
 // getFortioManifestPath returns the path to the Fortio manifest file

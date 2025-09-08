@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: fortio-load
-  namespace: microservices
+  namespace: load-generator
   labels:
     app: fortio-load
     app.kubernetes.io/name: fortio
