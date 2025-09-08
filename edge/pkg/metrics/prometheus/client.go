@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -31,10 +32,69 @@ type Client struct {
 	logger *slog.Logger
 }
 
-// NewClient creates a new Prometheus client
-func NewClient(endpoint string, timeout time.Duration, logger *slog.Logger) (*Client, error) {
+// ClientOption is a functional option for configuring the Prometheus client
+type ClientOption func(*clientConfig)
+
+// clientConfig holds the configuration for the Prometheus client
+type clientConfig struct {
+	bearerToken string
+	timeout     time.Duration
+}
+
+// WithBearerToken configures bearer token authentication
+func WithBearerToken(token string) ClientOption {
+	return func(c *clientConfig) {
+		c.bearerToken = token
+	}
+}
+
+// WithTimeout configures the timeout for Prometheus requests
+func WithTimeout(timeout time.Duration) ClientOption {
+	return func(c *clientConfig) {
+		c.timeout = timeout
+	}
+}
+
+// BearerTokenRoundTripper adds bearer token authentication to HTTP requests
+type BearerTokenRoundTripper struct {
+	Token string
+	Next  http.RoundTripper
+}
+
+// RoundTrip implements http.RoundTripper
+func (rt *BearerTokenRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if rt.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+rt.Token)
+	}
+	
+	next := rt.Next
+	if next == nil {
+		next = http.DefaultTransport
+	}
+	
+	return next.RoundTrip(req)
+}
+
+// NewClient creates a new Prometheus client with optional configuration
+func NewClient(endpoint string, logger *slog.Logger, opts ...ClientOption) (*Client, error) {
+	// Apply functional options with defaults
+	cfg := &clientConfig{
+		timeout: 5 * time.Second, // Default timeout
+	}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	config := api.Config{
 		Address: endpoint,
+	}
+
+	// Configure bearer token authentication if provided
+	if cfg.bearerToken != "" {
+		config.RoundTripper = &BearerTokenRoundTripper{
+			Token: cfg.bearerToken,
+		}
+		logger.Debug("configured bearer token authentication for Prometheus client")
 	}
 
 	// Create Prometheus API client
