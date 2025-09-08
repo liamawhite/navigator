@@ -206,7 +206,7 @@ and proxy analysis features.`,
 
 			// Start Fortio load generation
 			logger.Info("Starting continuous load generation at 5 RPS...")
-			fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "microservices", logger)
+			fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "load-generator", logger)
 			if err := fortioMgr.InstallFortio(ctx); err != nil {
 				logger.Warn("Failed to start Fortio load generator", "error", err)
 			} else {
@@ -278,7 +278,7 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 		if _, err := filepath.Abs(kubeconfigPath); err == nil {
 			// Try to clean up Fortio load generator first (best effort)
 			logger.Info("Attempting Fortio cleanup")
-			fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "microservices", logger)
+			fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "load-generator", logger)
 			if running, err := fortioMgr.IsFortioRunning(ctx); err == nil && running {
 				logger.Info("Found Fortio load generator, cleaning up")
 				if err := fortioMgr.UninstallFortio(ctx); err != nil {

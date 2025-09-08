@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: load-generator
+  labels:
+    name: load-generator
+    app.kubernetes.io/managed-by: navigator
+    # Explicitly disable Istio injection for this namespace
+    istio-injection: disabled
