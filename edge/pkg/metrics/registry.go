@@ -21,7 +21,7 @@ import (
 )
 
 // ProviderFactory is a function that creates a new metrics provider instance
-type ProviderFactory func(config Config, logger *slog.Logger) (Provider, error)
+type ProviderFactory func(config Config, logger *slog.Logger, clusterName string) (Provider, error)
 
 // Registry manages metrics provider factories and instances
 type Registry struct {
@@ -45,6 +45,11 @@ func (r *Registry) Register(providerType ProviderType, factory ProviderFactory) 
 
 // Create creates a new provider instance based on the configuration
 func (r *Registry) Create(config Config, logger *slog.Logger) (Provider, error) {
+	return r.CreateWithClusterName(config, logger, "")
+}
+
+// CreateWithClusterName creates a new provider instance with cluster name for filtering
+func (r *Registry) CreateWithClusterName(config Config, logger *slog.Logger, clusterName string) (Provider, error) {
 	if !config.Enabled || config.Type == ProviderTypeNone {
 		return NewNullProvider(config), nil
 	}
@@ -61,7 +66,7 @@ func (r *Registry) Create(config Config, logger *slog.Logger) (Provider, error) 
 		return nil, ErrProviderNotSupported
 	}
 
-	return factory(config, logger)
+	return factory(config, logger, clusterName)
 }
 
 // GetSupportedTypes returns a list of supported provider types

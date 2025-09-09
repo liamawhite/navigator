@@ -37,6 +37,7 @@ import (
 type KubernetesClient interface {
 	GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error)
 	GetClusterStateWithMetrics(ctx context.Context, metricsProvider interfaces.MetricsProvider) (*v1alpha1.ClusterState, error)
+	GetClusterName(ctx context.Context) (string, error)
 }
 
 // ProxyService interface for dependency injection
@@ -567,7 +568,6 @@ func convertMeshMetricsFilters(protoFilters *types.GraphMetricsFilters, startTim
 
 	if protoFilters != nil {
 		filters.Namespaces = protoFilters.Namespaces
-		filters.Clusters = protoFilters.Clusters
 	}
 
 	// Validate that timestamps are provided

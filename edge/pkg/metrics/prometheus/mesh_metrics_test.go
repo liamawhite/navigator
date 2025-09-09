@@ -16,6 +16,7 @@ package prometheus
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"text/template"
@@ -533,28 +534,6 @@ func TestBuildFilterClause(t *testing.T) {
 			},
 			expected: ", destination_namespace=~\"microservices|istio-system\"",
 		},
-		{
-			name: "single cluster filter",
-			filters: metrics.MeshMetricsFilters{
-				Clusters: []string{"cluster1"},
-			},
-			expected: ", destination_cluster=~\"cluster1\"",
-		},
-		{
-			name: "multiple cluster filters",
-			filters: metrics.MeshMetricsFilters{
-				Clusters: []string{"cluster1", "cluster2"},
-			},
-			expected: ", destination_cluster=~\"cluster1|cluster2\"",
-		},
-		{
-			name: "both namespace and cluster filters",
-			filters: metrics.MeshMetricsFilters{
-				Namespaces: []string{"ns1", "ns2"},
-				Clusters:   []string{"c1"},
-			},
-			expected: ", destination_namespace=~\"ns1|ns2\", destination_cluster=~\"c1\"",
-		},
 	}
 
 	for _, tt := range tests {
@@ -592,16 +571,6 @@ func TestBuildQueryFromTemplate(t *testing.T) {
 			},
 			timeRange: "10m",
 			contains:  []string{"response_code=~\"4..|5..\"", "destination_namespace=~\"microservices\"", "[10m]"},
-		},
-		{
-			name:     "request rate with multiple filters",
-			template: requestRateQueryTemplate,
-			filters: metrics.MeshMetricsFilters{
-				Namespaces: []string{"ns1", "ns2"},
-				Clusters:   []string{"cluster1"},
-			},
-			timeRange: "1m",
-			contains:  []string{"destination_namespace=~\"ns1|ns2\"", "destination_cluster=~\"cluster1\""},
 		},
 	}
 
@@ -846,6 +815,73 @@ func TestExecuteQueriesInParallelPattern(t *testing.T) {
 			// Verify parallel execution completed
 			assert.Equal(t, "error", errorResults.QueryType)
 			assert.Equal(t, "request", requestResults.QueryType)
+		})
+	}
+}
+
+func TestBuildFilterClauseWithClusterName(t *testing.T) {
+	logger := logging.For("test")
+	tests := []struct {
+		name         string
+		clusterName  string
+		filters      metrics.MeshMetricsFilters
+		expectedCont string
+		expectedMiss string
+	}{
+		{
+			name:         "cluster filtering only",
+			clusterName:  "production",
+			filters:      metrics.MeshMetricsFilters{},
+			expectedCont: `destination_cluster="production"`,
+			expectedMiss: "",
+		},
+		{
+			name:        "cluster and namespace filtering",
+			clusterName: "production",
+			filters: metrics.MeshMetricsFilters{
+				Namespaces: []string{"default", "app"},
+			},
+			expectedCont: `destination_cluster="production"`,
+			expectedMiss: "",
+		},
+		{
+			name:         "no cluster name",
+			clusterName:  "",
+			filters:      metrics.MeshMetricsFilters{},
+			expectedCont: "",
+			expectedMiss: "destination_cluster",
+		},
+		{
+			name:        "cluster with namespace filters",
+			clusterName: "production",
+			filters: metrics.MeshMetricsFilters{
+				Namespaces: []string{"default"},
+			},
+			expectedCont: `destination_cluster="production"`,
+			expectedMiss: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := &Provider{
+				logger:      logger,
+				clusterName: tt.clusterName,
+			}
+
+			result := provider.buildFilterClause(tt.filters)
+
+			if tt.expectedCont != "" {
+				assert.Contains(t, result, tt.expectedCont, "should contain cluster filter")
+			}
+			if tt.expectedMiss != "" {
+				assert.NotContains(t, result, tt.expectedMiss, "should not contain cluster filter when cluster name is empty")
+			}
+
+			// Verify it starts with a comma and space if non-empty
+			if result != "" {
+				assert.True(t, strings.HasPrefix(result, ", "), "filter clause should start with ', '")
+			}
 		})
 	}
 }
