@@ -534,28 +534,6 @@ func TestBuildFilterClause(t *testing.T) {
 			},
 			expected: ", destination_namespace=~\"microservices|istio-system\"",
 		},
-		{
-			name: "single cluster filter",
-			filters: metrics.MeshMetricsFilters{
-				Clusters: []string{"cluster1"},
-			},
-			expected: ", destination_cluster=~\"cluster1\"",
-		},
-		{
-			name: "multiple cluster filters",
-			filters: metrics.MeshMetricsFilters{
-				Clusters: []string{"cluster1", "cluster2"},
-			},
-			expected: ", destination_cluster=~\"cluster1|cluster2\"",
-		},
-		{
-			name: "both namespace and cluster filters",
-			filters: metrics.MeshMetricsFilters{
-				Namespaces: []string{"ns1", "ns2"},
-				Clusters:   []string{"c1"},
-			},
-			expected: ", destination_namespace=~\"ns1|ns2\", destination_cluster=~\"c1\"",
-		},
 	}
 
 	for _, tt := range tests {
@@ -593,16 +571,6 @@ func TestBuildQueryFromTemplate(t *testing.T) {
 			},
 			timeRange: "10m",
 			contains:  []string{"response_code=~\"4..|5..\"", "destination_namespace=~\"microservices\"", "[10m]"},
-		},
-		{
-			name:     "request rate with multiple filters",
-			template: requestRateQueryTemplate,
-			filters: metrics.MeshMetricsFilters{
-				Namespaces: []string{"ns1", "ns2"},
-				Clusters:   []string{"cluster1"},
-			},
-			timeRange: "1m",
-			contains:  []string{"destination_namespace=~\"ns1|ns2\"", "destination_cluster=~\"cluster1\""},
 		},
 	}
 
@@ -884,11 +852,10 @@ func TestBuildFilterClauseWithClusterName(t *testing.T) {
 			expectedMiss: "destination_cluster",
 		},
 		{
-			name:        "cluster with namespace and cluster filters",
+			name:        "cluster with namespace filters",
 			clusterName: "production",
 			filters: metrics.MeshMetricsFilters{
 				Namespaces: []string{"default"},
-				Clusters:   []string{"staging", "prod"},
 			},
 			expectedCont: `destination_cluster="production"`,
 			expectedMiss: "",

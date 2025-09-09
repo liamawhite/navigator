@@ -387,11 +387,6 @@ func (p *Provider) buildFilterClause(filters metrics.MeshMetricsFilters) string 
 		clauses = append(clauses, fmt.Sprintf(`destination_namespace=~"%s"`, namespaces))
 	}
 
-	if len(filters.Clusters) > 0 {
-		clusters := strings.Join(filters.Clusters, "|")
-		clauses = append(clauses, fmt.Sprintf(`destination_cluster=~"%s"`, clusters))
-	}
-
 	if len(clauses) > 0 {
 		return ", " + strings.Join(clauses, ", ")
 	}

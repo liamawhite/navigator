@@ -568,7 +568,6 @@ func convertMeshMetricsFilters(protoFilters *types.GraphMetricsFilters, startTim
 
 	if protoFilters != nil {
 		filters.Namespaces = protoFilters.Namespaces
-		filters.Clusters = protoFilters.Clusters
 	}
 
 	// Validate that timestamps are provided

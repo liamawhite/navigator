@@ -21,7 +21,6 @@ import (
 // MeshMetricsFilters represents filters for service mesh metrics queries
 type MeshMetricsFilters struct {
 	Namespaces []string
-	Clusters   []string
 }
 
 // MeshMetricsQuery represents a query for service mesh metrics
