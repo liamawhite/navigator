@@ -16,6 +16,7 @@ package prometheus
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"text/template"
@@ -846,6 +847,74 @@ func TestExecuteQueriesInParallelPattern(t *testing.T) {
 			// Verify parallel execution completed
 			assert.Equal(t, "error", errorResults.QueryType)
 			assert.Equal(t, "request", requestResults.QueryType)
+		})
+	}
+}
+
+func TestBuildFilterClauseWithClusterName(t *testing.T) {
+	logger := logging.For("test")
+	tests := []struct {
+		name         string
+		clusterName  string
+		filters      metrics.MeshMetricsFilters
+		expectedCont string
+		expectedMiss string
+	}{
+		{
+			name:         "cluster filtering only",
+			clusterName:  "production",
+			filters:      metrics.MeshMetricsFilters{},
+			expectedCont: `destination_cluster="production"`,
+			expectedMiss: "",
+		},
+		{
+			name:        "cluster and namespace filtering",
+			clusterName: "production",
+			filters: metrics.MeshMetricsFilters{
+				Namespaces: []string{"default", "app"},
+			},
+			expectedCont: `destination_cluster="production"`,
+			expectedMiss: "",
+		},
+		{
+			name:         "no cluster name",
+			clusterName:  "",
+			filters:      metrics.MeshMetricsFilters{},
+			expectedCont: "",
+			expectedMiss: "destination_cluster",
+		},
+		{
+			name:        "cluster with namespace and cluster filters",
+			clusterName: "production",
+			filters: metrics.MeshMetricsFilters{
+				Namespaces: []string{"default"},
+				Clusters:   []string{"staging", "prod"},
+			},
+			expectedCont: `destination_cluster="production"`,
+			expectedMiss: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := &Provider{
+				logger:      logger,
+				clusterName: tt.clusterName,
+			}
+
+			result := provider.buildFilterClause(tt.filters)
+
+			if tt.expectedCont != "" {
+				assert.Contains(t, result, tt.expectedCont, "should contain cluster filter")
+			}
+			if tt.expectedMiss != "" {
+				assert.NotContains(t, result, tt.expectedMiss, "should not contain cluster filter when cluster name is empty")
+			}
+
+			// Verify it starts with a comma and space if non-empty
+			if result != "" {
+				assert.True(t, strings.HasPrefix(result, ", "), "filter clause should start with ', '")
+			}
 		})
 	}
 }

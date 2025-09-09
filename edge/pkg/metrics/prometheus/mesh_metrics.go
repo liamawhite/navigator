@@ -377,6 +377,11 @@ func (p *Provider) buildQueryFromTemplate(tmpl *template.Template, filters metri
 func (p *Provider) buildFilterClause(filters metrics.MeshMetricsFilters) string {
 	var clauses []string
 
+	// Always filter by the current cluster to improve query performance
+	if p.clusterName != "" {
+		clauses = append(clauses, fmt.Sprintf(`destination_cluster="%s"`, p.clusterName))
+	}
+
 	if len(filters.Namespaces) > 0 {
 		namespaces := strings.Join(filters.Namespaces, "|")
 		clauses = append(clauses, fmt.Sprintf(`destination_namespace=~"%s"`, namespaces))

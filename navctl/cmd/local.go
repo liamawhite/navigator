@@ -274,12 +274,23 @@ func startEdgeServiceForContext(ctx context.Context, contextName string, logger 
 	proxyLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "proxy")
 	proxyService := proxy.NewProxyService(adminClient, proxyLogger)
 
-	// Create metrics provider
+	// Create metrics provider with cluster name for efficient filtering
 	metricsLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "metrics")
 	metricsRegistry := metrics.NewRegistry()
 	prometheus.RegisterWithRegistry(metricsRegistry)
 
-	metricsProvider, err := metricsRegistry.Create(cfg.GetMetricsConfig(), metricsLogger)
+	// Get cluster name from Istio for metrics filtering
+	var clusterName string
+	if cfg.GetMetricsConfig().Enabled {
+		clusterName, err = k8sClient.GetClusterName(context.Background())
+		if err != nil {
+			metricsLogger.Warn("failed to get cluster name from istiod, metrics will not be cluster-filtered", "error", err)
+		} else {
+			metricsLogger.Info("retrieved cluster name for metrics filtering", "cluster_name", clusterName)
+		}
+	}
+
+	metricsProvider, err := metricsRegistry.CreateWithClusterName(cfg.GetMetricsConfig(), metricsLogger, clusterName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metrics provider for context '%s': %w", contextName, err)
 	}

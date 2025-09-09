@@ -21,8 +21,8 @@ import (
 )
 
 // Factory creates a new Prometheus metrics provider
-func Factory(config metrics.Config, logger *slog.Logger) (metrics.Provider, error) {
-	return NewProvider(config, logger)
+func Factory(config metrics.Config, logger *slog.Logger, clusterName string) (metrics.Provider, error) {
+	return NewProvider(config, logger, clusterName)
 }
 
 // RegisterWithRegistry registers the Prometheus provider with the given registry

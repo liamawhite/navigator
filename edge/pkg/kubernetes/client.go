@@ -110,6 +110,34 @@ func (k *Client) GetRestConfig() *rest.Config {
 	return k.restConfig
 }
 
+// GetClusterName retrieves the cluster name from Istio's CLUSTER_ID environment variable in istiod deployment
+func (k *Client) GetClusterName(ctx context.Context) (string, error) {
+	// Discover the active Istio control plane
+	rootNamespace, activeDeployment := k.discoverIstioControlPlane(ctx)
+	if activeDeployment == nil {
+		return "", fmt.Errorf("no active istiod deployment found in namespace %s", rootNamespace)
+	}
+
+	// Extract CLUSTER_ID from the deployment
+	for _, container := range activeDeployment.Spec.Template.Spec.Containers {
+		if container.Name == "discovery" {
+			for _, env := range container.Env {
+				if env.Name == "CLUSTER_ID" {
+					if env.Value != "" {
+						k.logger.Debug("found cluster ID from istiod deployment",
+							"cluster_id", env.Value,
+							"deployment", activeDeployment.Name,
+							"namespace", activeDeployment.Namespace)
+						return env.Value, nil
+					}
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("CLUSTER_ID environment variable not found in istiod deployment %s/%s", activeDeployment.Namespace, activeDeployment.Name)
+}
+
 // GetClusterState discovers all services in the cluster and returns the cluster state
 func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error) {
 	// Parallelize API calls and map building in single goroutines

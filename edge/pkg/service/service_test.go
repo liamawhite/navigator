@@ -48,6 +48,13 @@ func (m *mockKubernetesClient) GetClusterStateWithMetrics(ctx context.Context, m
 	return m.clusterState, nil
 }
 
+func (m *mockKubernetesClient) GetClusterName(ctx context.Context) (string, error) {
+	if m.err != nil {
+		return "", m.err
+	}
+	return "test-cluster", nil
+}
+
 // mockProxyService implements the ProxyService interface for testing
 type mockProxyService struct {
 	proxyConfig *types.ProxyConfig

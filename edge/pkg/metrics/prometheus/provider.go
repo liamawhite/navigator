@@ -24,14 +24,15 @@ import (
 
 // Provider implements the metrics.Provider interface for Prometheus
 type Provider struct {
-	client *Client
-	config metrics.Config
-	info   metrics.ProviderInfo
-	logger *slog.Logger
+	client      *Client
+	config      metrics.Config
+	info        metrics.ProviderInfo
+	logger      *slog.Logger
+	clusterName string
 }
 
-// NewProvider creates a new Prometheus metrics provider
-func NewProvider(config metrics.Config, logger *slog.Logger) (*Provider, error) {
+// NewProvider creates a new Prometheus metrics provider with cluster name for filtering
+func NewProvider(config metrics.Config, logger *slog.Logger, clusterName string) (*Provider, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
@@ -51,8 +52,9 @@ func NewProvider(config metrics.Config, logger *slog.Logger) (*Provider, error) 
 	}
 
 	provider := &Provider{
-		client: client,
-		config: config,
+		client:      client,
+		config:      config,
+		clusterName: clusterName,
 		info: metrics.ProviderInfo{
 			Type:     metrics.ProviderTypePrometheus,
 			Endpoint: config.Endpoint,
@@ -64,12 +66,21 @@ func NewProvider(config metrics.Config, logger *slog.Logger) (*Provider, error) 
 		logger: logger,
 	}
 
+	if clusterName != "" {
+		logger.Debug("created Prometheus provider with cluster filtering", "cluster_name", clusterName)
+	}
+
 	return provider, nil
 }
 
 // GetProviderInfo returns information about this Prometheus provider
 func (p *Provider) GetProviderInfo() metrics.ProviderInfo {
 	return p.info
+}
+
+// GetClusterName returns the current cluster name
+func (p *Provider) GetClusterName() string {
+	return p.clusterName
 }
 
 // Close closes the provider and cleans up resources
