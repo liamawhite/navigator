@@ -17,18 +17,6 @@
  * that adapt to light/dark mode using CSS custom properties
  */
 
-// Helper function to get CSS custom property values
-function getCSSCustomProperty(property: string): string {
-    if (typeof window === 'undefined') {
-        return property; // Return fallback during SSR
-    }
-
-    const value = getComputedStyle(document.documentElement).getPropertyValue(
-        property
-    );
-    return value.trim();
-}
-
 // Theme-aware color palette for clusters (simplified approach)
 export const getClusterColors = () => {
     const isDark =

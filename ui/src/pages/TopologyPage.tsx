@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
     Card,
     CardContent,
@@ -31,7 +31,6 @@ import {
 import {
     Waypoints,
     ArrowRight,
-    Activity,
     AlertTriangle,
     Loader2,
     RefreshCw,
@@ -184,10 +183,6 @@ export const TopologyPage: React.FC = () => {
     // Graph event handlers
     const handleNodeClick = (nodeId: string) => {
         console.log('Node clicked:', nodeId);
-    };
-
-    const handleCanvasClick = () => {
-        console.log('Canvas clicked');
     };
 
     // Manual refresh function

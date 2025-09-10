@@ -25,14 +25,22 @@ interface Node {
     label: string;
     cluster?: string;
     size?: number;
-    data?: any;
+    data?: {
+        errorRate?: number;
+        requestRate?: number;
+        cluster?: string;
+        namespace?: string;
+    };
 }
 
 interface Edge {
     id: string;
     source: string;
     target: string;
-    data?: any;
+    data?: {
+        errorRate?: number;
+        requestRate?: number;
+    };
 }
 
 interface ServiceGraphProps {
@@ -46,19 +54,27 @@ interface D3Node extends d3.SimulationNodeDatum {
     label: string;
     cluster?: string;
     size?: number;
-    data?: any;
+    data?: {
+        errorRate?: number;
+        requestRate?: number;
+        cluster?: string;
+        namespace?: string;
+    };
 }
 
 interface D3Edge extends d3.SimulationLinkDatum<D3Node> {
     id: string;
-    data?: any;
+    data?: {
+        errorRate?: number;
+        requestRate?: number;
+    };
 }
 
 // D3 Graph Component
 const D3Graph: React.FC<{
     nodes: Node[];
     edges: Edge[];
-    onNodeClick?: (node: Node) => void;
+    onNodeClick?: (node: D3Node) => void;
     onCanvasClick?: () => void;
     className?: string;
 }> = ({ nodes, edges, onNodeClick, onCanvasClick, className = '' }) => {
@@ -67,24 +83,27 @@ const D3Graph: React.FC<{
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
     // Color palette for clusters - using slate-based colors
-    const getClusterColor = (cluster?: string) => {
-        const colors = [
-            '#64748b', // slate-500
-            '#6b7280', // gray-500
-            '#71717a', // zinc-500
-            '#737373', // neutral-500
-            '#78716c', // stone-500
-            '#475569', // slate-600
-            '#4b5563', // gray-600
-            '#52525b', // zinc-600
-        ];
-        if (!cluster) return colors[0];
-        const clusters = [
-            ...new Set(nodes.map((n) => n.cluster).filter(Boolean)),
-        ];
-        const index = clusters.indexOf(cluster);
-        return colors[index % colors.length];
-    };
+    const getClusterColor = React.useCallback(
+        (cluster?: string) => {
+            const colors = [
+                '#64748b', // slate-500
+                '#6b7280', // gray-500
+                '#71717a', // zinc-500
+                '#737373', // neutral-500
+                '#78716c', // stone-500
+                '#475569', // slate-600
+                '#4b5563', // gray-600
+                '#52525b', // zinc-600
+            ];
+            if (!cluster) return colors[0];
+            const clusters = [
+                ...new Set(nodes.map((n) => n.cluster).filter(Boolean)),
+            ];
+            const index = clusters.indexOf(cluster);
+            return colors[index % colors.length];
+        },
+        [nodes]
+    );
 
     // Handle container resize
     useEffect(() => {
@@ -115,14 +134,6 @@ const D3Graph: React.FC<{
 
         // Define arrow markers first before any other elements
         const defs = svg.append('defs');
-
-        // Create different colored arrow markers
-        const arrowColors = [
-            { id: 'arrow-healthy', color: '#10b981' }, // Green
-            { id: 'arrow-low-error', color: '#eab308' }, // Yellow
-            { id: 'arrow-medium-error', color: '#f59e0b' }, // Orange
-            { id: 'arrow-high-error', color: '#ef4444' }, // Red
-        ];
 
         // Create multiple arrow markers with different approaches
         defs.append('marker')
@@ -257,7 +268,6 @@ const D3Graph: React.FC<{
                     );
                     let sourceCount = 0;
                     let sinkCount = 0;
-                    let isolatedCount = 0;
 
                     nsNodes.forEach((node) => {
                         const isSource = edges.some(
@@ -269,7 +279,6 @@ const D3Graph: React.FC<{
 
                         if (isSource && !isSink) sourceCount++;
                         else if (!isSource && isSink) sinkCount++;
-                        else if (!isSource && !isSink) isolatedCount++;
                     });
 
                     // Reward pure sources on the left (lower indices)
@@ -641,7 +650,7 @@ const D3Graph: React.FC<{
             .data(d3Edges)
             .enter()
             .append('line')
-            .attr('stroke', (d: any) => {
+            .attr('stroke', (d: D3Edge) => {
                 // Color edges based on error rate from the edge data
                 const errorRate = d.data?.errorRate || 0;
                 if (errorRate > 0.1) {
@@ -654,7 +663,7 @@ const D3Graph: React.FC<{
                     return '#10b981'; // Green for healthy traffic (≤1%)
                 }
             })
-            .attr('stroke-width', (d: any) => {
+            .attr('stroke-width', (d: D3Edge) => {
                 // Thicker lines for higher traffic volume
                 const requestRate = d.data?.requestRate || 0;
                 return Math.max(1, Math.min(6, requestRate * 2 + 1));
@@ -668,7 +677,7 @@ const D3Graph: React.FC<{
             .enter()
             .append('polygon')
             .attr('class', 'arrow-triangle')
-            .attr('fill', (d: any) => {
+            .attr('fill', (d: D3Edge) => {
                 // Match arrow color with edge color based on error rate
                 const errorRate = d.data?.errorRate || 0;
                 if (errorRate > 0.1) {
@@ -681,7 +690,7 @@ const D3Graph: React.FC<{
                     return '#10b981'; // Green for healthy traffic (≤1%)
                 }
             })
-            .attr('stroke', (d: any) => {
+            .attr('stroke', (d: D3Edge) => {
                 // Darker version of fill color for outline
                 const errorRate = d.data?.errorRate || 0;
                 if (errorRate > 0.1) {
@@ -706,14 +715,14 @@ const D3Graph: React.FC<{
             .attr('text-anchor', 'middle')
             .attr('font-size', '12px')
             .attr('font-weight', '900')
-            .attr('fill', (d: any) => {
+            .attr('fill', (d: D3Edge) => {
                 const errorRate = d.data?.errorRate || 0;
                 const successRate = 1 - errorRate; // Convert error rate to success rate
                 if (successRate >= 0.99) return '#10b981'; // Green for high success
                 if (successRate >= 0.95) return '#f59e0b'; // Orange for medium success
                 return '#ef4444'; // Red for low success
             })
-            .attr('stroke', (d: any) => {
+            .attr('stroke', (_d: D3Edge) => {
                 // Dark outline for contrast
                 return document.documentElement.classList.contains('dark')
                     ? '#000000'
@@ -721,7 +730,7 @@ const D3Graph: React.FC<{
             })
             .attr('stroke-width', 0.5)
             .style('pointer-events', 'none')
-            .text((d: any) => {
+            .text((d: D3Edge) => {
                 const errorRate = d.data?.errorRate || 0;
                 const successRate = 1 - errorRate; // Convert error rate to success rate
                 if (errorRate < 0.001 && successRate >= 0.999) return '100%'; // Show 100% for very low error rates
@@ -739,7 +748,7 @@ const D3Graph: React.FC<{
             .call(
                 d3
                     .drag<SVGGElement, D3Node>()
-                    .on('start', (event, d) => {
+                    .on('start', (event, _d) => {
                         if (!event.active)
                             simulation.alphaTarget(0.3).restart();
                         d.fx = d.x;
@@ -844,47 +853,55 @@ const D3Graph: React.FC<{
 
             // Update visual positions - lines should not overlap with node circles
             links
-                .attr('x1', (d: any) => {
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
+                .attr('x1', (d: D3Edge) => {
+                    const dx =
+                        (d.target as D3Node).x! - (d.source as D3Node).x!;
+                    const dy =
+                        (d.target as D3Node).y! - (d.source as D3Node).y!;
                     const length = Math.sqrt(dx * dx + dy * dy);
                     if (length === 0) return d.source.x;
                     const sourceRadius = 24 + 2;
                     const unitX = dx / length;
-                    return d.source.x + unitX * sourceRadius;
+                    return (d.source as D3Node).x! + unitX * sourceRadius;
                 })
-                .attr('y1', (d: any) => {
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
+                .attr('y1', (d: D3Edge) => {
+                    const dx =
+                        (d.target as D3Node).x! - (d.source as D3Node).x!;
+                    const dy =
+                        (d.target as D3Node).y! - (d.source as D3Node).y!;
                     const length = Math.sqrt(dx * dx + dy * dy);
                     if (length === 0) return d.source.y;
                     const sourceRadius = 24 + 2;
                     const unitY = dy / length;
-                    return d.source.y + unitY * sourceRadius;
+                    return (d.source as D3Node).y! + unitY * sourceRadius;
                 })
-                .attr('x2', (d: any) => {
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
+                .attr('x2', (d: D3Edge) => {
+                    const dx =
+                        (d.target as D3Node).x! - (d.source as D3Node).x!;
+                    const dy =
+                        (d.target as D3Node).y! - (d.source as D3Node).y!;
                     const length = Math.sqrt(dx * dx + dy * dy);
                     if (length === 0) return d.target.x;
                     const targetRadius = 24 + 2;
                     const unitX = dx / length;
-                    return d.target.x - unitX * targetRadius;
+                    return (d.target as D3Node).x! - unitX * targetRadius;
                 })
-                .attr('y2', (d: any) => {
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
+                .attr('y2', (d: D3Edge) => {
+                    const dx =
+                        (d.target as D3Node).x! - (d.source as D3Node).x!;
+                    const dy =
+                        (d.target as D3Node).y! - (d.source as D3Node).y!;
                     const length = Math.sqrt(dx * dx + dy * dy);
                     if (length === 0) return d.target.y;
                     const targetRadius = 24 + 2;
                     const unitY = dy / length;
-                    return d.target.y - unitY * targetRadius;
+                    return (d.target as D3Node).y! - unitY * targetRadius;
                 });
 
             // Update arrow triangles position - tip should touch the target node circle outline
-            arrowTriangles.attr('points', (d: any) => {
-                const dx = d.target.x - d.source.x;
-                const dy = d.target.y - d.source.y;
+            arrowTriangles.attr('points', (d: D3Edge) => {
+                const dx = (d.target as D3Node).x! - (d.source as D3Node).x!;
+                const dy = (d.target as D3Node).y! - (d.source as D3Node).y!;
                 const length = Math.sqrt(dx * dx + dy * dy);
 
                 if (length === 0) return '0,0 0,0 0,0'; // Avoid division by zero
@@ -895,8 +912,8 @@ const D3Graph: React.FC<{
                 // Calculate where arrow tip should be (at target node circle edge)
                 const unitX = dx / length;
                 const unitY = dy / length;
-                const tipX = d.target.x - unitX * targetNodeRadius;
-                const tipY = d.target.y - unitY * targetNodeRadius;
+                const tipX = (d.target as D3Node).x! - unitX * targetNodeRadius;
+                const tipY = (d.target as D3Node).y! - unitY * targetNodeRadius;
 
                 // Arrow size for the triangle base
                 const arrowSize = 12;
@@ -916,15 +933,31 @@ const D3Graph: React.FC<{
 
             // Update success rate labels position (along the line at midpoint)
             successLabels
-                .attr('x', (d: any) => (d.source.x + d.target.x) / 2)
-                .attr('y', (d: any) => (d.source.y + d.target.y) / 2 + 4) // Slightly offset for readability
-                .attr('transform', (d: any) => {
+                .attr(
+                    'x',
+                    (d: D3Edge) =>
+                        ((d.source as D3Node).x! + (d.target as D3Node).x!) / 2
+                )
+                .attr(
+                    'y',
+                    (d: D3Edge) =>
+                        ((d.source as D3Node).y! + (d.target as D3Node).y!) /
+                            2 +
+                        4
+                ) // Slightly offset for readability
+                .attr('transform', (d: D3Edge) => {
                     // Calculate angle of the line for text rotation
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
+                    const dx =
+                        (d.target as D3Node).x! - (d.source as D3Node).x!;
+                    const dy =
+                        (d.target as D3Node).y! - (d.source as D3Node).y!;
                     const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-                    const midX = (d.source.x + d.target.x) / 2;
-                    const midY = (d.source.y + d.target.y) / 2 + 4;
+                    const midX =
+                        ((d.source as D3Node).x! + (d.target as D3Node).x!) / 2;
+                    const midY =
+                        ((d.source as D3Node).y! + (d.target as D3Node).y!) /
+                            2 +
+                        4;
 
                     // Keep text readable - flip if angle would make it upside down
                     const adjustedAngle =
@@ -940,7 +973,7 @@ const D3Graph: React.FC<{
         return () => {
             simulation.stop();
         };
-    }, [nodes, edges, dimensions, onNodeClick, onCanvasClick]);
+    }, [nodes, edges, dimensions, onNodeClick, onCanvasClick, getClusterColor]);
 
     return (
         <div
@@ -985,7 +1018,7 @@ export const ServiceGraph: React.FC<ServiceGraphProps> = ({
     }, [metrics]);
 
     const handleNodeClick = React.useCallback(
-        (node: any) => {
+        (node: D3Node) => {
             onNodeClick?.(node.id);
         },
         [onNodeClick]

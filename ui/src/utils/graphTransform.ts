@@ -58,16 +58,6 @@ function getClusterColorFromPalette(
     return palette[index % palette.length];
 }
 
-function getNamespaceColorFromPalette(
-    namespace: string,
-    namespaces: string[]
-): string {
-    const palette = getClusterColors();
-    const index = namespaces.indexOf(namespace);
-    // Use a different offset for namespace colors to differentiate from cluster colors
-    return palette[(index + palette.length / 2) % palette.length];
-}
-
 function createServiceKey(
     cluster: string,
     namespace: string,
@@ -118,7 +108,6 @@ export function transformMetricsToGraph(
     });
 
     const clusterList = Array.from(clusters).filter(Boolean).sort();
-    const namespaceList = Array.from(namespaces).filter(Boolean).sort();
 
     // Calculate aggregated metrics for each service node
     const serviceMetrics = new Map<
