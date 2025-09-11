@@ -117,3 +117,37 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Graph canvas theming - handles background for light/dark modes */
+.graph-canvas-container {
+    background-color: var(--background) !important;
+    position: relative;
+}
+
+/* Make canvas transparent and let the wrapper provide the background */
+.graph-canvas-container canvas {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+/* Target Reagraph's CSS module classes - make them transparent */
+[class*='_canvas_'] {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+[class*='_canvas_'] canvas {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+/* Fallback - make all canvas elements transparent */
+canvas {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+/* Force wrapper backgrounds to be themed - use the direct CSS variable */
+div:has(canvas) {
+    background-color: var(--background) !important;
+}

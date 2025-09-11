@@ -31,15 +31,18 @@ import {
 import {
     Waypoints,
     ArrowRight,
-    Activity,
     AlertTriangle,
     Loader2,
     RefreshCw,
     AlertCircle,
+    Network,
+    List,
 } from 'lucide-react';
 import { useServiceGraphMetrics } from '../hooks/useServiceGraphMetrics';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { ServiceGraph } from '../components/serviceregistry/ServiceGraph';
+// Removed Reagraph import - now using D3-based ServiceGraph component
 import {
     Select,
     SelectContent,
@@ -49,6 +52,7 @@ import {
 } from '../components/ui/select';
 import { Navbar } from '../components/Navbar';
 import { serviceApi } from '../utils/api';
+// Graph transform and theming now handled within ServiceGraph component
 import type { v1alpha1ClusterSyncInfo } from '../types/generated/openapi-cluster_registry';
 
 export const TopologyPage: React.FC = () => {
@@ -68,6 +72,9 @@ export const TopologyPage: React.FC = () => {
     ];
 
     const [refreshInterval, setRefreshInterval] = useState(0); // Default to manual
+    const [currentView, setCurrentView] = useState<'graph' | 'table'>('graph');
+    const [themeKey, setThemeKey] = useState(0); // Force re-render on theme change
+    // GraphRef no longer needed - D3 component handles its own refs
 
     // Stable time range that only updates periodically
     const [timeRange, setTimeRange] = useState(() => {
@@ -92,6 +99,27 @@ export const TopologyPage: React.FC = () => {
     useEffect(() => {
         checkMetricsCapability();
     }, []);
+
+    // Listen for theme changes to update graph colors
+    useEffect(() => {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    // Theme changed, force re-render
+                    setThemeKey((prev) => prev + 1);
+                }
+            });
+        });
+
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['class'],
+        });
+
+        return () => observer.disconnect();
+    }, []);
+
+    // Canvas handling now done by D3 SVG - no more WebGL issues!
 
     // Update time range based on selected refresh interval (skip if manual)
     useEffect(() => {
@@ -122,8 +150,11 @@ export const TopologyPage: React.FC = () => {
 
     // Debug logging to see what data we're getting
     useEffect(() => {
+        console.log('Service pairs data:', servicePairs);
         if (servicePairs && servicePairs.length > 0) {
-            console.log('Service pairs data:', servicePairs);
+            console.log('Service pairs count:', servicePairs.length);
+        } else {
+            console.log('No service pairs data available');
         }
     }, [servicePairs]);
 
@@ -146,6 +177,13 @@ export const TopologyPage: React.FC = () => {
             totalErrors: Math.round(totalErrors * 100) / 100,
         };
     }, [servicePairs]);
+
+    // Graph data processing moved to ServiceGraph component
+
+    // Graph event handlers
+    const handleNodeClick = (nodeId: string) => {
+        console.log('Node clicked:', nodeId);
+    };
 
     // Manual refresh function
     const handleManualRefresh = () => {
@@ -226,259 +264,355 @@ export const TopologyPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background flex flex-col">
             <Navbar />
-            <div className="container mx-auto px-4 py-6">
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
-                            <Waypoints className="h-6 w-6" />
-                            <h1 className="text-2xl font-bold">
-                                Service Graph
-                            </h1>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">
-                                Refresh:
-                            </span>
-                            <Select
-                                value={refreshInterval.toString()}
-                                onValueChange={(value) =>
-                                    setRefreshInterval(Number(value))
-                                }
-                            >
-                                <SelectTrigger className="w-32">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {refreshIntervals.map((interval) => (
-                                        <SelectItem
-                                            key={interval.value}
-                                            value={interval.value.toString()}
-                                        >
-                                            {interval.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {refreshInterval === 0 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleManualRefresh}
-                                    disabled={isLoading}
-                                    className="px-3 cursor-pointer"
-                                >
-                                    <RefreshCw
-                                        className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
-                                    />
-                                </Button>
-                            )}
-                        </div>
+            {currentView === 'graph' ? (
+                // No container constraints for graph view - fill entire viewport
+                <div className="flex-1 relative overflow-hidden">
+                    {/* Toggle button overlay */}
+                    <div className="absolute top-4 right-4 z-10">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentView('table')}
+                            className="flex items-center gap-2 bg-background/80 backdrop-blur-sm"
+                        >
+                            <List className="h-4 w-4" />
+                            Show Adjacency List
+                        </Button>
                     </div>
-                    <p className="text-muted-foreground">
-                        Service-to-service communication metrics across your
-                        mesh
-                    </p>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Service Pairs
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">
-                                {stats.totalPairs}
+                    {/* Graph container filling entire remaining space with theme-aware background */}
+                    <div
+                        className="graph-canvas-container"
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                        }}
+                    >
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin" />
+                                <span className="ml-2">Loading graph...</span>
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Total Request Rate
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">
-                                {stats.totalRequests}{' '}
-                                <span className="text-sm font-normal text-muted-foreground">
-                                    req/s
-                                </span>
+                        ) : error ? (
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                                <AlertTriangle className="h-8 w-8 mr-2" />
+                                <span>Failed to load graph data</span>
                             </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Total Error Rate
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">
-                                {stats.totalErrors}{' '}
-                                <span className="text-sm font-normal text-muted-foreground">
-                                    err/s
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Activity className="h-5 w-5" />
-                            Service Communication Graph
-                        </CardTitle>
-                        <CardDescription>
-                            Service-to-service metrics (last 5 minutes)
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {isLoading && (
-                            <div className="flex items-center justify-center py-8">
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                                <span className="ml-2">
-                                    Loading service graph metrics...
-                                </span>
-                            </div>
+                        ) : (
+                            <ServiceGraph
+                                key={themeKey} // Force re-render on theme change
+                                onNodeClick={handleNodeClick}
+                                fullScreen={true}
+                            />
                         )}
-
-                        {error && (
-                            <div className="flex items-center justify-center py-8 text-muted-foreground">
-                                <AlertTriangle className="h-5 w-5 mr-2" />
-                                <span>
-                                    Failed to load service graph metrics
-                                </span>
-                            </div>
-                        )}
-
-                        {!isLoading && !error && servicePairs && (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Source</TableHead>
-                                        <TableHead className="w-12"></TableHead>
-                                        <TableHead>Destination</TableHead>
-                                        <TableHead className="text-right">
-                                            Request Rate
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            Error Rate
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {servicePairs.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={5}
-                                                className="text-center py-8 text-muted-foreground"
-                                            >
-                                                No service communication
-                                                detected
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        servicePairs.map((pair, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>
-                                                    <div className="space-y-1">
-                                                        <div className="font-medium">
-                                                            {getServiceDisplayName(
-                                                                pair.sourceService,
-                                                                pair.sourceNamespace,
-                                                                pair.sourceCluster
-                                                            )}
-                                                        </div>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            {pair.sourceNamespace && (
-                                                                <span>
-                                                                    {
-                                                                        pair.sourceNamespace
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                            {pair.sourceCluster &&
-                                                                pair.sourceCluster !==
-                                                                    pair.sourceNamespace && (
-                                                                    <span>
-                                                                        {' '}
-                                                                        •{' '}
-                                                                        {
-                                                                            pair.sourceCluster
-                                                                        }
-                                                                    </span>
-                                                                )}
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="space-y-1">
-                                                        <div className="font-medium">
-                                                            {getServiceDisplayName(
-                                                                pair.destinationService,
-                                                                pair.destinationNamespace,
-                                                                pair.destinationCluster
-                                                            )}
-                                                        </div>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            {pair.destinationNamespace && (
-                                                                <span>
-                                                                    {
-                                                                        pair.destinationNamespace
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                            {pair.destinationCluster &&
-                                                                pair.destinationCluster !==
-                                                                    pair.destinationNamespace && (
-                                                                    <span>
-                                                                        {' '}
-                                                                        •{' '}
-                                                                        {
-                                                                            pair.destinationCluster
-                                                                        }
-                                                                    </span>
-                                                                )}
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Badge variant="secondary">
-                                                        {formatRate(
-                                                            pair.requestRate
-                                                        )}{' '}
-                                                        req/s
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Badge
-                                                        variant={getErrorRateBadgeVariant(
-                                                            pair.errorRate
-                                                        )}
+                    </div>
+                </div>
+            ) : (
+                // Container constraints only for table view
+                <div className="container mx-auto px-4 py-6 flex-1 flex flex-col">
+                    {currentView === 'table' && (
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-3">
+                                    <Waypoints className="h-6 w-6" />
+                                    <h1 className="text-2xl font-bold">
+                                        Service Graph
+                                    </h1>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">
+                                        Refresh:
+                                    </span>
+                                    <Select
+                                        value={refreshInterval.toString()}
+                                        onValueChange={(value) =>
+                                            setRefreshInterval(Number(value))
+                                        }
+                                    >
+                                        <SelectTrigger className="w-32">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {refreshIntervals.map(
+                                                (interval) => (
+                                                    <SelectItem
+                                                        key={interval.value}
+                                                        value={interval.value.toString()}
                                                     >
-                                                        {formatRate(
-                                                            pair.errorRate
-                                                        )}{' '}
-                                                        err/s
-                                                    </Badge>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
+                                                        {interval.label}
+                                                    </SelectItem>
+                                                )
+                                            )}
+                                        </SelectContent>
+                                    </Select>
+                                    {refreshInterval === 0 && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleManualRefresh}
+                                            disabled={isLoading}
+                                            className="px-3 cursor-pointer"
+                                        >
+                                            <RefreshCw
+                                                className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+                                            />
+                                        </Button>
                                     )}
-                                </TableBody>
-                            </Table>
+                                </div>
+                            </div>
+                            <p className="text-muted-foreground">
+                                Service-to-service communication metrics across
+                                your mesh
+                            </p>
+                        </div>
+                    )}
+
+                    {currentView === 'table' && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium">
+                                        Service Pairs
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {stats.totalPairs}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium">
+                                        Total Request Rate
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {stats.totalRequests}{' '}
+                                        <span className="text-sm font-normal text-muted-foreground">
+                                            req/s
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-medium">
+                                        Total Error Rate
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">
+                                        {stats.totalErrors}{' '}
+                                        <span className="text-sm font-normal text-muted-foreground">
+                                            err/s
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+
+                    <div className="flex-1 flex flex-col">
+                        {currentView === 'table' && (
+                            <div className="flex-1 flex flex-col">
+                                <Card className="h-full flex flex-col">
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <List className="h-5 w-5" />
+                                                    Adjacency List
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    Service-to-service metrics
+                                                    (last 5 minutes)
+                                                </CardDescription>
+                                            </div>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    setCurrentView('graph')
+                                                }
+                                                className="flex items-center gap-2"
+                                            >
+                                                <Network className="h-4 w-4" />
+                                                Show Graph View
+                                            </Button>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="flex-1 overflow-auto">
+                                        {isLoading && (
+                                            <div className="flex items-center justify-center py-8">
+                                                <Loader2 className="h-6 w-6 animate-spin" />
+                                                <span className="ml-2">
+                                                    Loading service graph
+                                                    metrics...
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {error && (
+                                            <div className="flex items-center justify-center py-8 text-muted-foreground">
+                                                <AlertTriangle className="h-5 w-5 mr-2" />
+                                                <span>
+                                                    Failed to load service graph
+                                                    metrics
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {!isLoading &&
+                                            !error &&
+                                            servicePairs && (
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>
+                                                                Source
+                                                            </TableHead>
+                                                            <TableHead className="w-12"></TableHead>
+                                                            <TableHead>
+                                                                Destination
+                                                            </TableHead>
+                                                            <TableHead className="text-right">
+                                                                Request Rate
+                                                            </TableHead>
+                                                            <TableHead className="text-right">
+                                                                Error Rate
+                                                            </TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {servicePairs.length ===
+                                                        0 ? (
+                                                            <TableRow>
+                                                                <TableCell
+                                                                    colSpan={5}
+                                                                    className="text-center py-8 text-muted-foreground"
+                                                                >
+                                                                    No service
+                                                                    communication
+                                                                    detected
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ) : (
+                                                            servicePairs.map(
+                                                                (
+                                                                    pair,
+                                                                    index
+                                                                ) => (
+                                                                    <TableRow
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                    >
+                                                                        <TableCell>
+                                                                            <div className="space-y-1">
+                                                                                <div className="font-medium">
+                                                                                    {getServiceDisplayName(
+                                                                                        pair.sourceService,
+                                                                                        pair.sourceNamespace,
+                                                                                        pair.sourceCluster
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="text-sm text-muted-foreground">
+                                                                                    {pair.sourceNamespace && (
+                                                                                        <span>
+                                                                                            {
+                                                                                                pair.sourceNamespace
+                                                                                            }
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {pair.sourceCluster &&
+                                                                                        pair.sourceCluster !==
+                                                                                            pair.sourceNamespace && (
+                                                                                            <span>
+                                                                                                {' '}
+                                                                                                •{' '}
+                                                                                                {
+                                                                                                    pair.sourceCluster
+                                                                                                }
+                                                                                            </span>
+                                                                                        )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-center">
+                                                                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            <div className="space-y-1">
+                                                                                <div className="font-medium">
+                                                                                    {getServiceDisplayName(
+                                                                                        pair.destinationService,
+                                                                                        pair.destinationNamespace,
+                                                                                        pair.destinationCluster
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="text-sm text-muted-foreground">
+                                                                                    {pair.destinationNamespace && (
+                                                                                        <span>
+                                                                                            {
+                                                                                                pair.destinationNamespace
+                                                                                            }
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {pair.destinationCluster &&
+                                                                                        pair.destinationCluster !==
+                                                                                            pair.destinationNamespace && (
+                                                                                            <span>
+                                                                                                {' '}
+                                                                                                •{' '}
+                                                                                                {
+                                                                                                    pair.destinationCluster
+                                                                                                }
+                                                                                            </span>
+                                                                                        )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <Badge variant="secondary">
+                                                                                {formatRate(
+                                                                                    pair.requestRate
+                                                                                )}{' '}
+                                                                                req/s
+                                                                            </Badge>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <Badge
+                                                                                variant={getErrorRateBadgeVariant(
+                                                                                    pair.errorRate
+                                                                                )}
+                                                                            >
+                                                                                {formatRate(
+                                                                                    pair.errorRate
+                                                                                )}{' '}
+                                                                                err/s
+                                                                            </Badge>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )
+                                                            )
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            )}
+                                    </CardContent>
+                                </Card>
+                            </div>
                         )}
-                    </CardContent>
-                </Card>
-            </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

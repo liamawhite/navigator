@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Workflow
+
+**Build Verification**: After making UI changes, always run `make build-navctl-dev` instead of `npm run build` to verify builds correctly. This builds the complete navctl binary with embedded UI for easier manual testing.
+
 ## Architecture Overview
 
 Navigator is an edge computing platform that provides Kubernetes service discovery and proxy configuration analysis through a distributed architecture of manager, edge, and CLI components.
@@ -428,6 +432,52 @@ All HTTP and gRPC requests automatically receive:
 - Edge tests use fake Kubernetes clients with `fake.NewSimpleClientset()`
 - Test files follow Go conventions: `*_test.go`
 - Tests use build tags: `go test -tags=test`
+
+### UI Testing and Debugging
+For debugging UI issues, especially graph visualization problems, use Playwright for browser automation:
+
+#### Setup Playwright for UI Testing
+```bash
+# Install Playwright as dev dependency in UI directory
+cd ui
+npm install --save-dev @playwright/test
+
+# Install Chromium browser (avoids permission issues vs Chrome)
+npx playwright install chromium
+```
+
+#### Debug UI Issues with MCP Playwright Tools
+1. **Start navctl server in background**:
+   ```bash
+   ./bin/navctl local --metrics-endpoint http://localhost:30090 --log-level debug --no-browser
+   ```
+
+2. **Use MCP Playwright tools** (if available in Claude session):
+   ```bash
+   # Navigate to page
+   mcp__playwright__browser_navigate http://localhost:8082/topology
+   
+   # Take screenshot for visual debugging  
+   mcp__playwright__browser_take_screenshot
+   
+   # Check console messages for JavaScript errors
+   mcp__playwright__browser_console_messages
+   
+   # Take page snapshot for DOM structure
+   mcp__playwright__browser_snapshot
+   ```
+
+#### Common UI Debug Patterns
+- **Graph rendering issues**: Check console logs for React component errors, WebGL issues, or data format problems
+- **API data flow**: Verify service pairs data is fetched and transformed correctly
+- **Theme problems**: Look for missing CSS properties or undefined theme object references
+- **Canvas sizing**: Ensure graph containers have proper dimensions using absolute positioning for WebGL
+
+#### Troubleshooting Graph Visualization
+- **Blank screen**: Usually indicates theme property errors or missing required Reagraph properties
+- **Loading forever**: Check if data transformation is working (nodes/edges arrays populated)
+- **JavaScript errors**: Often theme-related - try removing theme prop temporarily
+- **No data**: Verify metrics endpoint is reachable and returning service pairs
 
 ### Component Architecture
 - **Manager**: Handles edge connections and aggregates cluster state

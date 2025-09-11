@@ -56,7 +56,7 @@ export const Navbar: React.FC = () => {
     }, []);
 
     return (
-        <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <nav className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto px-4">
                 <div className="flex h-16 items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -102,6 +102,9 @@ export const Navbar: React.FC = () => {
                                             >
                                                 <Waypoints className="h-4 w-4" />
                                                 Topology
+                                                <span className="text-xs text-muted-foreground">
+                                                    Alpha
+                                                </span>
                                             </Link>
                                         </Button>
                                     ) : (
@@ -119,6 +122,9 @@ export const Navbar: React.FC = () => {
                                                         <span className="flex items-center gap-2">
                                                             <Waypoints className="h-4 w-4" />
                                                             Topology
+                                                            <span className="text-xs text-muted-foreground">
+                                                                Alpha
+                                                            </span>
                                                         </span>
                                                     </Button>
                                                 </TooltipTrigger>

@@ -28,3 +28,5 @@ dist/
 
 *kubeconfig
 chart-downloader
+
+.playwright-mcp
