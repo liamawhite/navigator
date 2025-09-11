@@ -18,9 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useServiceGraphMetrics } from '../../hooks/useServiceGraphMetrics';
 import { transformMetricsToGraph } from '../../utils/graphTransform';
-import { D3GraphRenderer } from './D3GraphRenderer';
-import { GraphErrorBoundary } from './GraphErrorBoundary';
-import { GRAPH_CONFIG } from '../../utils/graphConfig';
+import { D3GraphRenderer, GraphErrorBoundary, GRAPH_CONFIG } from '../graph';
 
 interface Node {
     id: string;

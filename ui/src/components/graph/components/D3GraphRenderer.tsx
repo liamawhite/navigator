@@ -20,20 +20,20 @@ import {
     getSuccessRateColor,
     getEdgeWidth,
     getClusterColor,
-} from '../../utils/graphConfig';
+} from '../utils/graphConfig';
 import {
     NamespaceOptimizer,
     type GraphNode,
     type GraphEdge,
-} from '../../utils/namespaceOptimizer';
+} from '../utils/namespaceOptimizer';
 import {
     ForceSimulationManager,
     type D3Node,
     type D3Edge,
     type NamespaceData,
-} from '../../utils/forceSimulation';
-import { PerformanceMonitor } from '../../utils/performanceMonitor';
-import { getThemeColors } from '../../utils/graphConfig';
+} from '../utils/forceSimulation';
+import { PerformanceMonitor } from '../utils/performanceMonitor';
+import { getThemeColors } from '../utils/graphConfig';
 
 // Type definitions for better type safety
 interface ThemeColors {
