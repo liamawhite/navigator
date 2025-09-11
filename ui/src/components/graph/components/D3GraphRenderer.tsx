@@ -132,7 +132,10 @@ export const D3GraphRenderer: React.FC<D3GraphRendererProps> = ({
         // Monitor class changes on document element for theme updates
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                if (
+                    mutation.type === 'attributes' &&
+                    mutation.attributeName === 'class'
+                ) {
                     handleThemeChange();
                 }
             });
@@ -140,7 +143,7 @@ export const D3GraphRenderer: React.FC<D3GraphRendererProps> = ({
 
         observer.observe(document.documentElement, {
             attributes: true,
-            attributeFilter: ['class']
+            attributeFilter: ['class'],
         });
 
         return () => {
