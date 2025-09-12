@@ -19,7 +19,6 @@ import { Link } from 'react-router-dom';
 import { List } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-
     return (
         <nav className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto px-4">
@@ -34,11 +33,7 @@ export const Navbar: React.FC = () => {
                         </div>
 
                         <div className="flex items-center space-x-2">
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                asChild
-                            >
+                            <Button variant="secondary" size="sm" asChild>
                                 <Link
                                     to="/"
                                     className="flex items-center gap-2"
