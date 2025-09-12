@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: monolith
+  namespace: monolith
+  labels:
+    app.kubernetes.io/name: monolith
+    app.kubernetes.io/component: traffic-policy
+spec:
+  host: monolith.monolith.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

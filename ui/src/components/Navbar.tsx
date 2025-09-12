@@ -12,48 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useState, useEffect } from 'react';
 import { ModeToggle } from './mode-toggle';
 import { ClusterSyncStatus } from './ClusterSyncStatus';
 import { Button } from './ui/button';
-import {
-    Tooltip,
-    TooltipTrigger,
-    TooltipContent,
-    TooltipProvider,
-} from './ui/tooltip';
-import { useLocation, Link } from 'react-router-dom';
-import { List, Waypoints } from 'lucide-react';
-import { serviceApi } from '../utils/api';
-import type { v1alpha1ClusterSyncInfo } from '../types/generated/openapi-cluster_registry';
+import { Link } from 'react-router-dom';
+import { List } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-    const location = useLocation();
-    const isTopologyView = location.pathname.startsWith('/topology');
-    const [hasMetricsCapability, setHasMetricsCapability] = useState(false);
-    const [loading, setLoading] = useState(true);
-
-    const checkMetricsCapability = async () => {
-        try {
-            const clusterData = await serviceApi.listClusters();
-            const hasAnyMetrics = clusterData.some(
-                (cluster: v1alpha1ClusterSyncInfo) => cluster.metricsEnabled
-            );
-            setHasMetricsCapability(hasAnyMetrics);
-        } catch (error) {
-            console.error('Failed to check metrics capability:', error);
-            setHasMetricsCapability(false);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        checkMetricsCapability();
-        // Check every 30 seconds to stay in sync with cluster status
-        const interval = setInterval(checkMetricsCapability, 30000);
-        return () => clearInterval(interval);
-    }, []);
 
     return (
         <nav className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -70,9 +35,7 @@ export const Navbar: React.FC = () => {
 
                         <div className="flex items-center space-x-2">
                             <Button
-                                variant={
-                                    !isTopologyView ? 'secondary' : 'ghost'
-                                }
+                                variant="secondary"
                                 size="sm"
                                 asChild
                             >
@@ -84,62 +47,6 @@ export const Navbar: React.FC = () => {
                                     Service Registry
                                 </Link>
                             </Button>
-                            {!loading && (
-                                <>
-                                    {hasMetricsCapability ? (
-                                        <Button
-                                            variant={
-                                                isTopologyView
-                                                    ? 'secondary'
-                                                    : 'ghost'
-                                            }
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <Link
-                                                to="/topology"
-                                                className="flex items-center gap-2"
-                                            >
-                                                <Waypoints className="h-4 w-4" />
-                                                Topology
-                                                <span className="text-xs text-muted-foreground">
-                                                    Alpha
-                                                </span>
-                                            </Link>
-                                        </Button>
-                                    ) : (
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="opacity-50 cursor-not-allowed"
-                                                        onClick={(e) =>
-                                                            e.preventDefault()
-                                                        }
-                                                    >
-                                                        <span className="flex items-center gap-2">
-                                                            <Waypoints className="h-4 w-4" />
-                                                            Topology
-                                                            <span className="text-xs text-muted-foreground">
-                                                                Alpha
-                                                            </span>
-                                                        </span>
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>
-                                                        Topology view requires
-                                                        at least one cluster
-                                                        with metrics enabled
-                                                    </p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    )}
-                                </>
-                            )}
                         </div>
                     </div>
 

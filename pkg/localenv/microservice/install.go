@@ -44,9 +44,20 @@ func (k *KustomizeManager) InstallMicroservice(ctx context.Context) error {
 		return fmt.Errorf("failed to extract manifests: %w", err)
 	}
 
-	// Apply manifests using kubectl with 2 minute timeout
-	if err := k.applyManifests(ctx, tempDir, 2*time.Minute); err != nil {
+	// Apply manifests using kubectl with 2 minute timeout (without waiting for deployments)
+	if err := k.applyManifests(ctx, tempDir, 0); err != nil {
 		return fmt.Errorf("failed to apply manifests: %w", err)
+	}
+
+	// Install monolith namespace separately
+	monolithDir := filepath.Join(tempDir, "monolith")
+	if err := k.applyMonolithManifests(ctx, monolithDir, 0); err != nil {
+		return fmt.Errorf("failed to apply monolith manifests: %w", err)
+	}
+
+	// Wait for all deployments after everything is applied
+	if err := k.waitForDeployments(ctx, 2*time.Minute); err != nil {
+		return fmt.Errorf("failed waiting for deployments: %w", err)
 	}
 
 	k.logger.Info("Microservice installation completed successfully")
@@ -73,7 +84,13 @@ func (k *KustomizeManager) UninstallMicroservice(ctx context.Context) error {
 		return fmt.Errorf("failed to extract manifests: %w", err)
 	}
 
-	// Delete manifests using kubectl
+	// Delete monolith manifests first
+	monolithDir := filepath.Join(tempDir, "monolith")
+	if err := k.deleteMonolithManifests(ctx, monolithDir); err != nil {
+		k.logger.Warn("Failed to delete monolith manifests", "error", err)
+	}
+
+	// Delete main manifests using kubectl
 	if err := k.deleteManifests(ctx, tempDir); err != nil {
 		return fmt.Errorf("failed to delete manifests: %w", err)
 	}
@@ -205,9 +222,48 @@ func (k *KustomizeManager) deleteManifests(ctx context.Context, manifestDir stri
 	return nil
 }
 
+// applyMonolithManifests applies the monolith Kustomize manifests separately
+func (k *KustomizeManager) applyMonolithManifests(ctx context.Context, manifestDir string, timeout time.Duration) error {
+	args := []string{"apply", "-k", manifestDir}
+	if k.kubeconfig != "" {
+		args = append([]string{"--kubeconfig", k.kubeconfig}, args...)
+	}
+
+	k.logger.Info("Applying monolith Kustomize manifests", "directory", manifestDir)
+	cmd := exec.CommandContext(ctx, "kubectl", args...) //nolint:gosec // kubectl execution with controlled args
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		k.logger.Error("Failed to apply monolith manifests", "error", err, "output", string(output))
+		return fmt.Errorf("kubectl apply monolith failed: %w", err)
+	}
+
+	k.logger.Debug("kubectl apply monolith output", "output", string(output))
+	return nil
+}
+
+// deleteMonolithManifests deletes the monolith Kustomize manifests
+func (k *KustomizeManager) deleteMonolithManifests(ctx context.Context, manifestDir string) error {
+	args := []string{"delete", "-k", manifestDir, "--ignore-not-found=true"}
+	if k.kubeconfig != "" {
+		args = append([]string{"--kubeconfig", k.kubeconfig}, args...)
+	}
+
+	k.logger.Info("Deleting monolith Kustomize manifests", "directory", manifestDir)
+	cmd := exec.CommandContext(ctx, "kubectl", args...) //nolint:gosec // kubectl execution with controlled args
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		k.logger.Error("Failed to delete monolith manifests", "error", err, "output", string(output))
+		return fmt.Errorf("kubectl delete monolith failed: %w", err)
+	}
+
+	k.logger.Debug("kubectl delete monolith output", "output", string(output))
+	return nil
+}
+
 // waitForDeployments waits for all deployments to be ready
 func (k *KustomizeManager) waitForDeployments(ctx context.Context, timeout time.Duration) error {
 	deployments := []string{"frontend", "backend", "database"}
+	monolithDeployments := []string{"monolith"}
 
 	for _, deployment := range deployments {
 		args := []string{"rollout", "status", "deployment/" + deployment, "-n", "microservices", "--timeout=" + timeout.String()}
@@ -223,6 +279,23 @@ func (k *KustomizeManager) waitForDeployments(ctx context.Context, timeout time.
 			return fmt.Errorf("deployment %s not ready: %w", deployment, err)
 		}
 		k.logger.Info("Deployment is ready", "deployment", deployment)
+	}
+
+	// Wait for monolith deployments
+	for _, deployment := range monolithDeployments {
+		args := []string{"rollout", "status", "deployment/" + deployment, "-n", "monolith", "--timeout=" + timeout.String()}
+		if k.kubeconfig != "" {
+			args = append([]string{"--kubeconfig", k.kubeconfig}, args...)
+		}
+
+		k.logger.Info("Waiting for monolith deployment to be ready", "deployment", deployment, "timeout", timeout)
+		cmd := exec.CommandContext(ctx, "kubectl", args...) //nolint:gosec // kubectl execution with controlled args
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			k.logger.Error("Monolith deployment not ready", "deployment", deployment, "error", err, "output", string(output))
+			return fmt.Errorf("monolith deployment %s not ready: %w", deployment, err)
+		}
+		k.logger.Info("Monolith deployment is ready", "deployment", deployment)
 	}
 
 	return nil
