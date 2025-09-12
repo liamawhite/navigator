@@ -30,19 +30,19 @@ import (
 // Query templates for Prometheus
 var (
 	errorRateQueryTemplate = template.Must(template.New("errorRate").Parse(`
-sum by (
+max by (
   source_cluster, source_workload_namespace, source_canonical_service,
   destination_cluster, destination_service_namespace, destination_canonical_service
 )(
-  rate(istio_requests_total{reporter="destination", response_code=~"4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
+  rate(istio_requests_total{reporter=~"source|destination", response_code=~"0|4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 
 	requestRateQueryTemplate = template.Must(template.New("requestRate").Parse(`
-sum by (
+max by (
   source_cluster, source_workload_namespace, source_canonical_service,
   destination_cluster, destination_service_namespace, destination_canonical_service
 )(
-  rate(istio_requests_total{reporter="destination"{{.FilterClause}}}[{{.TimeRange}}])
+  rate(istio_requests_total{reporter=~"source|destination"{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 )
 
@@ -377,11 +377,9 @@ func (p *Provider) buildQueryFromTemplate(tmpl *template.Template, filters metri
 func (p *Provider) buildFilterClause(filters metrics.MeshMetricsFilters) string {
 	var clauses []string
 
-	// Always filter by the current cluster to improve query performance
-	if p.clusterName != "" {
-		clauses = append(clauses, fmt.Sprintf(`destination_cluster="%s"`, p.clusterName))
-	}
-
+	// For service connections, we want mesh-wide visibility
+	// Remove cluster filtering to see cross-cluster connections
+	
 	if len(filters.Namespaces) > 0 {
 		namespaces := strings.Join(filters.Namespaces, "|")
 		clauses = append(clauses, fmt.Sprintf(`destination_namespace=~"%s"`, namespaces))
