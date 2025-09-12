@@ -16,14 +16,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useService } from '../hooks/useServices';
 import { Navbar } from '../components/Navbar';
 import { ServiceConnectionsCard } from '../components/serviceregistry/ServiceConnectionsCard';
-import {
-    Server,
-    Database,
-    MapPin,
-    Hexagon,
-    Home,
-    Network,
-} from 'lucide-react';
+import { Server, Database, MapPin, Hexagon, Home, Network } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -47,23 +40,11 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { useState } from 'react';
 
 export const ServiceDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { data: service, isLoading, error } = useService(id!);
-    const [copiedItem, setCopiedItem] = useState<string | null>(null);
-
-    const copyToClipboard = async (text: string, itemId: string) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            setCopiedItem(itemId);
-            setTimeout(() => setCopiedItem(null), 2000);
-        } catch (err) {
-            console.error('Failed to copy text: ', err);
-        }
-    };
 
     if (isLoading) {
         return (
@@ -162,7 +143,6 @@ export const ServiceDetailPage: React.FC = () => {
     const uniqueClusters = [
         ...new Set(service.instances.map((i) => i.clusterName)),
     ];
-    const clusterCount = uniqueClusters.length;
 
     return (
         <div className="min-h-screen bg-background">

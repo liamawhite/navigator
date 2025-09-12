@@ -379,7 +379,7 @@ func (p *Provider) buildFilterClause(filters metrics.MeshMetricsFilters) string 
 
 	// For service connections, we want mesh-wide visibility
 	// Remove cluster filtering to see cross-cluster connections
-	
+
 	if len(filters.Namespaces) > 0 {
 		namespaces := strings.Join(filters.Namespaces, "|")
 		clauses = append(clauses, fmt.Sprintf(`destination_namespace=~"%s"`, namespaces))

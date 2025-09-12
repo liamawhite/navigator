@@ -50,7 +50,10 @@ export const ServiceConnectionsVisualization: React.FC<
     const containerRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const { theme } = useTheme();
-    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDark =
+        theme === 'dark' ||
+        (theme === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -75,13 +78,16 @@ export const ServiceConnectionsVisualization: React.FC<
         inbound.forEach((conn) => {
             // Skip nodes with less than 0.01 rps
             if ((conn.requestRate || 0) < 0.01) return;
-            
+
             const sourceService = conn.sourceService || 'unknown';
             const sourceNamespace = conn.sourceNamespace || 'unknown';
             const sourceId = `${sourceService}-${sourceNamespace}-${conn.sourceCluster}`;
-            
+
             // Show unknown services without namespace
-            const sourceName = sourceService === 'unknown' ? 'unknown' : `${sourceService}.${sourceNamespace}`;
+            const sourceName =
+                sourceService === 'unknown'
+                    ? 'unknown'
+                    : `${sourceService}.${sourceNamespace}`;
 
             nodes.push({
                 id: sourceId,
@@ -104,13 +110,16 @@ export const ServiceConnectionsVisualization: React.FC<
         outbound.forEach((conn) => {
             // Skip nodes with less than 0.01 rps
             if ((conn.requestRate || 0) < 0.01) return;
-            
+
             const destinationService = conn.destinationService || 'unknown';
             const destinationNamespace = conn.destinationNamespace || 'unknown';
             const targetId = `${destinationService}-${destinationNamespace}-${conn.destinationCluster}`;
-            
+
             // Show unknown services without namespace
-            const targetName = destinationService === 'unknown' ? 'unknown' : `${destinationService}.${destinationNamespace}`;
+            const targetName =
+                destinationService === 'unknown'
+                    ? 'unknown'
+                    : `${destinationService}.${destinationNamespace}`;
 
             nodes.push({
                 id: targetId,
@@ -168,14 +177,16 @@ export const ServiceConnectionsVisualization: React.FC<
         // Remove arrow markers for simplicity - just using lines now
 
         // Position nodes - group by namespace, then sort alphabetically within namespace
-        const inboundNodes = nodes.filter((n) => n.type === 'inbound')
+        const inboundNodes = nodes
+            .filter((n) => n.type === 'inbound')
             .sort((a, b) => {
                 if (a.namespace !== b.namespace) {
                     return (a.namespace || '').localeCompare(b.namespace || '');
                 }
                 return a.name.localeCompare(b.name);
             });
-        const outboundNodes = nodes.filter((n) => n.type === 'outbound')
+        const outboundNodes = nodes
+            .filter((n) => n.type === 'outbound')
             .sort((a, b) => {
                 if (a.namespace !== b.namespace) {
                     return (a.namespace || '').localeCompare(b.namespace || '');
@@ -185,17 +196,23 @@ export const ServiceConnectionsVisualization: React.FC<
 
         // Calculate max text width for inbound nodes (right-aligned)
         const maxInboundWidth = Math.max(
-            ...inboundNodes.map(node => 
-                Math.max(node.name.length, (node.cluster || '').length) * 8 + 10 // Less padding
-            ), 
+            ...inboundNodes.map(
+                (node) =>
+                    Math.max(node.name.length, (node.cluster || '').length) *
+                        8 +
+                    10 // Less padding
+            ),
             100 // smaller minimum space
         );
-        
+
         // Calculate max text width for outbound nodes (left-aligned)
         const maxOutboundWidth = Math.max(
-            ...outboundNodes.map(node => 
-                Math.max(node.name.length, (node.cluster || '').length) * 8 + 10 // Less padding
-            ), 
+            ...outboundNodes.map(
+                (node) =>
+                    Math.max(node.name.length, (node.cluster || '').length) *
+                        8 +
+                    10 // Less padding
+            ),
             100 // smaller minimum space
         );
 
@@ -223,7 +240,7 @@ export const ServiceConnectionsVisualization: React.FC<
         }
 
         // Calculate max request rate for relative sizing
-        const maxRequestRate = Math.max(...links.map(d => d.requestRate));
+        const maxRequestRate = Math.max(...links.map((d) => d.requestRate));
 
         // Create links
         const linkElements = svg
@@ -252,7 +269,6 @@ export const ServiceConnectionsVisualization: React.FC<
                 }
 
                 // No arrows, so no need for arrow buffer
-                const strokeWidth = Math.max(1, Math.min(8, d.requestRate / 2));
                 let sourceEdgeX, sourceEdgeY, targetEdgeX, targetEdgeY;
 
                 // Calculate direction vector
@@ -270,14 +286,21 @@ export const ServiceConnectionsVisualization: React.FC<
                     // Text node edge - point from center between service name and cluster name
                     const textBuffer = 12; // Smaller gap from text to arrow
                     const centerY = sourceNode.y + (sourceNode.cluster ? 3 : 0); // Offset to center between lines
-                    
+
                     // Recalculate direction from center point
                     const dxFromCenter = targetNode.x - sourceNode.x;
                     const dyFromCenter = targetNode.y - centerY;
-                    const distanceFromCenter = Math.sqrt(dxFromCenter * dxFromCenter + dyFromCenter * dyFromCenter);
-                    
-                    sourceEdgeX = sourceNode.x + (dxFromCenter / distanceFromCenter) * textBuffer;
-                    sourceEdgeY = centerY + (dyFromCenter / distanceFromCenter) * textBuffer;
+                    const distanceFromCenter = Math.sqrt(
+                        dxFromCenter * dxFromCenter +
+                            dyFromCenter * dyFromCenter
+                    );
+
+                    sourceEdgeX =
+                        sourceNode.x +
+                        (dxFromCenter / distanceFromCenter) * textBuffer;
+                    sourceEdgeY =
+                        centerY +
+                        (dyFromCenter / distanceFromCenter) * textBuffer;
                 }
 
                 // Target edge calculation
@@ -290,14 +313,19 @@ export const ServiceConnectionsVisualization: React.FC<
                     // Text node edge - point to center between service name and cluster name
                     const textBuffer = 12; // Gap from line to text
                     const centerY = targetNode.y + (targetNode.cluster ? 3 : 0); // Offset to center between lines
-                    
+
                     // Recalculate direction to center point
                     const dxToCenter = targetNode.x - sourceNode.x;
                     const dyToCenter = centerY - sourceNode.y;
-                    const distanceToCenter = Math.sqrt(dxToCenter * dxToCenter + dyToCenter * dyToCenter);
-                    
-                    targetEdgeX = targetNode.x - (dxToCenter / distanceToCenter) * textBuffer;
-                    targetEdgeY = centerY - (dyToCenter / distanceToCenter) * textBuffer;
+                    const distanceToCenter = Math.sqrt(
+                        dxToCenter * dxToCenter + dyToCenter * dyToCenter
+                    );
+
+                    targetEdgeX =
+                        targetNode.x -
+                        (dxToCenter / distanceToCenter) * textBuffer;
+                    targetEdgeY =
+                        centerY - (dyToCenter / distanceToCenter) * textBuffer;
                 }
 
                 // Create smooth curved path for funds-flow style
@@ -312,16 +340,18 @@ export const ServiceConnectionsVisualization: React.FC<
             .attr('fill', 'none')
             .attr('stroke', (d) => {
                 // Color based on success rate (inverted error rate)
-                const errorPercent = d.requestRate > 0 ? (d.errorRate / d.requestRate) * 100 : 0;
+                const errorPercent =
+                    d.requestRate > 0 ? (d.errorRate / d.requestRate) * 100 : 0;
                 const successPercent = 100 - errorPercent;
-                
-                if (successPercent >= 99) return colors.errorLow;     // Green for high success
-                if (successPercent >= 95) return colors.errorMed;    // Amber for medium success  
-                return colors.errorHigh;                             // Red for low success
+
+                if (successPercent >= 99) return colors.errorLow; // Green for high success
+                if (successPercent >= 95) return colors.errorMed; // Amber for medium success
+                return colors.errorHigh; // Red for low success
             })
             .attr('stroke-width', (d) => {
                 // Calculate thickness as percentage of max rate (1-8px range)
-                const relativeThickness = maxRequestRate > 0 ? (d.requestRate / maxRequestRate) : 0;
+                const relativeThickness =
+                    maxRequestRate > 0 ? d.requestRate / maxRequestRate : 0;
                 return Math.max(1, Math.min(8, relativeThickness * 8));
             })
             // No arrow markers needed
@@ -332,10 +362,7 @@ export const ServiceConnectionsVisualization: React.FC<
             .append('text')
             .attr('class', 'rate-label')
             .attr('x', 0) // Will be positioned by transform
-            .attr('y', (d) => {
-                // This will be overridden by the transform, but set a baseline
-                return 0;
-            })
+            .attr('y', 0) // Will be positioned by transform
             .attr('text-anchor', 'middle')
             .attr('font-size', '10px')
             .attr('fill', colors.text)
@@ -351,7 +378,7 @@ export const ServiceConnectionsVisualization: React.FC<
                     !targetNode.y
                 )
                     return '';
-                
+
                 // Replicate the same edge calculation logic from the path drawing
                 const dx = targetNode.x - sourceNode.x;
                 const dy = targetNode.y - sourceNode.y;
@@ -369,9 +396,16 @@ export const ServiceConnectionsVisualization: React.FC<
                     const centerY = sourceNode.y + (sourceNode.cluster ? 3 : 0);
                     const dxFromCenter = targetNode.x - sourceNode.x;
                     const dyFromCenter = targetNode.y - centerY;
-                    const distanceFromCenter = Math.sqrt(dxFromCenter * dxFromCenter + dyFromCenter * dyFromCenter);
-                    sourceEdgeX = sourceNode.x + (dxFromCenter / distanceFromCenter) * textBuffer;
-                    sourceEdgeY = centerY + (dyFromCenter / distanceFromCenter) * textBuffer;
+                    const distanceFromCenter = Math.sqrt(
+                        dxFromCenter * dxFromCenter +
+                            dyFromCenter * dyFromCenter
+                    );
+                    sourceEdgeX =
+                        sourceNode.x +
+                        (dxFromCenter / distanceFromCenter) * textBuffer;
+                    sourceEdgeY =
+                        centerY +
+                        (dyFromCenter / distanceFromCenter) * textBuffer;
                 }
 
                 // Target edge calculation
@@ -384,33 +418,40 @@ export const ServiceConnectionsVisualization: React.FC<
                     const centerY = targetNode.y + (targetNode.cluster ? 3 : 0);
                     const dxToCenter = targetNode.x - sourceNode.x;
                     const dyToCenter = centerY - sourceNode.y;
-                    const distanceToCenter = Math.sqrt(dxToCenter * dxToCenter + dyToCenter * dyToCenter);
-                    targetEdgeX = targetNode.x - (dxToCenter / distanceToCenter) * textBuffer;
-                    targetEdgeY = centerY - (dyToCenter / distanceToCenter) * textBuffer;
+                    const distanceToCenter = Math.sqrt(
+                        dxToCenter * dxToCenter + dyToCenter * dyToCenter
+                    );
+                    targetEdgeX =
+                        targetNode.x -
+                        (dxToCenter / distanceToCenter) * textBuffer;
+                    targetEdgeY =
+                        centerY - (dyToCenter / distanceToCenter) * textBuffer;
                 }
 
                 // Find a middle ground between flat curve middle and steep endpoints
                 const edgeDx = targetEdgeX - sourceEdgeX;
                 const edgeDy = targetEdgeY - sourceEdgeY;
-                
+
                 // Use 95% of the edge direction to get closer to curve feel without being too flat
                 const adjustedDy = edgeDy * 0.95;
-                
-                const flowAngle = Math.atan2(adjustedDy, edgeDx) * (180 / Math.PI);
-                
+
+                const flowAngle =
+                    Math.atan2(adjustedDy, edgeDx) * (180 / Math.PI);
+
                 // Get midpoint for rotation center (centered on line - 15 offset)
                 const midX = (sourceEdgeX + targetEdgeX) / 2;
                 const midY = (sourceEdgeY + targetEdgeY) / 2 - 15;
-                
+
                 return `translate(${midX}, ${midY}) rotate(${flowAngle})`;
             })
             .text((d) => {
                 if (d.requestRate < 0.01) return '';
-                
+
                 // Calculate success rate
-                const errorPercent = d.requestRate > 0 ? (d.errorRate / d.requestRate) * 100 : 0;
+                const errorPercent =
+                    d.requestRate > 0 ? (d.errorRate / d.requestRate) * 100 : 0;
                 const successPercent = 100 - errorPercent;
-                
+
                 // Format success rate to appropriate precision
                 let successRateStr;
                 if (successPercent >= 100) {
@@ -420,7 +461,7 @@ export const ServiceConnectionsVisualization: React.FC<
                 } else {
                     successRateStr = successPercent.toFixed(2);
                 }
-                
+
                 return `${d.requestRate.toFixed(2)} rps · ${successRateStr}%`;
             });
 
@@ -432,9 +473,17 @@ export const ServiceConnectionsVisualization: React.FC<
             .append('g')
             .attr('class', 'node')
             .attr('transform', (d) => `translate(${d.x || 0}, ${d.y || 0})`)
-            .style('cursor', (d) => d.type !== 'center' && d.name !== 'unknown' ? 'pointer' : 'default')
+            .style('cursor', (d) =>
+                d.type !== 'center' && d.name !== 'unknown'
+                    ? 'pointer'
+                    : 'default'
+            )
             .on('click', (event, d) => {
-                if (d.type !== 'center' && d.name !== 'unknown' && d.namespace) {
+                if (
+                    d.type !== 'center' &&
+                    d.name !== 'unknown' &&
+                    d.namespace
+                ) {
                     // Parse service name from the display format (service.namespace)
                     const serviceName = d.name.split('.')[0];
                     navigate(`/services/${d.namespace}:${serviceName}`);
@@ -443,7 +492,7 @@ export const ServiceConnectionsVisualization: React.FC<
 
         // Add node shapes - only circles for center nodes
         nodeElements
-            .filter(d => d.type === 'center')
+            .filter((d) => d.type === 'center')
             .append('circle')
             .attr('r', 45)
             .attr('fill', colors.center)
@@ -453,33 +502,36 @@ export const ServiceConnectionsVisualization: React.FC<
 
         // Add hover effects to edge nodes only
         nodeElements
-            .filter(d => d.type !== 'center' && d.name !== 'unknown')
-            .on('mouseenter', function(event, d) {
+            .filter((d) => d.type !== 'center' && d.name !== 'unknown')
+            .on('mouseenter', function (_event, _d) {
                 const nodeGroup = d3.select(this);
-                
+
                 // Stop any running transitions first
                 nodeGroup.selectAll('*').transition().duration(0);
-                
+
                 // Hover effect for text - much brighter for better contrast
-                nodeGroup.selectAll('text')
+                nodeGroup
+                    .selectAll('text')
                     .transition()
                     .duration(150)
                     .attr('fill', isDark ? '#f3f4f6' : '#111827'); // gray-100 / gray-900
             })
-            .on('mouseleave', function(event, d) {
+            .on('mouseleave', function (_event, _d) {
                 const nodeGroup = d3.select(this);
-                
+
                 // Stop any running transitions first
                 nodeGroup.selectAll('*').transition().duration(0);
-                
+
                 // Reset text colors
-                nodeGroup.select('text:first-of-type')
+                nodeGroup
+                    .select('text:first-of-type')
                     .transition()
                     .duration(150)
                     .attr('fill', colors.textMuted);
-                
+
                 // Reset cluster badge
-                nodeGroup.select('text:last-of-type')
+                nodeGroup
+                    .select('text:last-of-type')
                     .transition()
                     .duration(150)
                     .attr('fill', colors.muted);
@@ -500,7 +552,9 @@ export const ServiceConnectionsVisualization: React.FC<
             .attr('font-weight', (d) =>
                 d.type === 'center' ? 'bold' : 'medium'
             )
-            .attr('fill', (d) => d.type === 'center' ? colors.text : colors.textMuted)
+            .attr('fill', (d) =>
+                d.type === 'center' ? colors.text : colors.textMuted
+            )
             .text((d) => d.name);
 
         // Add cluster labels for non-center nodes
@@ -508,7 +562,9 @@ export const ServiceConnectionsVisualization: React.FC<
             .filter((d) => d.type !== 'center' && d.cluster)
             .append('text')
             .attr('dy', 12) // Below service name
-            .attr('text-anchor', (d) => d.type === 'inbound' ? 'end' : 'start') // Match service name alignment
+            .attr('text-anchor', (d) =>
+                d.type === 'inbound' ? 'end' : 'start'
+            ) // Match service name alignment
             .attr('font-size', '10px')
             .attr('fill', colors.muted)
             .text((d) => d.cluster || '');

@@ -42,7 +42,8 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
         refetchInterval: 30000, // Refresh every 30 seconds
     });
 
-    const hasAnyMetrics = clusters?.some((cluster) => cluster.metricsEnabled) ?? false;
+    const hasAnyMetrics =
+        clusters?.some((cluster) => cluster.metricsEnabled) ?? false;
     const showCollapsed = !clustersLoading && !hasAnyMetrics;
 
     return (
@@ -52,11 +53,17 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                     <div className="flex items-center gap-2">
                         <Network className="w-5 h-5 text-purple-600" />
                         Service Connections
+                        <sup className="text-xs text-purple-500 font-medium -ml-1.5">
+                            alpha
+                        </sup>
                     </div>
                     {showCollapsed && (
                         <div className="flex items-center gap-1.5 text-muted-foreground text-sm font-normal">
                             <AlertCircle className="w-4 h-4" />
-                            <span>Requires metrics to be enabled on at least one cluster</span>
+                            <span>
+                                Requires metrics to be enabled on at least one
+                                cluster
+                            </span>
                         </div>
                     )}
                 </CardTitle>
@@ -80,7 +87,8 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                             </p>
                         </div>
                     ) : connections ? (
-                        connections.inbound?.length || connections.outbound?.length ? (
+                        connections.inbound?.length ||
+                        connections.outbound?.length ? (
                             <ServiceConnectionsVisualization
                                 serviceName={serviceName}
                                 namespace={namespace}
@@ -94,8 +102,8 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                                     No service connections found
                                 </p>
                                 <p className="text-sm text-center mt-2">
-                                    This service has no inbound or outbound traffic
-                                    in the last 5 minutes
+                                    This service has no inbound or outbound
+                                    traffic in the last 5 minutes
                                 </p>
                             </div>
                         )
