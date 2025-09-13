@@ -51,13 +51,10 @@
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_close",
       "mcp__playwright__browser_evaluate",
-      "Bash(pkill:*)",
+      "mcp__playwright__browser_type",
       "mcp__playwright__browser_console_messages",
       "Bash(npm ls:*)",
-      "Bash(npm view:*)",
-      "Read(/var/folders/w4/3k18wr5d24zfmwsn_lkdg8q40000gn/T/TemporaryItems/NSIRD_screencaptureui_maODsa/**)",
-      "Read(/var/folders/w4/3k18wr5d24zfmwsn_lkdg8q40000gn/T/TemporaryItems/NSIRD_screencaptureui_HuIB2Z/**)",
-      "mcp__playwright__browser_type"
+      "Bash(npm view:*)"
     ],
     "deny": []
   },
