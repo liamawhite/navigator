@@ -42,9 +42,9 @@ func NewMetricsService(connectionManager providers.ReadOptimizedConnectionManage
 	}
 }
 
-// GetServiceGraphMetrics returns service-to-service graph metrics across the mesh
-func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *frontendv1alpha1.GetServiceGraphMetricsRequest) (*frontendv1alpha1.GetServiceGraphMetricsResponse, error) {
-	m.logger.Debug("getting service mesh metrics", "filters", req)
+// GetServiceConnections returns inbound and outbound connections for a specific service
+func (m *MetricsService) GetServiceConnections(ctx context.Context, req *frontendv1alpha1.GetServiceConnectionsRequest) (*frontendv1alpha1.GetServiceConnectionsResponse, error) {
+	m.logger.Debug("getting service connections", "service_name", req.ServiceName, "namespace", req.Namespace)
 
 	// Get all connected clusters
 	connectionInfos := m.connectionManager.GetConnectionInfo()
@@ -57,7 +57,7 @@ func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *fronte
 		healthyClusters = append(healthyClusters, clusterID)
 	}
 
-	// Query clusters in parallel
+	// Query clusters in parallel using the targeted service connections method
 	type clusterResult struct {
 		clusterID string
 		pairs     []*typesv1alpha1.ServicePairMetrics
@@ -72,17 +72,30 @@ func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *fronte
 		go func(cID string) {
 			defer wg.Done()
 
-			// Request mesh metrics from this cluster using the dedicated service
-			meshMetrics, err := m.meshMetricsProvider.GetServiceGraphMetrics(ctx, cID, req)
+			// Request targeted service connections from this cluster
+			serviceConnectionsMetrics, err := m.meshMetricsProvider.GetServiceConnections(ctx, cID, req)
 			if err != nil {
-				m.logger.Error("failed to get mesh metrics from cluster", "cluster_id", cID, "error", err)
+				m.logger.Error("failed to get service connections from cluster", "cluster_id", cID, "error", err)
 				results <- clusterResult{clusterID: cID, err: err}
 				return
 			}
 
-			if meshMetrics != nil && len(meshMetrics.Pairs) > 0 {
-				// Use the shared types directly - no conversion needed
-				results <- clusterResult{clusterID: cID, pairs: meshMetrics.Pairs}
+			if serviceConnectionsMetrics != nil && len(serviceConnectionsMetrics.Pairs) > 0 {
+				// Convert from metrics.ServiceGraphMetrics to []*typesv1alpha1.ServicePairMetrics
+				var pairs []*typesv1alpha1.ServicePairMetrics
+				for _, pair := range serviceConnectionsMetrics.Pairs {
+					pairs = append(pairs, &typesv1alpha1.ServicePairMetrics{
+						SourceCluster:        pair.SourceCluster,
+						SourceNamespace:      pair.SourceNamespace,
+						SourceService:        pair.SourceService,
+						DestinationCluster:   pair.DestinationCluster,
+						DestinationNamespace: pair.DestinationNamespace,
+						DestinationService:   pair.DestinationService,
+						ErrorRate:            pair.ErrorRate,
+						RequestRate:          pair.RequestRate,
+					})
+				}
+				results <- clusterResult{clusterID: cID, pairs: pairs}
 			} else {
 				results <- clusterResult{clusterID: cID, pairs: nil}
 			}
@@ -104,37 +117,11 @@ func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *fronte
 		}
 	}
 
-	m.logger.Debug("retrieved mesh metrics", "clusters_queried", len(clustersQueried), "total_pairs", len(allPairs))
-
-	return &frontendv1alpha1.GetServiceGraphMetricsResponse{
-		Pairs:           allPairs,
-		Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
-		ClustersQueried: clustersQueried,
-	}, nil
-}
-
-// GetServiceConnections returns inbound and outbound connections for a specific service
-func (m *MetricsService) GetServiceConnections(ctx context.Context, req *frontendv1alpha1.GetServiceConnectionsRequest) (*frontendv1alpha1.GetServiceConnectionsResponse, error) {
-	m.logger.Debug("getting service connections", "service_name", req.ServiceName, "namespace", req.Namespace)
-
-	// Convert to graph metrics request to reuse existing infrastructure
-	graphReq := &frontendv1alpha1.GetServiceGraphMetricsRequest{
-		StartTime: req.StartTime,
-		EndTime:   req.EndTime,
-		// No namespace or cluster filters - we want all connections across the mesh
-	}
-
-	// Get all service mesh metrics
-	graphResp, err := m.GetServiceGraphMetrics(ctx, graphReq)
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter and categorize connections for this specific service
+	// Separate inbound and outbound connections
 	var inbound []*typesv1alpha1.ServicePairMetrics
 	var outbound []*typesv1alpha1.ServicePairMetrics
 
-	for _, pair := range graphResp.Pairs {
+	for _, pair := range allPairs {
 		// Inbound: services calling this service
 		if pair.DestinationService == req.ServiceName && pair.DestinationNamespace == req.Namespace {
 			inbound = append(inbound, pair)
@@ -145,16 +132,18 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 		}
 	}
 
-	m.logger.Debug("filtered service connections",
+	m.logger.Debug("retrieved targeted service connections",
 		"service_name", req.ServiceName,
 		"namespace", req.Namespace,
+		"clusters_queried", len(clustersQueried),
+		"total_pairs", len(allPairs),
 		"inbound_count", len(inbound),
 		"outbound_count", len(outbound))
 
 	return &frontendv1alpha1.GetServiceConnectionsResponse{
 		Inbound:         inbound,
 		Outbound:        outbound,
-		Timestamp:       graphResp.Timestamp,
-		ClustersQueried: graphResp.ClustersQueried,
+		Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		ClustersQueried: clustersQueried,
 	}, nil
 }

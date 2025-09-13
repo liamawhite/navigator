@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 
 	"github.com/liamawhite/navigator/edge/pkg/config"
+	"github.com/liamawhite/navigator/edge/pkg/interfaces"
 	"github.com/liamawhite/navigator/edge/pkg/kubernetes"
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
 	"github.com/liamawhite/navigator/edge/pkg/metrics/prometheus"
@@ -274,25 +275,25 @@ func startEdgeServiceForContext(ctx context.Context, contextName string, logger 
 	proxyLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "proxy")
 	proxyService := proxy.NewProxyService(adminClient, proxyLogger)
 
-	// Create metrics provider with cluster name for efficient filtering
+	// Create metrics provider directly
 	metricsLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "metrics")
-	metricsRegistry := metrics.NewRegistry()
-	prometheus.RegisterWithRegistry(metricsRegistry)
+	var metricsProvider interfaces.MetricsProvider
+	metricsConfig = cfg.GetMetricsConfig()
 
-	// Get cluster name from Istio for metrics filtering
-	var clusterName string
-	if cfg.GetMetricsConfig().Enabled {
-		clusterName, err = k8sClient.GetClusterName(context.Background())
-		if err != nil {
+	if metricsConfig.Enabled && metricsConfig.Type == metrics.ProviderTypePrometheus {
+		// Get cluster name from Istio for metrics filtering
+		var clusterName string
+		if clusterName, err = k8sClient.GetClusterName(context.Background()); err != nil {
 			metricsLogger.Warn("failed to get cluster name from istiod, metrics will not be cluster-filtered", "error", err)
+			clusterName = ""
 		} else {
 			metricsLogger.Info("retrieved cluster name for metrics filtering", "cluster_name", clusterName)
 		}
-	}
 
-	metricsProvider, err := metricsRegistry.CreateWithClusterName(cfg.GetMetricsConfig(), metricsLogger, clusterName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create metrics provider for context '%s': %w", contextName, err)
+		metricsProvider, err = prometheus.Create(metricsConfig, metricsLogger, clusterName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create metrics provider for context '%s': %w", contextName, err)
+		}
 	}
 
 	// Create edge service

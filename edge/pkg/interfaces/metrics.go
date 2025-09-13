@@ -18,11 +18,13 @@ import (
 	"context"
 
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // MetricsProvider interface for dependency injection
 type MetricsProvider interface {
 	GetProviderInfo() metrics.ProviderInfo
-	GetServiceGraphMetrics(ctx context.Context, query metrics.MeshMetricsQuery) (*metrics.ServiceGraphMetrics, error)
+	GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime *timestamppb.Timestamp) (*typesv1alpha1.ServiceGraphMetrics, error)
 	Close() error
 }

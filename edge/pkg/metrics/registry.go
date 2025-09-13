@@ -104,7 +104,7 @@ func (n *nullProvider) GetProviderInfo() ProviderInfo {
 	return n.info
 }
 
-func (n *nullProvider) GetServiceGraphMetrics(ctx context.Context, query MeshMetricsQuery) (*ServiceGraphMetrics, error) {
+func (n *nullProvider) GetServiceConnections(ctx context.Context, serviceName, serviceNamespace string, filters MeshMetricsFilters) (*ServiceGraphMetrics, error) {
 	return nil, ErrNoData
 }
 

@@ -15,7 +15,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as d3 from 'd3';
-import { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
+import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
 import { useTheme } from '../theme-provider';
 
 interface ServiceConnectionsVisualizationProps {
@@ -76,7 +76,6 @@ export const ServiceConnectionsVisualization: React.FC<
 
         // Add inbound connections
         inbound.forEach((conn) => {
-            // Skip nodes with less than 0.01 rps
             if ((conn.requestRate || 0) < 0.01) return;
 
             const sourceService = conn.sourceService || 'unknown';
@@ -108,7 +107,6 @@ export const ServiceConnectionsVisualization: React.FC<
 
         // Add outbound connections
         outbound.forEach((conn) => {
-            // Skip nodes with less than 0.01 rps
             if ((conn.requestRate || 0) < 0.01) return;
 
             const destinationService = conn.destinationService || 'unknown';

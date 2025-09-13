@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // mockKubernetesClient implements the KubernetesClient interface for testing
@@ -92,8 +93,11 @@ func (m *mockMetricsProvider) GetProviderInfo() metrics.ProviderInfo {
 	}
 }
 
-func (m *mockMetricsProvider) GetServiceGraphMetrics(ctx context.Context, query metrics.MeshMetricsQuery) (*metrics.ServiceGraphMetrics, error) {
-	return nil, m.err
+func (m *mockMetricsProvider) GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime *timestamppb.Timestamp) (*types.ServiceGraphMetrics, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &types.ServiceGraphMetrics{}, nil
 }
 
 func (m *mockMetricsProvider) Close() error {

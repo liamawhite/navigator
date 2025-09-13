@@ -15,11 +15,14 @@
 package prometheus
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Provider implements the metrics.Provider interface for Prometheus
@@ -81,6 +84,33 @@ func (p *Provider) GetProviderInfo() metrics.ProviderInfo {
 // GetClusterName returns the current cluster name
 func (p *Provider) GetClusterName() string {
 	return p.clusterName
+}
+
+// GetServiceConnections (new interface) retrieves service connection metrics for a specific service - implements interfaces.MetricsProvider
+func (p *Provider) GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime *timestamppb.Timestamp) (*typesv1alpha1.ServiceGraphMetrics, error) {
+	p.logger.Info("retrieving service connections from Prometheus",
+		"service_name", serviceName,
+		"namespace", namespace,
+		"cluster", p.clusterName)
+
+	// Health check will be performed by the actual query - no need to precheck
+
+	// Convert protobuf timestamps to time.Time
+	var start, end time.Time
+	if startTime != nil {
+		start = startTime.AsTime()
+	} else {
+		start = time.Now().Add(-5 * time.Minute) // Default to 5 minutes ago
+	}
+
+	if endTime != nil {
+		end = endTime.AsTime()
+	} else {
+		end = time.Now() // Default to now
+	}
+
+	// Call the client's GetServiceConnections method directly
+	return p.client.GetServiceConnections(ctx, serviceName, namespace, start, end)
 }
 
 // Close closes the provider and cleans up resources

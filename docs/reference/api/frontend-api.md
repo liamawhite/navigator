@@ -15,8 +15,6 @@
 - [frontend/v1alpha1/metrics_service.proto](#frontend_v1alpha1_metrics_service-proto)
     - [GetServiceConnectionsRequest](#navigator-frontend-v1alpha1-GetServiceConnectionsRequest)
     - [GetServiceConnectionsResponse](#navigator-frontend-v1alpha1-GetServiceConnectionsResponse)
-    - [GetServiceGraphMetricsRequest](#navigator-frontend-v1alpha1-GetServiceGraphMetricsRequest)
-    - [GetServiceGraphMetricsResponse](#navigator-frontend-v1alpha1-GetServiceGraphMetricsResponse)
   
     - [MetricsService](#navigator-frontend-v1alpha1-MetricsService)
   
@@ -176,41 +174,6 @@ GetServiceConnectionsResponse contains inbound and outbound service connections.
 
 
 
-
-<a name="navigator-frontend-v1alpha1-GetServiceGraphMetricsRequest"></a>
-
-### GetServiceGraphMetricsRequest
-GetServiceGraphMetricsRequest specifies filters for service graph metrics.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| namespaces | [string](#string) | repeated | namespaces filters metrics to only include these namespaces. |
-| clusters | [string](#string) | repeated | clusters filters metrics to only include these clusters. |
-| start_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | start_time specifies the start time for the metrics query (required). Must be in the past (before current time). |
-| end_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | end_time specifies the end time for the metrics query (required). Must be in the past (before current time) and after start_time. |
-
-
-
-
-
-
-<a name="navigator-frontend-v1alpha1-GetServiceGraphMetricsResponse"></a>
-
-### GetServiceGraphMetricsResponse
-GetServiceGraphMetricsResponse contains service-to-service graph metrics.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| pairs | [navigator.types.v1alpha1.ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics) | repeated | pairs contains the service-to-service metrics. |
-| timestamp | [string](#string) |  | timestamp is when these metrics were collected (RFC3339 format). |
-| clusters_queried | [string](#string) | repeated | clusters_queried lists the clusters that were queried for these metrics. |
-
-
-
-
-
  
 
  
@@ -225,7 +188,6 @@ MetricsService provides APIs for service mesh metrics and observability.
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| GetServiceGraphMetrics | [GetServiceGraphMetricsRequest](#navigator-frontend-v1alpha1-GetServiceGraphMetricsRequest) | [GetServiceGraphMetricsResponse](#navigator-frontend-v1alpha1-GetServiceGraphMetricsResponse) | GetServiceGraphMetrics returns service-to-service graph metrics across the mesh. |
 | GetServiceConnections | [GetServiceConnectionsRequest](#navigator-frontend-v1alpha1-GetServiceConnectionsRequest) | [GetServiceConnectionsResponse](#navigator-frontend-v1alpha1-GetServiceConnectionsResponse) | GetServiceConnections returns inbound and outbound connections for a specific service. |
 
  
