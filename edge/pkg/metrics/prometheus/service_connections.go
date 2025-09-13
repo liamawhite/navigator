@@ -29,7 +29,7 @@ import (
 // Targeted query templates for specific service connections
 var (
 	inboundRequestRateQueryTemplate = template.Must(template.New("inboundRequestRate").Parse(`
-max by (
+sum by (
   source_cluster, source_workload_namespace, source_canonical_service,
   destination_cluster, destination_service_namespace, destination_canonical_service
 )(
@@ -37,7 +37,7 @@ max by (
 )`))
 
 	outboundRequestRateQueryTemplate = template.Must(template.New("outboundRequestRate").Parse(`
-max by (
+sum by (
   source_cluster, source_workload_namespace, source_canonical_service,
   destination_cluster, destination_service_namespace, destination_canonical_service
 )(
@@ -45,19 +45,19 @@ max by (
 )`))
 
 	inboundErrorRateQueryTemplate = template.Must(template.New("inboundErrorRate").Parse(`
-max by (
+sum by (
   source_cluster, source_workload_namespace, source_canonical_service,
   destination_cluster, destination_service_namespace, destination_canonical_service
 )(
-  rate(istio_requests_total{reporter="destination", destination_canonical_service="{{.ServiceName}}", destination_service_namespace="{{.ServiceNamespace}}", response_code=~"4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
+  rate(istio_requests_total{reporter="destination", destination_canonical_service="{{.ServiceName}}", destination_service_namespace="{{.ServiceNamespace}}", response_code=~"0|4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 
 	outboundErrorRateQueryTemplate = template.Must(template.New("outboundErrorRate").Parse(`
-max by (
+sum by (
   source_cluster, source_workload_namespace, source_canonical_service,
   destination_cluster, destination_service_namespace, destination_canonical_service
 )(
-  rate(istio_requests_total{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}", response_code=~"4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
+  rate(istio_requests_total{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}", response_code=~"0|4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 )
 
@@ -71,10 +71,9 @@ type serviceConnectionsQueryTemplateData struct {
 
 // getServiceConnectionsInternal returns targeted metrics for a specific service's connections
 func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceName, serviceNamespace string, filters metrics.MeshMetricsFilters) (*metrics.ServiceGraphMetrics, error) {
-	// Check if provider is healthy
-	info := p.GetProviderInfo()
-	if info.Health.Status != metrics.HealthStatusHealthy {
-		return nil, fmt.Errorf("prometheus provider is not healthy: %s", info.Health.Message)
+	// Check if client is available
+	if p.client == nil {
+		return nil, fmt.Errorf("prometheus client not available")
 	}
 
 	// Default to 5-minute time range if not specified

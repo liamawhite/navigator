@@ -56,7 +56,8 @@
       "Bash(npm ls:*)",
       "Bash(npm view:*)",
       "Read(/var/folders/w4/3k18wr5d24zfmwsn_lkdg8q40000gn/T/TemporaryItems/NSIRD_screencaptureui_maODsa/**)",
-      "Read(/var/folders/w4/3k18wr5d24zfmwsn_lkdg8q40000gn/T/TemporaryItems/NSIRD_screencaptureui_HuIB2Z/**)"
+      "Read(/var/folders/w4/3k18wr5d24zfmwsn_lkdg8q40000gn/T/TemporaryItems/NSIRD_screencaptureui_HuIB2Z/**)",
+      "mcp__playwright__browser_type"
     ],
     "deny": []
   },

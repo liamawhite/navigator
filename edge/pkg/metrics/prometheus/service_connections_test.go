@@ -20,20 +20,24 @@ import (
 	"fmt"
 	"testing"
 	"text/template"
+	"time"
 
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/liamawhite/navigator/pkg/logging"
+	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestGetServiceConnections_UnhealthyProvider(t *testing.T) {
+func TestGetServiceConnections_NoClient(t *testing.T) {
 	logger := logging.For("test")
 
-	// Create provider with unhealthy status
+	// Create provider with no client
 	provider := &Provider{
 		logger: logger,
-		client: nil, // No client to make it unhealthy
+		client: nil, // No client
 	}
 
 	filters := metrics.MeshMetricsFilters{}
@@ -41,7 +45,101 @@ func TestGetServiceConnections_UnhealthyProvider(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "prometheus provider is not healthy")
+}
+
+func TestGetServiceConnections_DoubleCountingFix(t *testing.T) {
+	logger := logging.For("test")
+
+	// This test verifies that the double-counting bug is FIXED by using
+	// getServiceConnectionsInternal with proper reporter field queries
+	mockClient := &mockClient{
+		responses: map[string]mockResponse{
+			// NEW: Inbound query WITH reporter="destination" (FIXED queries)
+			`sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service
+)(
+  rate(istio_requests_total{reporter="destination", destination_canonical_service="backend", destination_service_namespace="microservices"}[5m])
+)`: {
+				result: createMockVector(map[string]interface{}{
+					"source_cluster":                "Kubernetes",
+					"source_workload_namespace":     "microservices",
+					"source_canonical_service":      "frontend",
+					"destination_cluster":           "Kubernetes",
+					"destination_service_namespace": "microservices",
+					"destination_canonical_service": "backend",
+				}, 15.0),
+			},
+			// NEW: Outbound query WITH reporter="source" (FIXED queries) - returns different connection
+			`sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service
+)(
+  rate(istio_requests_total{reporter="source", source_canonical_service="backend", source_workload_namespace="microservices"}[5m])
+)`: {
+				result: createMockVector(map[string]interface{}{
+					"source_cluster":                "Kubernetes",
+					"source_workload_namespace":     "microservices",
+					"source_canonical_service":      "backend",
+					"destination_cluster":           "Kubernetes",
+					"destination_service_namespace": "microservices",
+					"destination_canonical_service": "database",
+				}, 15.0),
+			},
+			// Error rate queries return empty (no errors)
+			`sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service
+)(
+  rate(istio_requests_total{reporter="destination", destination_canonical_service="backend", destination_service_namespace="microservices", response_code=~"0|4..|5.."}[5m])
+)`: {result: nil},
+			`sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service
+)(
+  rate(istio_requests_total{reporter="source", source_canonical_service="backend", source_workload_namespace="microservices", response_code=~"0|4..|5.."}[5m])
+)`: {result: nil},
+		},
+	}
+
+	provider := &Provider{
+		logger:      logger,
+		client:      mockClient, // Now implements ClientInterface
+		clusterName: "Kubernetes",
+		info: metrics.ProviderInfo{
+			Type:     metrics.ProviderTypePrometheus,
+			Endpoint: "test-endpoint",
+		},
+	}
+
+	// Execute the service connections query using the Provider's public method (which now calls the FIXED method)
+	now := timestamppb.Now()
+	fiveMinutesAgo := timestamppb.New(time.Now().Add(-5 * time.Minute))
+	result, err := provider.GetServiceConnections(context.Background(), "backend", "microservices", fiveMinutesAgo, now)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// FIXED: Now we should have 2 separate connections with no double-counting
+	assert.Len(t, result.Pairs, 2, "Should have 2 unique connections")
+
+	// Find the frontend -> backend connection
+	var frontendToBackend *typesv1alpha1.ServicePairMetrics
+	var backendToDatabase *typesv1alpha1.ServicePairMetrics
+	for _, pair := range result.Pairs {
+		if pair.SourceService == "frontend" && pair.DestinationService == "backend" {
+			frontendToBackend = pair
+		} else if pair.SourceService == "backend" && pair.DestinationService == "database" {
+			backendToDatabase = pair
+		}
+	}
+
+	require.NotNil(t, frontendToBackend, "Should have frontend -> backend connection")
+	require.NotNil(t, backendToDatabase, "Should have backend -> database connection")
+
+	// FIXED: Each connection should have its correct rate with no double-counting
+	assert.Equal(t, 15.0, frontendToBackend.RequestRate, "Frontend -> backend should have 15 RPS")
+	assert.Equal(t, 15.0, backendToDatabase.RequestRate, "Backend -> database should have 15 RPS")
 }
 
 func TestBuildFilterClause(t *testing.T) {
@@ -153,5 +251,42 @@ func TestServiceConnectionsQueryTemplates(t *testing.T) {
 			assert.Contains(t, result, "5m")
 			assert.Contains(t, result, "istio_requests_total")
 		})
+	}
+}
+
+// Mock client for testing - implements ClientInterface
+type mockClient struct {
+	responses map[string]mockResponse
+}
+
+type mockResponse struct {
+	result model.Value
+	err    error
+}
+
+func (m *mockClient) query(ctx context.Context, query string) (model.Value, error) {
+	if resp, exists := m.responses[query]; exists {
+		return resp.result, resp.err
+	}
+	return nil, fmt.Errorf("unexpected query: %s", query)
+}
+
+// GetServiceConnections is needed to satisfy ClientInterface but not used since we fixed the Provider
+func (m *mockClient) GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime time.Time) (*typesv1alpha1.ServiceGraphMetrics, error) {
+	return nil, fmt.Errorf("GetServiceConnections not implemented in mock - Provider now uses getServiceConnectionsInternal")
+}
+
+// Helper to create mock Prometheus vector data
+func createMockVector(labels map[string]interface{}, value float64) model.Vector {
+	metric := model.Metric{}
+	for k, v := range labels {
+		metric[model.LabelName(k)] = model.LabelValue(fmt.Sprintf("%v", v))
+	}
+
+	return model.Vector{
+		&model.Sample{
+			Metric: metric,
+			Value:  model.SampleValue(value),
+		},
 	}
 }

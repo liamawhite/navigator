@@ -16,6 +16,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Network, AlertCircle } from 'lucide-react';
 import { useServiceConnections } from '../../hooks/useServiceConnections';
+import { useClusters } from '../../hooks/useClusters';
 import { ServiceConnectionsVisualization } from './ServiceConnectionsVisualization';
 
 interface ServiceConnectionsCardProps {
@@ -33,8 +34,13 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
         error,
     } = useServiceConnections(serviceName, namespace);
 
-    // Always show the service connections card content - we know metrics are enabled if we get here
-    const showCollapsed = false;
+    const { data: clusters, isLoading: clustersLoading } = useClusters({
+        refetchInterval: 30000, // Refresh every 30 seconds
+    });
+
+    const hasAnyMetrics =
+        clusters?.some((cluster) => cluster.metricsEnabled) ?? false;
+    const showCollapsed = !clustersLoading && !hasAnyMetrics;
 
     return (
         <Card className={`mb-6 ${showCollapsed ? 'opacity-50' : ''}`}>
@@ -58,45 +64,47 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                     )}
                 </CardTitle>
             </CardHeader>
-            <CardContent>
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                    </div>
-                ) : error ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                        <Network className="w-16 h-16 mb-4" />
-                        <p className="text-center">
-                            Failed to load service connections
-                        </p>
-                        <p className="text-sm text-center mt-2">
-                            {error instanceof Error
-                                ? error.message
-                                : 'Unknown error'}
-                        </p>
-                    </div>
-                ) : connections &&
-                  (connections.inbound?.length ||
-                      connections.outbound?.length) ? (
-                    <ServiceConnectionsVisualization
-                        serviceName={serviceName}
-                        namespace={namespace}
-                        inbound={connections.inbound || []}
-                        outbound={connections.outbound || []}
-                    />
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                        <Network className="w-16 h-16 mb-4" />
-                        <p className="text-center">
-                            No service connections found
-                        </p>
-                        <p className="text-sm text-center mt-2">
-                            This service has no inbound or outbound traffic in
-                            the last 5 minutes
-                        </p>
-                    </div>
-                )}
-            </CardContent>
+            {!showCollapsed && (
+                <CardContent>
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-64">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                            <Network className="w-16 h-16 mb-4" />
+                            <p className="text-center">
+                                Failed to load service connections
+                            </p>
+                            <p className="text-sm text-center mt-2">
+                                {error instanceof Error
+                                    ? error.message
+                                    : 'Unknown error'}
+                            </p>
+                        </div>
+                    ) : connections &&
+                      (connections.inbound?.length ||
+                          connections.outbound?.length) ? (
+                        <ServiceConnectionsVisualization
+                            serviceName={serviceName}
+                            namespace={namespace}
+                            inbound={connections.inbound || []}
+                            outbound={connections.outbound || []}
+                        />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                            <Network className="w-16 h-16 mb-4" />
+                            <p className="text-center">
+                                No service connections found
+                            </p>
+                            <p className="text-sm text-center mt-2">
+                                This service has no inbound or outbound traffic
+                                in the last 5 minutes
+                            </p>
+                        </div>
+                    )}
+                </CardContent>
+            )}
         </Card>
     );
 };

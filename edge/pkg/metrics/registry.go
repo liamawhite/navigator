@@ -92,10 +92,6 @@ func NewNullProvider(config Config) Provider {
 		info: ProviderInfo{
 			Type:     ProviderTypeNone,
 			Endpoint: "",
-			Health: ProviderHealth{
-				Status:  HealthStatusHealthy,
-				Message: "Metrics collection is disabled",
-			},
 		},
 	}
 }

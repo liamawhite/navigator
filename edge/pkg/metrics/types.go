@@ -28,40 +28,12 @@ const (
 	ProviderTypeNone ProviderType = "none"
 )
 
-// ProviderHealth represents the health status of a metrics provider
-type ProviderHealth struct {
-	// Status indicates the overall health status
-	Status HealthStatus `json:"status"`
-	// Message provides additional details about the health status
-	Message string `json:"message"`
-	// LastCheck is the timestamp of the last health check
-	LastCheck time.Time `json:"last_check"`
-	// Version is the version of the metrics provider (if available)
-	Version string `json:"version,omitempty"`
-}
-
-// HealthStatus represents the health status values
-type HealthStatus string
-
-const (
-	// HealthStatusHealthy indicates the provider is healthy and accessible
-	HealthStatusHealthy HealthStatus = "healthy"
-	// HealthStatusUnhealthy indicates the provider has issues
-	HealthStatusUnhealthy HealthStatus = "unhealthy"
-	// HealthStatusUnavailable indicates the provider is not accessible
-	HealthStatusUnavailable HealthStatus = "unavailable"
-	// HealthStatusUnknown indicates the health status is unknown
-	HealthStatusUnknown HealthStatus = "unknown"
-)
-
 // ProviderInfo contains information about a metrics provider
 type ProviderInfo struct {
 	// Type is the type of metrics provider
 	Type ProviderType `json:"type"`
 	// Endpoint is the endpoint URL of the metrics provider
 	Endpoint string `json:"endpoint"`
-	// Health is the current health status of the provider
-	Health ProviderHealth `json:"health"`
 }
 
 // ServiceMetrics contains metrics data for a service

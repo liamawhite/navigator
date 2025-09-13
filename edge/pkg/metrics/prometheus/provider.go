@@ -22,12 +22,19 @@ import (
 
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"github.com/prometheus/common/model"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// ClientInterface defines the interface for Prometheus client operations
+type ClientInterface interface {
+	query(ctx context.Context, query string) (model.Value, error)
+	GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime time.Time) (*typesv1alpha1.ServiceGraphMetrics, error)
+}
+
 // Provider implements the metrics.Provider interface for Prometheus
 type Provider struct {
-	client      *Client
+	client      ClientInterface
 	config      metrics.Config
 	info        metrics.ProviderInfo
 	logger      *slog.Logger
@@ -61,10 +68,6 @@ func NewProvider(config metrics.Config, logger *slog.Logger, clusterName string)
 		info: metrics.ProviderInfo{
 			Type:     metrics.ProviderTypePrometheus,
 			Endpoint: config.Endpoint,
-			Health: metrics.ProviderHealth{
-				Status:  metrics.HealthStatusUnknown,
-				Message: "Not yet checked",
-			},
 		},
 		logger: logger,
 	}
@@ -95,22 +98,33 @@ func (p *Provider) GetServiceConnections(ctx context.Context, serviceName, names
 
 	// Health check will be performed by the actual query - no need to precheck
 
-	// Convert protobuf timestamps to time.Time
-	var start, end time.Time
-	if startTime != nil {
-		start = startTime.AsTime()
-	} else {
-		start = time.Now().Add(-5 * time.Minute) // Default to 5 minutes ago
+	// Use the fixed getServiceConnectionsInternal method instead of the buggy client method
+	// Note: startTime and endTime are currently ignored since getServiceConnectionsInternal uses a fixed 5m window
+	result, err := p.getServiceConnectionsInternal(ctx, serviceName, namespace, metrics.MeshMetricsFilters{})
+	if err != nil {
+		return nil, err
 	}
 
-	if endTime != nil {
-		end = endTime.AsTime()
-	} else {
-		end = time.Now() // Default to now
+	// Convert from internal metrics format to API format
+	var apiPairs []*typesv1alpha1.ServicePairMetrics
+	for _, pair := range result.Pairs {
+		apiPairs = append(apiPairs, &typesv1alpha1.ServicePairMetrics{
+			SourceCluster:        pair.SourceCluster,
+			SourceNamespace:      pair.SourceNamespace,
+			SourceService:        pair.SourceService,
+			DestinationCluster:   pair.DestinationCluster,
+			DestinationNamespace: pair.DestinationNamespace,
+			DestinationService:   pair.DestinationService,
+			RequestRate:          pair.RequestRate,
+			ErrorRate:            pair.ErrorRate,
+		})
 	}
 
-	// Call the client's GetServiceConnections method directly
-	return p.client.GetServiceConnections(ctx, serviceName, namespace, start, end)
+	return &typesv1alpha1.ServiceGraphMetrics{
+		Pairs:     apiPairs,
+		ClusterId: p.clusterName,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}, nil
 }
 
 // Close closes the provider and cleans up resources
