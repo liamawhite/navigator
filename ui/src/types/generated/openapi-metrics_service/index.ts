@@ -9,7 +9,7 @@ export type { OpenAPIConfig } from './core/OpenAPI';
 
 export type { protobufAny } from './models/protobufAny';
 export type { rpcStatus } from './models/rpcStatus';
-export type { v1alpha1GetServiceGraphMetricsResponse } from './models/v1alpha1GetServiceGraphMetricsResponse';
+export type { v1alpha1GetServiceConnectionsResponse } from './models/v1alpha1GetServiceConnectionsResponse';
 export type { v1alpha1ServicePairMetrics } from './models/v1alpha1ServicePairMetrics';
 
 export { MetricsServiceService } from './services/MetricsServiceService';

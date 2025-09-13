@@ -43,8 +43,8 @@ message ConnectRequest {
     // proxy_config_response is sent in response to a proxy config request from the manager.
     ProxyConfigResponse proxy_config_response = 3;
     
-    // service_graph_metrics_response is sent in response to a service graph metrics request from the manager.
-    ServiceGraphMetricsResponse service_graph_metrics_response = 4;
+    // service_connections_response is sent in response to a service connections request from the manager.
+    ServiceConnectionsResponse service_connections_response = 4;
   }
 }
 
@@ -61,8 +61,8 @@ message ConnectResponse {
     // proxy_config_request asks the edge process to provide proxy config for a specific pod.
     ProxyConfigRequest proxy_config_request = 3;
     
-    // service_graph_metrics_request asks the edge process to provide service graph metrics.
-    ServiceGraphMetricsRequest service_graph_metrics_request = 4;
+    // service_connections_request asks the edge process to provide service connections for a specific service.
+    ServiceConnectionsRequest service_connections_request = 4;
   }
 }
 
@@ -122,33 +122,36 @@ message ProxyConfigResponse {
   }
 }
 
-// ServiceGraphMetricsRequest is sent by the manager to request service graph metrics.
-message ServiceGraphMetricsRequest {
+// ServiceConnectionsRequest is sent by the manager to request service connections for a specific service.
+message ServiceConnectionsRequest {
   // request_id is a unique identifier for this request, used for correlating the response.
   string request_id = 1;
   
-  // filters specify which metrics to include based on source and destination attributes.
-  navigator.types.v1alpha1.GraphMetricsFilters filters = 2;
+  // service_name is the name of the service to get connections for.
+  string service_name = 2;
   
-  // start_time specifies the start time for the metrics query (required).
-  google.protobuf.Timestamp start_time = 3;
+  // namespace is the Kubernetes namespace of the service.
+  string namespace = 3;
   
-  // end_time specifies the end time for the metrics query (required).
-  google.protobuf.Timestamp end_time = 4;
+  // start_time specifies the start time for the metrics query.
+  google.protobuf.Timestamp start_time = 4;
+  
+  // end_time specifies the end time for the metrics query.
+  google.protobuf.Timestamp end_time = 5;
 }
 
-
-// ServiceGraphMetricsResponse is sent by the edge process in response to a service graph metrics request.
-message ServiceGraphMetricsResponse {
-  // request_id matches the request_id from the corresponding ServiceGraphMetricsRequest.
+// ServiceConnectionsResponse is sent by the edge process in response to a service connections request.
+message ServiceConnectionsResponse {
+  // request_id matches the request_id from the corresponding ServiceConnectionsRequest.
   string request_id = 1;
   
   oneof result {
-    // service_graph_metrics contains the service-to-service metrics data.
-    navigator.types.v1alpha1.ServiceGraphMetrics service_graph_metrics = 2;
+    // service_connections contains the service connections for the requested service.
+    navigator.types.v1alpha1.ServiceGraphMetrics service_connections = 2;
     
-    // error_message indicates that the service graph metrics could not be retrieved.
+    // error_message indicates that the service connections could not be retrieved.
     string error_message = 3;
   }
 }
+
 

@@ -22,8 +22,8 @@
     - [ErrorMessage](#navigator-backend-v1alpha1-ErrorMessage)
     - [ProxyConfigRequest](#navigator-backend-v1alpha1-ProxyConfigRequest)
     - [ProxyConfigResponse](#navigator-backend-v1alpha1-ProxyConfigResponse)
-    - [ServiceGraphMetricsRequest](#navigator-backend-v1alpha1-ServiceGraphMetricsRequest)
-    - [ServiceGraphMetricsResponse](#navigator-backend-v1alpha1-ServiceGraphMetricsResponse)
+    - [ServiceConnectionsRequest](#navigator-backend-v1alpha1-ServiceConnectionsRequest)
+    - [ServiceConnectionsResponse](#navigator-backend-v1alpha1-ServiceConnectionsResponse)
   
     - [ManagerService](#navigator-backend-v1alpha1-ManagerService)
   
@@ -216,7 +216,7 @@ ConnectRequest represents messages sent from the edge process to the manager.
 | cluster_identification | [ClusterIdentification](#navigator-backend-v1alpha1-ClusterIdentification) |  | cluster_identification is sent when the edge process connects to identify which cluster it manages. |
 | cluster_state | [ClusterState](#navigator-backend-v1alpha1-ClusterState) |  | cluster_state contains the current state of the cluster. |
 | proxy_config_response | [ProxyConfigResponse](#navigator-backend-v1alpha1-ProxyConfigResponse) |  | proxy_config_response is sent in response to a proxy config request from the manager. |
-| service_graph_metrics_response | [ServiceGraphMetricsResponse](#navigator-backend-v1alpha1-ServiceGraphMetricsResponse) |  | service_graph_metrics_response is sent in response to a service graph metrics request from the manager. |
+| service_connections_response | [ServiceConnectionsResponse](#navigator-backend-v1alpha1-ServiceConnectionsResponse) |  | service_connections_response is sent in response to a service connections request from the manager. |
 
 
 
@@ -234,7 +234,7 @@ ConnectResponse represents messages sent from the manager to the edge process.
 | connection_ack | [ConnectionAck](#navigator-backend-v1alpha1-ConnectionAck) |  | connection_ack acknowledges the cluster identification and indicates if the connection is accepted. once received, the edge process can start sending cluster state updates. |
 | error | [ErrorMessage](#navigator-backend-v1alpha1-ErrorMessage) |  | error indicates an error condition. |
 | proxy_config_request | [ProxyConfigRequest](#navigator-backend-v1alpha1-ProxyConfigRequest) |  | proxy_config_request asks the edge process to provide proxy config for a specific pod. |
-| service_graph_metrics_request | [ServiceGraphMetricsRequest](#navigator-backend-v1alpha1-ServiceGraphMetricsRequest) |  | service_graph_metrics_request asks the edge process to provide service graph metrics. |
+| service_connections_request | [ServiceConnectionsRequest](#navigator-backend-v1alpha1-ServiceConnectionsRequest) |  | service_connections_request asks the edge process to provide service connections for a specific service. |
 
 
 
@@ -321,35 +321,36 @@ ProxyConfigResponse is sent by the edge process in response to a proxy config re
 
 
 
-<a name="navigator-backend-v1alpha1-ServiceGraphMetricsRequest"></a>
+<a name="navigator-backend-v1alpha1-ServiceConnectionsRequest"></a>
 
-### ServiceGraphMetricsRequest
-ServiceGraphMetricsRequest is sent by the manager to request service graph metrics.
+### ServiceConnectionsRequest
+ServiceConnectionsRequest is sent by the manager to request service connections for a specific service.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | request_id | [string](#string) |  | request_id is a unique identifier for this request, used for correlating the response. |
-| filters | [navigator.types.v1alpha1.GraphMetricsFilters](#navigator-types-v1alpha1-GraphMetricsFilters) |  | filters specify which metrics to include based on source and destination attributes. |
-| start_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | start_time specifies the start time for the metrics query (required). |
-| end_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | end_time specifies the end time for the metrics query (required). |
+| service_name | [string](#string) |  | service_name is the name of the service to get connections for. |
+| namespace | [string](#string) |  | namespace is the Kubernetes namespace of the service. |
+| start_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | start_time specifies the start time for the metrics query. |
+| end_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | end_time specifies the end time for the metrics query. |
 
 
 
 
 
 
-<a name="navigator-backend-v1alpha1-ServiceGraphMetricsResponse"></a>
+<a name="navigator-backend-v1alpha1-ServiceConnectionsResponse"></a>
 
-### ServiceGraphMetricsResponse
-ServiceGraphMetricsResponse is sent by the edge process in response to a service graph metrics request.
+### ServiceConnectionsResponse
+ServiceConnectionsResponse is sent by the edge process in response to a service connections request.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| request_id | [string](#string) |  | request_id matches the request_id from the corresponding ServiceGraphMetricsRequest. |
-| service_graph_metrics | [navigator.types.v1alpha1.ServiceGraphMetrics](#navigator-types-v1alpha1-ServiceGraphMetrics) |  | service_graph_metrics contains the service-to-service metrics data. |
-| error_message | [string](#string) |  | error_message indicates that the service graph metrics could not be retrieved. |
+| request_id | [string](#string) |  | request_id matches the request_id from the corresponding ServiceConnectionsRequest. |
+| service_connections | [navigator.types.v1alpha1.ServiceGraphMetrics](#navigator-types-v1alpha1-ServiceGraphMetrics) |  | service_connections contains the service connections for the requested service. |
+| error_message | [string](#string) |  | error_message indicates that the service connections could not be retrieved. |
 
 
 

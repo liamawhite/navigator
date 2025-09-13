@@ -3,35 +3,37 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { rpcStatus } from '../models/rpcStatus';
-import type { v1alpha1GetServiceGraphMetricsResponse } from '../models/v1alpha1GetServiceGraphMetricsResponse';
+import type { v1alpha1GetServiceConnectionsResponse } from '../models/v1alpha1GetServiceConnectionsResponse';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class MetricsServiceService {
     /**
-     * GetServiceGraphMetrics returns service-to-service graph metrics across the mesh.
-     * @param namespaces namespaces filters metrics to only include these namespaces.
-     * @param clusters clusters filters metrics to only include these clusters.
+     * GetServiceConnections returns inbound and outbound connections for a specific service.
+     * @param serviceName service_name is the name of the service to get connections for.
+     * @param namespace namespace is the Kubernetes namespace of the service.
      * @param startTime start_time specifies the start time for the metrics query (required).
      * Must be in the past (before current time).
      * @param endTime end_time specifies the end time for the metrics query (required).
      * Must be in the past (before current time) and after start_time.
-     * @returns v1alpha1GetServiceGraphMetricsResponse A successful response.
+     * @returns v1alpha1GetServiceConnectionsResponse A successful response.
      * @returns rpcStatus An unexpected error response.
      * @throws ApiError
      */
-    public static metricsServiceGetServiceGraphMetrics(
-        namespaces?: Array<string>,
-        clusters?: Array<string>,
+    public static metricsServiceGetServiceConnections(
+        serviceName: string,
+        namespace?: string,
         startTime?: string,
         endTime?: string,
-    ): CancelablePromise<v1alpha1GetServiceGraphMetricsResponse | rpcStatus> {
+    ): CancelablePromise<v1alpha1GetServiceConnectionsResponse | rpcStatus> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/v1alpha1/metrics/graph',
+            url: '/api/v1alpha1/metrics/service/{serviceName}/connections',
+            path: {
+                'serviceName': serviceName,
+            },
             query: {
-                'namespaces': namespaces,
-                'clusters': clusters,
+                'namespace': namespace,
                 'startTime': startTime,
                 'endTime': endTime,
             },

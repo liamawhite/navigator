@@ -4,13 +4,17 @@
 /* eslint-disable */
 import type { v1alpha1ServicePairMetrics } from './v1alpha1ServicePairMetrics';
 /**
- * GetServiceGraphMetricsResponse contains service-to-service graph metrics.
+ * GetServiceConnectionsResponse contains inbound and outbound service connections.
  */
-export type v1alpha1GetServiceGraphMetricsResponse = {
+export type v1alpha1GetServiceConnectionsResponse = {
     /**
-     * pairs contains the service-to-service metrics.
+     * inbound contains services that call this service.
      */
-    pairs?: Array<v1alpha1ServicePairMetrics>;
+    inbound?: Array<v1alpha1ServicePairMetrics>;
+    /**
+     * outbound contains services that this service calls.
+     */
+    outbound?: Array<v1alpha1ServicePairMetrics>;
     /**
      * timestamp is when these metrics were collected (RFC3339 format).
      */

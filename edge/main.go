@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	"github.com/liamawhite/navigator/edge/pkg/config"
+	"github.com/liamawhite/navigator/edge/pkg/interfaces"
 	"github.com/liamawhite/navigator/edge/pkg/kubernetes"
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
 	"github.com/liamawhite/navigator/edge/pkg/metrics/prometheus"
@@ -55,25 +56,25 @@ func main() {
 	// Create proxy service for handling proxy configuration requests
 	proxyService := proxy.NewProxyService(adminClient, logger)
 
-	// Create metrics provider with cluster name for efficient filtering
-	metricsRegistry := metrics.NewRegistry()
-	prometheus.RegisterWithRegistry(metricsRegistry)
+	// Create metrics provider directly
+	var metricsProvider interfaces.MetricsProvider
+	metricsConfig := cfg.GetMetricsConfig()
 
-	// Get cluster name from Istio for metrics filtering
-	var clusterName string
-	if cfg.GetMetricsConfig().Enabled {
-		clusterName, err = k8sClient.GetClusterName(context.Background())
+	if metricsConfig.Enabled && metricsConfig.Type == metrics.ProviderTypePrometheus {
+		// Get cluster name from Istio for metrics filtering
+		clusterName, err := k8sClient.GetClusterName(context.Background())
 		if err != nil {
 			logger.Warn("failed to get cluster name from istiod, metrics will not be cluster-filtered", "error", err)
+			clusterName = ""
 		} else {
 			logger.Info("retrieved cluster name for metrics filtering", "cluster_name", clusterName)
 		}
-	}
 
-	metricsProvider, err := metricsRegistry.CreateWithClusterName(cfg.GetMetricsConfig(), logger, clusterName)
-	if err != nil {
-		logger.Error("failed to create metrics provider", "error", err)
-		os.Exit(1)
+		metricsProvider, err = prometheus.Create(metricsConfig, logger, clusterName)
+		if err != nil {
+			logger.Error("failed to create metrics provider", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	// Create edge service

@@ -23,8 +23,8 @@ type Provider interface {
 	// GetProviderInfo returns information about this metrics provider
 	GetProviderInfo() ProviderInfo
 
-	// GetServiceGraphMetrics retrieves service-to-service metrics across the service graph
-	GetServiceGraphMetrics(ctx context.Context, query MeshMetricsQuery) (*ServiceGraphMetrics, error)
+	// GetServiceConnections retrieves targeted metrics for a specific service's inbound and outbound connections
+	GetServiceConnections(ctx context.Context, serviceName, serviceNamespace string, filters MeshMetricsFilters) (*ServiceGraphMetrics, error)
 
 	// Close closes the provider and cleans up resources
 	Close() error

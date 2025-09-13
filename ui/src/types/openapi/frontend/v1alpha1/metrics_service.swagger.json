@@ -16,15 +16,15 @@
     "application/json"
   ],
   "paths": {
-    "/api/v1alpha1/metrics/graph": {
+    "/api/v1alpha1/metrics/service/{serviceName}/connections": {
       "get": {
-        "summary": "GetServiceGraphMetrics returns service-to-service graph metrics across the mesh.",
-        "operationId": "MetricsService_GetServiceGraphMetrics",
+        "summary": "GetServiceConnections returns inbound and outbound connections for a specific service.",
+        "operationId": "MetricsService_GetServiceConnections",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1alpha1GetServiceGraphMetricsResponse"
+              "$ref": "#/definitions/v1alpha1GetServiceConnectionsResponse"
             }
           },
           "default": {
@@ -36,26 +36,18 @@
         },
         "parameters": [
           {
-            "name": "namespaces",
-            "description": "namespaces filters metrics to only include these namespaces.",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
+            "name": "serviceName",
+            "description": "service_name is the name of the service to get connections for.",
+            "in": "path",
+            "required": true,
+            "type": "string"
           },
           {
-            "name": "clusters",
-            "description": "clusters filters metrics to only include these clusters.",
+            "name": "namespace",
+            "description": "namespace is the Kubernetes namespace of the service.",
             "in": "query",
             "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
+            "type": "string"
           },
           {
             "name": "startTime",
@@ -109,16 +101,24 @@
         }
       }
     },
-    "v1alpha1GetServiceGraphMetricsResponse": {
+    "v1alpha1GetServiceConnectionsResponse": {
       "type": "object",
       "properties": {
-        "pairs": {
+        "inbound": {
           "type": "array",
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1alpha1ServicePairMetrics"
           },
-          "description": "pairs contains the service-to-service metrics."
+          "description": "inbound contains services that call this service."
+        },
+        "outbound": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+          },
+          "description": "outbound contains services that this service calls."
         },
         "timestamp": {
           "type": "string",
@@ -132,7 +132,7 @@
           "description": "clusters_queried lists the clusters that were queried for these metrics."
         }
       },
-      "description": "GetServiceGraphMetricsResponse contains service-to-service graph metrics."
+      "description": "GetServiceConnectionsResponse contains inbound and outbound service connections."
     },
     "v1alpha1ServicePairMetrics": {
       "type": "object",

@@ -51,7 +51,7 @@
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_close",
       "mcp__playwright__browser_evaluate",
-      "Bash(pkill:*)",
+      "mcp__playwright__browser_type",
       "mcp__playwright__browser_console_messages",
       "Bash(npm ls:*)",
       "Bash(npm view:*)"

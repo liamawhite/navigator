@@ -17,15 +17,16 @@ package prometheus
 import (
 	"log/slog"
 
+	"github.com/liamawhite/navigator/edge/pkg/interfaces"
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
 )
 
 // Factory creates a new Prometheus metrics provider
-func Factory(config metrics.Config, logger *slog.Logger, clusterName string) (metrics.Provider, error) {
+func Factory(config metrics.Config, logger *slog.Logger, clusterName string) (interfaces.MetricsProvider, error) {
 	return NewProvider(config, logger, clusterName)
 }
 
-// RegisterWithRegistry registers the Prometheus provider with the given registry
-func RegisterWithRegistry(registry *metrics.Registry) {
-	registry.Register(metrics.ProviderTypePrometheus, Factory)
+// Create creates a new Prometheus metrics provider - alternative to Factory for direct usage
+func Create(config metrics.Config, logger *slog.Logger, clusterName string) (interfaces.MetricsProvider, error) {
+	return NewProvider(config, logger, clusterName)
 }

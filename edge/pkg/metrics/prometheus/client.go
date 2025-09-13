@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
@@ -123,4 +125,228 @@ func (c *Client) query(ctx context.Context, query string) (model.Value, error) {
 	}
 
 	return result, nil
+}
+
+// GetServiceConnections retrieves service connection metrics for a specific service
+func (c *Client) GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime time.Time) (*typesv1alpha1.ServiceGraphMetrics, error) {
+	c.logger.Info("querying service connections from Prometheus",
+		"service", serviceName,
+		"namespace", namespace,
+		"start", startTime,
+		"end", endTime)
+
+	// Build base queries for inbound and outbound connections
+	// Inbound: traffic coming TO this service
+	inboundRequestQuery := fmt.Sprintf(`
+		sum(rate(istio_requests_total{destination_canonical_service="%s",destination_service_namespace="%s"}[5m])) by (
+			source_cluster,
+			source_workload_namespace,
+			source_canonical_service,
+			destination_cluster,
+			destination_service_namespace,
+			destination_canonical_service
+		)`, serviceName, namespace)
+
+	// Outbound: traffic going FROM this service
+	outboundRequestQuery := fmt.Sprintf(`
+		sum(rate(istio_requests_total{source_canonical_service="%s",source_workload_namespace="%s"}[5m])) by (
+			source_cluster,
+			source_workload_namespace,
+			source_canonical_service,
+			destination_cluster,
+			destination_service_namespace,
+			destination_canonical_service
+		)`, serviceName, namespace)
+
+	// Inbound error rate
+	inboundErrorQuery := fmt.Sprintf(`
+		sum(rate(istio_requests_total{destination_canonical_service="%s",destination_service_namespace="%s",response_code=~"5.*"}[5m])) by (
+			source_cluster,
+			source_workload_namespace,
+			source_canonical_service,
+			destination_cluster,
+			destination_service_namespace,
+			destination_canonical_service
+		) / sum(rate(istio_requests_total{destination_canonical_service="%s",destination_service_namespace="%s"}[5m])) by (
+			source_cluster,
+			source_workload_namespace,
+			source_canonical_service,
+			destination_cluster,
+			destination_service_namespace,
+			destination_canonical_service
+		)`, serviceName, namespace, serviceName, namespace)
+
+	// Outbound error rate
+	outboundErrorQuery := fmt.Sprintf(`
+		sum(rate(istio_requests_total{source_canonical_service="%s",source_workload_namespace="%s",response_code=~"5.*"}[5m])) by (
+			source_cluster,
+			source_workload_namespace,
+			source_canonical_service,
+			destination_cluster,
+			destination_service_namespace,
+			destination_canonical_service
+		) / sum(rate(istio_requests_total{source_canonical_service="%s",source_workload_namespace="%s"}[5m])) by (
+			source_cluster,
+			source_workload_namespace,
+			source_canonical_service,
+			destination_cluster,
+			destination_service_namespace,
+			destination_canonical_service
+		)`, serviceName, namespace, serviceName, namespace)
+
+	// Execute queries in parallel
+	type queryResult struct {
+		data model.Value
+		err  error
+		name string
+	}
+
+	queries := []struct {
+		name  string
+		query string
+	}{
+		{"inbound_requests", inboundRequestQuery},
+		{"outbound_requests", outboundRequestQuery},
+		{"inbound_errors", inboundErrorQuery},
+		{"outbound_errors", outboundErrorQuery},
+	}
+
+	results := make(chan queryResult, len(queries))
+	var wg sync.WaitGroup
+
+	for _, q := range queries {
+		wg.Add(1)
+		go func(name, query string) {
+			defer wg.Done()
+			data, err := c.query(ctx, query)
+			results <- queryResult{data: data, err: err, name: name}
+		}(q.name, q.query)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results
+	queryData := make(map[string]model.Value)
+	for result := range results {
+		if result.err != nil {
+			c.logger.Error("failed to execute query", "query", result.name, "error", result.err)
+			// Don't fail completely, just log the error
+			continue
+		}
+		queryData[result.name] = result.data
+	}
+
+	// Process results into service pairs
+	pairs := make(map[string]*typesv1alpha1.ServicePairMetrics)
+
+	// Process inbound requests
+	if data, ok := queryData["inbound_requests"]; ok {
+		c.processRequestData(data, pairs, true)
+	}
+
+	// Process outbound requests
+	if data, ok := queryData["outbound_requests"]; ok {
+		c.processRequestData(data, pairs, false)
+	}
+
+	// Process inbound errors
+	if data, ok := queryData["inbound_errors"]; ok {
+		c.processErrorData(data, pairs, true)
+	}
+
+	// Process outbound errors
+	if data, ok := queryData["outbound_errors"]; ok {
+		c.processErrorData(data, pairs, false)
+	}
+
+	// Convert pairs map to slice
+	var servicePairs []*typesv1alpha1.ServicePairMetrics
+	for _, pair := range pairs {
+		servicePairs = append(servicePairs, pair)
+	}
+
+	return &typesv1alpha1.ServiceGraphMetrics{
+		Pairs:     servicePairs,
+		ClusterId: "", // We don't have cluster context here
+		Timestamp: time.Now().Format(time.RFC3339),
+	}, nil
+}
+
+// processRequestData processes Prometheus query results for request rate metrics
+func (c *Client) processRequestData(data model.Value, pairs map[string]*typesv1alpha1.ServicePairMetrics, isInbound bool) {
+	vector, ok := data.(model.Vector)
+	if !ok {
+		c.logger.Warn("expected vector result for request data")
+		return
+	}
+
+	for _, sample := range vector {
+		key := c.createPairKey(sample.Metric)
+		if key == "" {
+			continue
+		}
+
+		if pairs[key] == nil {
+			pairs[key] = &typesv1alpha1.ServicePairMetrics{
+				SourceCluster:        string(sample.Metric["source_cluster"]),
+				SourceNamespace:      string(sample.Metric["source_workload_namespace"]),
+				SourceService:        string(sample.Metric["source_canonical_service"]),
+				DestinationCluster:   string(sample.Metric["destination_cluster"]),
+				DestinationNamespace: string(sample.Metric["destination_service_namespace"]),
+				DestinationService:   string(sample.Metric["destination_canonical_service"]),
+			}
+		}
+
+		pairs[key].RequestRate = float64(sample.Value)
+	}
+}
+
+// processErrorData processes Prometheus query results for error rate metrics
+func (c *Client) processErrorData(data model.Value, pairs map[string]*typesv1alpha1.ServicePairMetrics, isInbound bool) {
+	vector, ok := data.(model.Vector)
+	if !ok {
+		c.logger.Warn("expected vector result for error data")
+		return
+	}
+
+	for _, sample := range vector {
+		key := c.createPairKey(sample.Metric)
+		if key == "" {
+			continue
+		}
+
+		if pairs[key] == nil {
+			pairs[key] = &typesv1alpha1.ServicePairMetrics{
+				SourceCluster:        string(sample.Metric["source_cluster"]),
+				SourceNamespace:      string(sample.Metric["source_workload_namespace"]),
+				SourceService:        string(sample.Metric["source_canonical_service"]),
+				DestinationCluster:   string(sample.Metric["destination_cluster"]),
+				DestinationNamespace: string(sample.Metric["destination_service_namespace"]),
+				DestinationService:   string(sample.Metric["destination_canonical_service"]),
+			}
+		}
+
+		pairs[key].ErrorRate = float64(sample.Value)
+	}
+}
+
+// createPairKey creates a unique key for a service pair
+func (c *Client) createPairKey(metric model.Metric) string {
+	sourceCluster := string(metric["source_cluster"])
+	sourceNamespace := string(metric["source_workload_namespace"])
+	sourceService := string(metric["source_canonical_service"])
+	destCluster := string(metric["destination_cluster"])
+	destNamespace := string(metric["destination_service_namespace"])
+	destService := string(metric["destination_canonical_service"])
+
+	if sourceService == "" || destService == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s:%s:%s->%s:%s:%s",
+		sourceCluster, sourceNamespace, sourceService,
+		destCluster, destNamespace, destService)
 }

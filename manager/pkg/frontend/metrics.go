@@ -16,6 +16,7 @@ package frontend
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -42,14 +43,36 @@ func NewMetricsService(connectionManager providers.ReadOptimizedConnectionManage
 	}
 }
 
-// GetServiceGraphMetrics returns service-to-service graph metrics across the mesh
-func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *frontendv1alpha1.GetServiceGraphMetricsRequest) (*frontendv1alpha1.GetServiceGraphMetricsResponse, error) {
-	m.logger.Debug("getting service mesh metrics", "filters", req)
+// GetServiceConnections returns inbound and outbound connections for a specific service
+func (m *MetricsService) GetServiceConnections(ctx context.Context, req *frontendv1alpha1.GetServiceConnectionsRequest) (*frontendv1alpha1.GetServiceConnectionsResponse, error) {
+	m.logger.Debug("getting service connections", "service_name", req.ServiceName, "namespace", req.Namespace)
 
-	// Get all connected clusters
-	connectionInfos := m.connectionManager.GetConnectionInfo()
+	// Validate service name and namespace are provided
+	if req.ServiceName == "" {
+		return nil, fmt.Errorf("service name is required")
+	}
+	if req.Namespace == "" {
+		return nil, fmt.Errorf("namespace is required")
+	}
+
+	// Validate that the service exists before querying metrics
+	// Use the same service ID format as the rest of the system: namespace:serviceName
+	serviceID := fmt.Sprintf("%s:%s", req.Namespace, req.ServiceName)
+	if _, serviceExists := m.connectionManager.GetAggregatedService(serviceID); !serviceExists {
+		m.logger.Debug("service not found", "service_name", req.ServiceName, "namespace", req.Namespace, "service_id", serviceID)
+		return &frontendv1alpha1.GetServiceConnectionsResponse{
+			Inbound:         []*typesv1alpha1.ServicePairMetrics{},
+			Outbound:        []*typesv1alpha1.ServicePairMetrics{},
+			Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
+			ClustersQueried: []string{},
+		}, nil
+	}
+
 	var clustersQueried []string
 	var allPairs []*typesv1alpha1.ServicePairMetrics
+
+	// Get all connected clusters for metrics querying
+	connectionInfos := m.connectionManager.GetConnectionInfo()
 
 	// Collect all connected cluster IDs
 	var healthyClusters []string
@@ -57,7 +80,7 @@ func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *fronte
 		healthyClusters = append(healthyClusters, clusterID)
 	}
 
-	// Query clusters in parallel
+	// Query clusters in parallel using the targeted service connections method with proper cancellation
 	type clusterResult struct {
 		clusterID string
 		pairs     []*typesv1alpha1.ServicePairMetrics
@@ -67,22 +90,47 @@ func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *fronte
 	results := make(chan clusterResult, len(healthyClusters))
 	var wg sync.WaitGroup
 
+	// Create cancellable context for cluster queries
+	clusterCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	for _, clusterID := range healthyClusters {
 		wg.Add(1)
 		go func(cID string) {
 			defer wg.Done()
 
-			// Request mesh metrics from this cluster using the dedicated service
-			meshMetrics, err := m.meshMetricsProvider.GetServiceGraphMetrics(ctx, cID, req)
+			// Check for cancellation before starting work
+			select {
+			case <-clusterCtx.Done():
+				results <- clusterResult{clusterID: cID, err: clusterCtx.Err()}
+				return
+			default:
+			}
+
+			// Request targeted service connections from this cluster
+			serviceConnectionsMetrics, err := m.meshMetricsProvider.GetServiceConnections(clusterCtx, cID, req)
 			if err != nil {
-				m.logger.Error("failed to get mesh metrics from cluster", "cluster_id", cID, "error", err)
+				m.logger.Error("failed to get service connections from cluster", "cluster_id", cID, "error", err)
 				results <- clusterResult{clusterID: cID, err: err}
 				return
 			}
 
-			if meshMetrics != nil && len(meshMetrics.Pairs) > 0 {
-				// Use the shared types directly - no conversion needed
-				results <- clusterResult{clusterID: cID, pairs: meshMetrics.Pairs}
+			if serviceConnectionsMetrics != nil && len(serviceConnectionsMetrics.Pairs) > 0 {
+				// Convert from metrics.ServiceGraphMetrics to []*typesv1alpha1.ServicePairMetrics
+				var pairs []*typesv1alpha1.ServicePairMetrics
+				for _, pair := range serviceConnectionsMetrics.Pairs {
+					pairs = append(pairs, &typesv1alpha1.ServicePairMetrics{
+						SourceCluster:        pair.SourceCluster,
+						SourceNamespace:      pair.SourceNamespace,
+						SourceService:        pair.SourceService,
+						DestinationCluster:   pair.DestinationCluster,
+						DestinationNamespace: pair.DestinationNamespace,
+						DestinationService:   pair.DestinationService,
+						ErrorRate:            pair.ErrorRate,
+						RequestRate:          pair.RequestRate,
+					})
+				}
+				results <- clusterResult{clusterID: cID, pairs: pairs}
 			} else {
 				results <- clusterResult{clusterID: cID, pairs: nil}
 			}
@@ -104,10 +152,32 @@ func (m *MetricsService) GetServiceGraphMetrics(ctx context.Context, req *fronte
 		}
 	}
 
-	m.logger.Debug("retrieved mesh metrics", "clusters_queried", len(clustersQueried), "total_pairs", len(allPairs))
+	// Separate inbound and outbound connections
+	var inbound []*typesv1alpha1.ServicePairMetrics
+	var outbound []*typesv1alpha1.ServicePairMetrics
 
-	return &frontendv1alpha1.GetServiceGraphMetricsResponse{
-		Pairs:           allPairs,
+	for _, pair := range allPairs {
+		// Inbound: services calling this service
+		if pair.DestinationService == req.ServiceName && pair.DestinationNamespace == req.Namespace {
+			inbound = append(inbound, pair)
+		}
+		// Outbound: services this service calls
+		if pair.SourceService == req.ServiceName && pair.SourceNamespace == req.Namespace {
+			outbound = append(outbound, pair)
+		}
+	}
+
+	m.logger.Debug("retrieved targeted service connections",
+		"service_name", req.ServiceName,
+		"namespace", req.Namespace,
+		"clusters_queried", len(clustersQueried),
+		"total_pairs", len(allPairs),
+		"inbound_count", len(inbound),
+		"outbound_count", len(outbound))
+
+	return &frontendv1alpha1.GetServiceConnectionsResponse{
+		Inbound:         inbound,
+		Outbound:        outbound,
 		Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
 		ClustersQueried: clustersQueried,
 	}, nil

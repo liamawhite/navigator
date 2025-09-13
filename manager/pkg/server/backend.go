@@ -145,8 +145,8 @@ func (s *ManagerServer) processIncomingMessage(clusterID string, req *v1alpha1.C
 		return s.processClusterStateUpdate(clusterID, req)
 	case *v1alpha1.ConnectRequest_ProxyConfigResponse:
 		return s.processProxyConfigResponse(msg.ProxyConfigResponse)
-	case *v1alpha1.ConnectRequest_ServiceGraphMetricsResponse:
-		return s.processServiceGraphMetricsResponse(msg.ServiceGraphMetricsResponse)
+	case *v1alpha1.ConnectRequest_ServiceConnectionsResponse:
+		return s.processServiceConnectionsResponse(msg.ServiceConnectionsResponse)
 	default:
 		s.logger.Warn("received unknown message type", "cluster_id", clusterID, "type", fmt.Sprintf("%T", msg))
 		return fmt.Errorf("unknown message type: %T", msg)
@@ -159,10 +159,10 @@ func (s *ManagerServer) processProxyConfigResponse(response *v1alpha1.ProxyConfi
 	return s.proxyService.HandleProxyConfigResponse(response)
 }
 
-// processServiceGraphMetricsResponse processes service graph metrics responses from edges
-func (s *ManagerServer) processServiceGraphMetricsResponse(response *v1alpha1.ServiceGraphMetricsResponse) error {
-	s.logger.Debug("processing service graph metrics response", "request_id", response.RequestId)
-	s.meshMetricsService.HandleServiceGraphMetricsResponse(response)
+// processServiceConnectionsResponse processes service connections responses from edges
+func (s *ManagerServer) processServiceConnectionsResponse(response *v1alpha1.ServiceConnectionsResponse) error {
+	s.logger.Debug("processing service connections response", "request_id", response.RequestId)
+	s.meshMetricsService.HandleServiceConnectionsResponse(response)
 	return nil
 }
 
