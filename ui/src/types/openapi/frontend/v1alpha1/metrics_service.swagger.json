@@ -78,6 +78,61 @@
           "MetricsService"
         ]
       }
+    },
+    "/api/v1alpha1/metrics/service/{serviceName}/connections": {
+      "get": {
+        "summary": "GetServiceConnections returns inbound and outbound connections for a specific service.",
+        "operationId": "MetricsService_GetServiceConnections",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1GetServiceConnectionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "serviceName",
+            "description": "service_name is the name of the service to get connections for.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "namespace",
+            "description": "namespace is the Kubernetes namespace of the service.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startTime",
+            "description": "start_time specifies the start time for the metrics query (required).\nMust be in the past (before current time).",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "endTime",
+            "description": "end_time specifies the end time for the metrics query (required).\nMust be in the past (before current time) and after start_time.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          }
+        ],
+        "tags": [
+          "MetricsService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -108,6 +163,39 @@
           }
         }
       }
+    },
+    "v1alpha1GetServiceConnectionsResponse": {
+      "type": "object",
+      "properties": {
+        "inbound": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+          },
+          "description": "inbound contains services that call this service."
+        },
+        "outbound": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+          },
+          "description": "outbound contains services that this service calls."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "timestamp is when these metrics were collected (RFC3339 format)."
+        },
+        "clustersQueried": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "clusters_queried lists the clusters that were queried for these metrics."
+        }
+      },
+      "description": "GetServiceConnectionsResponse contains inbound and outbound service connections."
     },
     "v1alpha1GetServiceGraphMetricsResponse": {
       "type": "object",

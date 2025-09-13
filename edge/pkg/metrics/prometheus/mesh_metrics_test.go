@@ -561,7 +561,7 @@ func TestBuildQueryFromTemplate(t *testing.T) {
 			template:  requestRateQueryTemplate,
 			filters:   metrics.MeshMetricsFilters{},
 			timeRange: "5m",
-			contains:  []string{"rate(istio_requests_total", "[5m]", "reporter=\"destination\""},
+			contains:  []string{"rate(istio_requests_total", "[5m]", "reporter=~\"source|destination\""},
 		},
 		{
 			name:     "error rate template with filters",
@@ -570,7 +570,7 @@ func TestBuildQueryFromTemplate(t *testing.T) {
 				Namespaces: []string{"microservices"},
 			},
 			timeRange: "10m",
-			contains:  []string{"response_code=~\"4..|5..\"", "destination_namespace=~\"microservices\"", "[10m]"},
+			contains:  []string{"destination_namespace=~\"microservices\"", "[10m]"},
 		},
 	}
 
@@ -829,36 +829,36 @@ func TestBuildFilterClauseWithClusterName(t *testing.T) {
 		expectedMiss string
 	}{
 		{
-			name:         "cluster filtering only",
+			name:         "no filters applied",
 			clusterName:  "production",
 			filters:      metrics.MeshMetricsFilters{},
-			expectedCont: `destination_cluster="production"`,
-			expectedMiss: "",
+			expectedCont: "",
+			expectedMiss: "destination_cluster",
 		},
 		{
-			name:        "cluster and namespace filtering",
+			name:        "namespace filtering only (no cluster filtering)",
 			clusterName: "production",
 			filters: metrics.MeshMetricsFilters{
 				Namespaces: []string{"default", "app"},
 			},
-			expectedCont: `destination_cluster="production"`,
-			expectedMiss: "",
+			expectedCont: `destination_namespace=~"default|app"`,
+			expectedMiss: "destination_cluster",
 		},
 		{
-			name:         "no cluster name",
+			name:         "no cluster filtering for mesh-wide visibility",
 			clusterName:  "",
 			filters:      metrics.MeshMetricsFilters{},
 			expectedCont: "",
 			expectedMiss: "destination_cluster",
 		},
 		{
-			name:        "cluster with namespace filters",
+			name:        "single namespace filter",
 			clusterName: "production",
 			filters: metrics.MeshMetricsFilters{
 				Namespaces: []string{"default"},
 			},
-			expectedCont: `destination_cluster="production"`,
-			expectedMiss: "",
+			expectedCont: `destination_namespace=~"default"`,
+			expectedMiss: "destination_cluster",
 		},
 	}
 
@@ -872,10 +872,10 @@ func TestBuildFilterClauseWithClusterName(t *testing.T) {
 			result := provider.buildFilterClause(tt.filters)
 
 			if tt.expectedCont != "" {
-				assert.Contains(t, result, tt.expectedCont, "should contain cluster filter")
+				assert.Contains(t, result, tt.expectedCont, "should contain expected filter")
 			}
 			if tt.expectedMiss != "" {
-				assert.NotContains(t, result, tt.expectedMiss, "should not contain cluster filter when cluster name is empty")
+				assert.NotContains(t, result, tt.expectedMiss, "should not contain cluster filter for mesh-wide visibility")
 			}
 
 			// Verify it starts with a comma and space if non-empty

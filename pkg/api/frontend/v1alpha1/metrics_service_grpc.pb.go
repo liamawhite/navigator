@@ -34,6 +34,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	MetricsService_GetServiceGraphMetrics_FullMethodName = "/navigator.frontend.v1alpha1.MetricsService/GetServiceGraphMetrics"
+	MetricsService_GetServiceConnections_FullMethodName  = "/navigator.frontend.v1alpha1.MetricsService/GetServiceConnections"
 )
 
 // MetricsServiceClient is the client API for MetricsService service.
@@ -42,6 +43,8 @@ const (
 type MetricsServiceClient interface {
 	// GetServiceGraphMetrics returns service-to-service graph metrics across the mesh.
 	GetServiceGraphMetrics(ctx context.Context, in *GetServiceGraphMetricsRequest, opts ...grpc.CallOption) (*GetServiceGraphMetricsResponse, error)
+	// GetServiceConnections returns inbound and outbound connections for a specific service.
+	GetServiceConnections(ctx context.Context, in *GetServiceConnectionsRequest, opts ...grpc.CallOption) (*GetServiceConnectionsResponse, error)
 }
 
 type metricsServiceClient struct {
@@ -61,12 +64,23 @@ func (c *metricsServiceClient) GetServiceGraphMetrics(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *metricsServiceClient) GetServiceConnections(ctx context.Context, in *GetServiceConnectionsRequest, opts ...grpc.CallOption) (*GetServiceConnectionsResponse, error) {
+	out := new(GetServiceConnectionsResponse)
+	err := c.cc.Invoke(ctx, MetricsService_GetServiceConnections_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MetricsServiceServer is the server API for MetricsService service.
 // All implementations must embed UnimplementedMetricsServiceServer
 // for forward compatibility
 type MetricsServiceServer interface {
 	// GetServiceGraphMetrics returns service-to-service graph metrics across the mesh.
 	GetServiceGraphMetrics(context.Context, *GetServiceGraphMetricsRequest) (*GetServiceGraphMetricsResponse, error)
+	// GetServiceConnections returns inbound and outbound connections for a specific service.
+	GetServiceConnections(context.Context, *GetServiceConnectionsRequest) (*GetServiceConnectionsResponse, error)
 	mustEmbedUnimplementedMetricsServiceServer()
 }
 
@@ -76,6 +90,9 @@ type UnimplementedMetricsServiceServer struct {
 
 func (UnimplementedMetricsServiceServer) GetServiceGraphMetrics(context.Context, *GetServiceGraphMetricsRequest) (*GetServiceGraphMetricsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetServiceGraphMetrics not implemented")
+}
+func (UnimplementedMetricsServiceServer) GetServiceConnections(context.Context, *GetServiceConnectionsRequest) (*GetServiceConnectionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetServiceConnections not implemented")
 }
 func (UnimplementedMetricsServiceServer) mustEmbedUnimplementedMetricsServiceServer() {}
 
@@ -108,6 +125,24 @@ func _MetricsService_GetServiceGraphMetrics_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetricsService_GetServiceConnections_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetServiceConnectionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetricsServiceServer).GetServiceConnections(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MetricsService_GetServiceConnections_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetricsServiceServer).GetServiceConnections(ctx, req.(*GetServiceConnectionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MetricsService_ServiceDesc is the grpc.ServiceDesc for MetricsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -118,6 +153,10 @@ var MetricsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetServiceGraphMetrics",
 			Handler:    _MetricsService_GetServiceGraphMetrics_Handler,
+		},
+		{
+			MethodName: "GetServiceConnections",
+			Handler:    _MetricsService_GetServiceConnections_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
