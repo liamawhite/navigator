@@ -16,6 +16,7 @@ package frontend
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -46,10 +47,32 @@ func NewMetricsService(connectionManager providers.ReadOptimizedConnectionManage
 func (m *MetricsService) GetServiceConnections(ctx context.Context, req *frontendv1alpha1.GetServiceConnectionsRequest) (*frontendv1alpha1.GetServiceConnectionsResponse, error) {
 	m.logger.Debug("getting service connections", "service_name", req.ServiceName, "namespace", req.Namespace)
 
-	// Get all connected clusters
-	connectionInfos := m.connectionManager.GetConnectionInfo()
+	// Validate service name and namespace are provided
+	if req.ServiceName == "" {
+		return nil, fmt.Errorf("service name is required")
+	}
+	if req.Namespace == "" {
+		return nil, fmt.Errorf("namespace is required")
+	}
+
+	// Validate that the service exists before querying metrics
+	// Use the same service ID format as the rest of the system: namespace:serviceName
+	serviceID := fmt.Sprintf("%s:%s", req.Namespace, req.ServiceName)
+	if _, serviceExists := m.connectionManager.GetAggregatedService(serviceID); !serviceExists {
+		m.logger.Debug("service not found", "service_name", req.ServiceName, "namespace", req.Namespace, "service_id", serviceID)
+		return &frontendv1alpha1.GetServiceConnectionsResponse{
+			Inbound:         []*typesv1alpha1.ServicePairMetrics{},
+			Outbound:        []*typesv1alpha1.ServicePairMetrics{},
+			Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
+			ClustersQueried: []string{},
+		}, nil
+	}
+
 	var clustersQueried []string
 	var allPairs []*typesv1alpha1.ServicePairMetrics
+
+	// Get all connected clusters for metrics querying
+	connectionInfos := m.connectionManager.GetConnectionInfo()
 
 	// Collect all connected cluster IDs
 	var healthyClusters []string
@@ -57,7 +80,7 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 		healthyClusters = append(healthyClusters, clusterID)
 	}
 
-	// Query clusters in parallel using the targeted service connections method
+	// Query clusters in parallel using the targeted service connections method with proper cancellation
 	type clusterResult struct {
 		clusterID string
 		pairs     []*typesv1alpha1.ServicePairMetrics
@@ -67,13 +90,25 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 	results := make(chan clusterResult, len(healthyClusters))
 	var wg sync.WaitGroup
 
+	// Create cancellable context for cluster queries
+	clusterCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	for _, clusterID := range healthyClusters {
 		wg.Add(1)
 		go func(cID string) {
 			defer wg.Done()
 
+			// Check for cancellation before starting work
+			select {
+			case <-clusterCtx.Done():
+				results <- clusterResult{clusterID: cID, err: clusterCtx.Err()}
+				return
+			default:
+			}
+
 			// Request targeted service connections from this cluster
-			serviceConnectionsMetrics, err := m.meshMetricsProvider.GetServiceConnections(ctx, cID, req)
+			serviceConnectionsMetrics, err := m.meshMetricsProvider.GetServiceConnections(clusterCtx, cID, req)
 			if err != nil {
 				m.logger.Error("failed to get service connections from cluster", "cluster_id", cID, "error", err)
 				results <- clusterResult{clusterID: cID, err: err}

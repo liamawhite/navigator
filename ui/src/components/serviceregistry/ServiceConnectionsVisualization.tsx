@@ -58,8 +58,9 @@ export const ServiceConnectionsVisualization: React.FC<
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // Clear any existing visualization
-        d3.select(containerRef.current).selectAll('*').remove();
+        // Clear any existing visualization and remove event listeners
+        const container = d3.select(containerRef.current);
+        container.selectAll('*').remove();
 
         // Process data
         const nodes: ConnectionNode[] = [
@@ -566,6 +567,21 @@ export const ServiceConnectionsVisualization: React.FC<
             .attr('font-size', '10px')
             .attr('fill', colors.muted)
             .text((d) => d.cluster || '');
+
+        // Cleanup function to remove event listeners on unmount
+        return () => {
+            if (containerRef.current) {
+                const container = d3.select(containerRef.current);
+                // Remove all event listeners by selecting all nodes and clearing handlers
+                container
+                    .selectAll('.node')
+                    .on('click', null)
+                    .on('mouseenter', null)
+                    .on('mouseleave', null);
+                // Clear all elements
+                container.selectAll('*').remove();
+            }
+        };
     }, [serviceName, namespace, inbound, outbound, theme, isDark, navigate]);
 
     return (

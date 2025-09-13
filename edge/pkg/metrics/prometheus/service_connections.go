@@ -80,7 +80,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	timeRange := "5m"
 	timestamp := time.Now()
 
-	// Execute targeted queries in parallel
+	// Execute targeted queries in parallel with proper cancellation support
 	type connectionQueryResult struct {
 		ProcessedMetrics processedMetrics
 		QueryType        string
@@ -90,10 +90,23 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	results := make(chan connectionQueryResult, 4)
 	var wg sync.WaitGroup
 
+	// Create cancellable context for goroutines
+	queryCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Inbound request rate query
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		// Check for cancellation before starting work
+		select {
+		case <-queryCtx.Done():
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_request_rate"}
+			return
+		default:
+		}
+
 		query, err := p.buildServiceConnectionQuery(inboundRequestRateQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
 		if err != nil {
 			results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound request rate query: %w", err), QueryType: "inbound_request_rate"}
@@ -101,7 +114,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		}
 
 		p.logger.Debug("executing inbound request rate query", "query", query, "service", serviceName, "namespace", serviceNamespace)
-		resp, err := p.client.query(ctx, query)
+		resp, err := p.client.query(queryCtx, query)
 		if err != nil {
 			results <- connectionQueryResult{Error: err, QueryType: "inbound_request_rate"}
 			return
@@ -115,6 +128,15 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		// Check for cancellation before starting work
+		select {
+		case <-queryCtx.Done():
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "outbound_request_rate"}
+			return
+		default:
+		}
+
 		query, err := p.buildServiceConnectionQuery(outboundRequestRateQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
 		if err != nil {
 			results <- connectionQueryResult{Error: fmt.Errorf("failed to build outbound request rate query: %w", err), QueryType: "outbound_request_rate"}
@@ -122,7 +144,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		}
 
 		p.logger.Debug("executing outbound request rate query", "query", query, "service", serviceName, "namespace", serviceNamespace)
-		resp, err := p.client.query(ctx, query)
+		resp, err := p.client.query(queryCtx, query)
 		if err != nil {
 			results <- connectionQueryResult{Error: err, QueryType: "outbound_request_rate"}
 			return
@@ -136,6 +158,15 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		// Check for cancellation before starting work
+		select {
+		case <-queryCtx.Done():
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_error_rate"}
+			return
+		default:
+		}
+
 		query, err := p.buildServiceConnectionQuery(inboundErrorRateQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
 		if err != nil {
 			results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound error rate query: %w", err), QueryType: "inbound_error_rate"}
@@ -143,7 +174,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		}
 
 		p.logger.Debug("executing inbound error rate query", "query", query, "service", serviceName, "namespace", serviceNamespace)
-		resp, err := p.client.query(ctx, query)
+		resp, err := p.client.query(queryCtx, query)
 		if err != nil {
 			results <- connectionQueryResult{Error: err, QueryType: "inbound_error_rate"}
 			return
@@ -157,6 +188,15 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		// Check for cancellation before starting work
+		select {
+		case <-queryCtx.Done():
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "outbound_error_rate"}
+			return
+		default:
+		}
+
 		query, err := p.buildServiceConnectionQuery(outboundErrorRateQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
 		if err != nil {
 			results <- connectionQueryResult{Error: fmt.Errorf("failed to build outbound error rate query: %w", err), QueryType: "outbound_error_rate"}
@@ -164,7 +204,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		}
 
 		p.logger.Debug("executing outbound error rate query", "query", query, "service", serviceName, "namespace", serviceNamespace)
-		resp, err := p.client.query(ctx, query)
+		resp, err := p.client.query(queryCtx, query)
 		if err != nil {
 			results <- connectionQueryResult{Error: err, QueryType: "outbound_error_rate"}
 			return
