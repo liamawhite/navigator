@@ -15,6 +15,7 @@ spec:
     - source:
         principals:
         - "cluster.local/ns/microservices/sa/backend"
+        - "cluster.local/ns/monolith/sa/monolith"
     to:
     - operation:
         methods: ["GET", "POST", "PUT", "DELETE"]

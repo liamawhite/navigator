@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - destinationrule.yaml
+  - virtualservice.yaml
+  - sidecar.yaml
+  - authorizationpolicy.yaml
+  - peerauthentication.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: standalone-database
+  app.kubernetes.io/managed-by: navigator
+
+namespace: database

@@ -14,11 +14,15 @@ spec:
   http:
   - match:
     - uri:
-        prefix: /legacy
+        prefix: "/monolith/"
     rewrite:
-      uri: /
+      uri: "/"
     route:
     - destination:
         host: monolith.monolith.svc.cluster.local
         port:
           number: 8080
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
