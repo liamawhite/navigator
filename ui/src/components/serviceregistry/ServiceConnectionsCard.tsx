@@ -72,7 +72,7 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
     // Update refreshing state and last updated timestamp
     React.useEffect(() => {
         let isMounted = true;
-        
+
         if (isLoading && !isRefreshing) {
             if (isMounted) {
                 setRefreshing(true);
@@ -86,7 +86,7 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                 }
             }
         }
-        
+
         return () => {
             isMounted = false;
         };
