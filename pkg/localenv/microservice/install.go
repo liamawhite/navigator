@@ -259,7 +259,6 @@ func (k *KustomizeManager) deleteMonolithManifests(ctx context.Context, manifest
 	return nil
 }
 
-
 // waitForDeployments waits for all deployments to be ready
 func (k *KustomizeManager) waitForDeployments(ctx context.Context, timeout time.Duration) error {
 	deployments := []string{"frontend", "backend"}
