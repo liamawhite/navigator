@@ -16,6 +16,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useService } from '../hooks/useServices';
 import { Navbar } from '../components/Navbar';
 import { ServiceConnectionsCard } from '../components/serviceregistry/ServiceConnectionsCard';
+import { MetricsProvider } from '../contexts/MetricsContext';
 import { Server, Database, MapPin, Hexagon, Home, Network } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -168,97 +169,101 @@ export const ServiceDetailPage: React.FC = () => {
                     </BreadcrumbList>
                 </Breadcrumb>
 
-                {/* Service Header */}
-                <Card className="mb-6">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-6">
-                                <div>
-                                    <CardTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
-                                        <Server className="w-6 h-6 text-blue-500" />
-                                        {service.name}
-                                    </CardTitle>
-                                    <div className="flex items-center gap-4 mt-1">
-                                        <div className="flex items-center gap-1">
-                                            <MapPin className="w-3 h-3 text-muted-foreground" />
-                                            <Badge
-                                                variant="secondary"
-                                                className="text-xs"
-                                            >
-                                                {service.namespace}
-                                            </Badge>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Network className="w-3 h-3 text-muted-foreground" />
-                                            <div className="flex gap-1">
-                                                {uniqueClusters.map(
-                                                    (cluster) => {
-                                                        const clusterIP =
-                                                            service
-                                                                .clusterIps?.[
-                                                                cluster
-                                                            ];
-                                                        const externalIP =
-                                                            service
-                                                                .externalIps?.[
-                                                                cluster
-                                                            ];
-                                                        const displayIP =
-                                                            externalIP ||
-                                                            clusterIP;
+                <MetricsProvider>
+                    {/* Service Header */}
+                    <Card className="mb-6">
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-6">
+                                    <div>
+                                        <CardTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+                                            <Server className="w-6 h-6 text-blue-500" />
+                                            {service.name}
+                                        </CardTitle>
+                                        <div className="flex items-center gap-4 mt-1">
+                                            <div className="flex items-center gap-1">
+                                                <MapPin className="w-3 h-3 text-muted-foreground" />
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="text-xs"
+                                                >
+                                                    {service.namespace}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Network className="w-3 h-3 text-muted-foreground" />
+                                                <div className="flex gap-1">
+                                                    {uniqueClusters.map(
+                                                        (cluster) => {
+                                                            const clusterIP =
+                                                                service
+                                                                    .clusterIps?.[
+                                                                    cluster
+                                                                ];
+                                                            const externalIP =
+                                                                service
+                                                                    .externalIps?.[
+                                                                    cluster
+                                                                ];
+                                                            const displayIP =
+                                                                externalIP ||
+                                                                clusterIP;
 
-                                                        return (
-                                                            <Badge
-                                                                key={cluster}
-                                                                variant="outline"
-                                                                className={`text-xs ${externalIP ? 'border-green-500 text-green-700' : ''}`}
-                                                            >
-                                                                {cluster}
-                                                                {displayIP
-                                                                    ? `:${displayIP}`
-                                                                    : ''}
-                                                            </Badge>
-                                                        );
-                                                    }
-                                                )}
+                                                            return (
+                                                                <Badge
+                                                                    key={
+                                                                        cluster
+                                                                    }
+                                                                    variant="outline"
+                                                                    className={`text-xs ${externalIP ? 'border-green-500 text-green-700' : ''}`}
+                                                                >
+                                                                    {cluster}
+                                                                    {displayIP
+                                                                        ? `:${displayIP}`
+                                                                        : ''}
+                                                                </Badge>
+                                                            );
+                                                        }
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-2">
-                                    <Database className="w-4 h-4 text-muted-foreground" />
-                                    <span className="text-lg font-semibold">
-                                        {service.instances.length}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                        {service.instances.length === 1
-                                            ? 'instance'
-                                            : 'instances'}
-                                    </span>
-                                </div>
+                                <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-2">
+                                        <Database className="w-4 h-4 text-muted-foreground" />
+                                        <span className="text-lg font-semibold">
+                                            {service.instances.length}
+                                        </span>
+                                        <span className="text-sm text-muted-foreground">
+                                            {service.instances.length === 1
+                                                ? 'instance'
+                                                : 'instances'}
+                                        </span>
+                                    </div>
 
-                                <div className="flex items-center gap-2">
-                                    <Hexagon
-                                        className={`w-4 h-4 ${serviceMeshEnabled ? 'text-purple-600' : 'text-muted-foreground'}`}
-                                    />
-                                    <span className="text-sm text-muted-foreground">
-                                        {serviceMeshEnabled
-                                            ? `${proxiedInstances.length}/${service.instances.length}`
-                                            : 'No Envoy'}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <Hexagon
+                                            className={`w-4 h-4 ${serviceMeshEnabled ? 'text-purple-600' : 'text-muted-foreground'}`}
+                                        />
+                                        <span className="text-sm text-muted-foreground">
+                                            {serviceMeshEnabled
+                                                ? `${proxiedInstances.length}/${service.instances.length}`
+                                                : 'No Envoy'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </CardHeader>
-                </Card>
+                        </CardHeader>
+                    </Card>
 
-                {/* Service Connections */}
-                <ServiceConnectionsCard
-                    serviceName={service.name}
-                    namespace={service.namespace}
-                />
+                    {/* Service Connections */}
+                    <ServiceConnectionsCard
+                        serviceName={service.name}
+                        namespace={service.namespace}
+                    />
+                </MetricsProvider>
 
                 {/* Service Instances */}
                 <Card>

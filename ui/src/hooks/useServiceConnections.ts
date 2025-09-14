@@ -13,14 +13,19 @@
 // limitations under the License.
 
 import { useQuery } from '@tanstack/react-query';
+import { useMetricsContext } from '../contexts/MetricsContext';
 import { MetricsServiceService } from '../types/generated/openapi-metrics_service';
 
 export function useServiceConnections(serviceName: string, namespace: string) {
-    const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - 5 * 60 * 1000); // Last 5 minutes
+    const { startTime, endTime, refreshTrigger } = useMetricsContext();
 
     return useQuery({
-        queryKey: ['serviceConnections', serviceName, namespace],
+        queryKey: [
+            'serviceConnections',
+            serviceName,
+            namespace,
+            refreshTrigger,
+        ],
         queryFn: async () => {
             const response =
                 await MetricsServiceService.metricsServiceGetServiceConnections(
@@ -39,7 +44,7 @@ export function useServiceConnections(serviceName: string, namespace: string) {
 
             return response;
         },
-        refetchInterval: 10000, // Refresh every 10 seconds
+        enabled: refreshTrigger > 0, // Only fetch when manually triggered (starts at 1)
         retry: 3,
         retryDelay: 1000,
     });

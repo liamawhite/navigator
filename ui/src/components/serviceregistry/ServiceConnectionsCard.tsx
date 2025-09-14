@@ -14,10 +14,19 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Network, AlertCircle } from 'lucide-react';
+import { Network, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 import { useServiceConnections } from '../../hooks/useServiceConnections';
 import { useClusters } from '../../hooks/useClusters';
+import { useMetricsContext, TIME_RANGES } from '../../contexts/MetricsContext';
 import { ServiceConnectionsVisualization } from './ServiceConnectionsVisualization';
+import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 interface ServiceConnectionsCardProps {
     serviceName: string;
@@ -29,6 +38,16 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
     namespace,
 }) => {
     const {
+        timeRange,
+        lastUpdated,
+        isRefreshing,
+        setRefreshing,
+        updateLastUpdated,
+        triggerRefresh,
+        setTimeRange,
+    } = useMetricsContext();
+
+    const {
         data: connections,
         isLoading,
         error,
@@ -38,9 +57,46 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
         refetchInterval: 30000, // Refresh every 30 seconds
     });
 
+    // Trigger initial refresh on mount
+    React.useEffect(() => {
+        triggerRefresh();
+    }, [triggerRefresh]); // Include triggerRefresh dependency
+
+    // Update refreshing state and last updated timestamp
+    React.useEffect(() => {
+        if (isLoading && !isRefreshing) {
+            setRefreshing(true);
+        } else if (!isLoading && isRefreshing) {
+            setRefreshing(false);
+            // Update last updated timestamp when loading completes
+            if (connections) {
+                updateLastUpdated();
+            }
+        }
+    }, [
+        isLoading,
+        isRefreshing,
+        setRefreshing,
+        connections,
+        updateLastUpdated,
+    ]);
+
     const hasAnyMetrics =
         clusters?.some((cluster) => cluster.metricsEnabled) ?? false;
     const showCollapsed = !clustersLoading && !hasAnyMetrics;
+
+    const formatLastUpdated = (date: Date | null) => {
+        if (!date) return 'Never';
+        const now = new Date();
+        const diffInSeconds = Math.floor(
+            (now.getTime() - date.getTime()) / 1000
+        );
+        if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
+        const diffInMinutes = Math.floor(diffInSeconds / 60);
+        if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        return `${diffInHours}h ago`;
+    };
 
     return (
         <Card className={`mb-6 ${showCollapsed ? 'opacity-50' : ''}`}>
@@ -53,7 +109,7 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                             alpha
                         </sup>
                     </div>
-                    {showCollapsed && (
+                    {showCollapsed ? (
                         <div className="flex items-center gap-1.5 text-muted-foreground text-sm font-normal">
                             <AlertCircle className="w-4 h-4" />
                             <span>
@@ -61,11 +117,56 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                                 cluster
                             </span>
                         </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <div className="text-xs text-muted-foreground">
+                                Last updated: {formatLastUpdated(lastUpdated)}
+                            </div>
+                            <Select
+                                value={timeRange.value}
+                                onValueChange={(value) => {
+                                    const selectedRange = TIME_RANGES.find(
+                                        (r) => r.value === value
+                                    );
+                                    if (selectedRange) {
+                                        setTimeRange(selectedRange);
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="w-40 h-8 cursor-pointer">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="w-4 h-4" />
+                                        <SelectValue />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {TIME_RANGES.map((range) => (
+                                        <SelectItem
+                                            key={range.value}
+                                            value={range.value}
+                                        >
+                                            {range.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={triggerRefresh}
+                                disabled={isRefreshing}
+                                className="h-8 cursor-pointer"
+                            >
+                                <RefreshCw
+                                    className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                                />
+                            </Button>
+                        </div>
                     )}
                 </CardTitle>
             </CardHeader>
             {!showCollapsed && (
-                <CardContent>
+                <CardContent className="relative">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-64">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
@@ -99,7 +200,7 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                             </p>
                             <p className="text-sm text-center mt-2">
                                 This service has no inbound or outbound traffic
-                                in the last 5 minutes
+                                in the selected time range
                             </p>
                         </div>
                     )}
