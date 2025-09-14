@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Build Verification**: After making UI changes, always run `make build-navctl-dev` instead of `npm run build` to verify builds correctly. This builds the complete navctl binary with embedded UI for easier manual testing.
 
+**Iterative Development**: When working iteratively on UI changes, remember to rebuild and restart the server to see changes. Use `make build-navctl-dev` then restart `./bin/navctl local --metrics-endpoint http://localhost:30090 --log-level info --no-browser` to apply UI modifications.
+
 ## Architecture Overview
 
 Navigator is an edge computing platform that provides Kubernetes service discovery and proxy configuration analysis through a distributed architecture of manager, edge, and CLI components.
