@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { v1alpha1Service } from '../../types/generated/openapi';
+import type { v1alpha1Service } from '../../types/generated/openapi-service_registry/models/v1alpha1Service';
 import { Server, Database, Hexagon, Globe, Network } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

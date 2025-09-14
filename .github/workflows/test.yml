@@ -21,6 +21,20 @@ jobs:
     - name: Run unit tests
       run: make test-unit
 
+  ui:
+    name: ui
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install Nix
+      uses: cachix/install-nix-action@v25
+    
+    - name: Run UI tests
+      run: make test-ui
+
   release:
     name: release
     runs-on: ubuntu-latest
