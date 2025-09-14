@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 export interface TimeRange {
     label: string;
@@ -80,10 +80,11 @@ export const MetricsProvider: React.FC<MetricsProviderProps> = ({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0); // Start with 0 so queries don't run initially
 
-    const endTime = new Date();
-    const startTime = new Date(
-        endTime.getTime() - timeRange.minutes * 60 * 1000
-    );
+    const { startTime, endTime } = useMemo(() => {
+        const end = new Date();
+        const start = new Date(end.getTime() - timeRange.minutes * 60 * 1000);
+        return { startTime: start, endTime: end };
+    }, [timeRange.minutes]);
 
     const setTimeRange = useCallback((newTimeRange: TimeRange) => {
         setTimeRangeState(newTimeRange);
