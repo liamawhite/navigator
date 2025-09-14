@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Network, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 import { useServiceConnections } from '../../hooks/useServiceConnections';
@@ -27,6 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { formatLastUpdated } from '@/lib/utils';
 
 interface ServiceConnectionsCardProps {
     serviceName: string;
@@ -57,10 +58,16 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
         refetchInterval: 30000, // Refresh every 30 seconds
     });
 
-    // Trigger initial refresh on mount
+    // Track if initial refresh has been triggered to prevent memory leaks
+    const hasTriggeredInitialRefresh = useRef(false);
+
+    // Trigger initial refresh on mount (only once)
     React.useEffect(() => {
-        triggerRefresh();
-    }, [triggerRefresh]); // Include triggerRefresh dependency
+        if (!hasTriggeredInitialRefresh.current) {
+            triggerRefresh();
+            hasTriggeredInitialRefresh.current = true;
+        }
+    }, [triggerRefresh]);
 
     // Update refreshing state and last updated timestamp
     React.useEffect(() => {
@@ -84,19 +91,6 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
     const hasAnyMetrics =
         clusters?.some((cluster) => cluster.metricsEnabled) ?? false;
     const showCollapsed = !clustersLoading && !hasAnyMetrics;
-
-    const formatLastUpdated = (date: Date | null) => {
-        if (!date) return 'Never';
-        const now = new Date();
-        const diffInSeconds = Math.floor(
-            (now.getTime() - date.getTime()) / 1000
-        );
-        if (diffInSeconds < 60) return `${diffInSeconds}s ago`;
-        const diffInMinutes = Math.floor(diffInSeconds / 60);
-        if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-        const diffInHours = Math.floor(diffInMinutes / 60);
-        return `${diffInHours}h ago`;
-    };
 
     return (
         <Card className={`mb-6 ${showCollapsed ? 'opacity-50' : ''}`}>
