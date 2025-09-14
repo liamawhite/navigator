@@ -46,10 +46,18 @@ func (k *KustomizeManager) VerifyMicroserviceChain(ctx context.Context) error {
 func (k *KustomizeManager) WaitForMicroservicesReady(ctx context.Context, timeout time.Duration) error {
 	k.logger.Info("Waiting for microservices to be ready", "timeout", timeout)
 
-	deployments := []string{"frontend", "backend", "database"}
+	// Microservices namespace deployments
+	microservicesDeployments := []string{"frontend", "backend"}
+	for _, deployment := range microservicesDeployments {
+		if err := k.waitForDeploymentReady(ctx, deployment, "microservices", timeout); err != nil {
+			return fmt.Errorf("deployment %s not ready: %w", deployment, err)
+		}
+	}
 
-	for _, deployment := range deployments {
-		if err := k.waitForDeploymentReady(ctx, deployment, timeout); err != nil {
+	// Database namespace deployments
+	databaseDeployments := []string{"database"}
+	for _, deployment := range databaseDeployments {
+		if err := k.waitForDeploymentReady(ctx, deployment, "database", timeout); err != nil {
 			return fmt.Errorf("deployment %s not ready: %w", deployment, err)
 		}
 	}
@@ -58,21 +66,21 @@ func (k *KustomizeManager) WaitForMicroservicesReady(ctx context.Context, timeou
 	return nil
 }
 
-// waitForDeploymentReady waits for a specific deployment to be ready
-func (k *KustomizeManager) waitForDeploymentReady(ctx context.Context, deployment string, timeout time.Duration) error {
-	args := []string{"rollout", "status", "deployment/" + deployment, "-n", "microservices", "--timeout=" + timeout.String()}
+// waitForDeploymentReady waits for a specific deployment to be ready in the specified namespace
+func (k *KustomizeManager) waitForDeploymentReady(ctx context.Context, deployment string, namespace string, timeout time.Duration) error {
+	args := []string{"rollout", "status", "deployment/" + deployment, "-n", namespace, "--timeout=" + timeout.String()}
 	if k.kubeconfig != "" {
 		args = append([]string{"--kubeconfig", k.kubeconfig}, args...)
 	}
 
-	k.logger.Info("Waiting for deployment to be ready", "deployment", deployment, "timeout", timeout)
+	k.logger.Info("Waiting for deployment to be ready", "deployment", deployment, "namespace", namespace, "timeout", timeout)
 	cmd := exec.CommandContext(ctx, "kubectl", args...) //nolint:gosec // kubectl execution with controlled args
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		k.logger.Error("Deployment not ready", "deployment", deployment, "error", err, "output", string(output))
+		k.logger.Error("Deployment not ready", "deployment", deployment, "namespace", namespace, "error", err, "output", string(output))
 		return fmt.Errorf("deployment %s not ready: %w", deployment, err)
 	}
-	k.logger.Info("Deployment is ready", "deployment", deployment)
+	k.logger.Info("Deployment is ready", "deployment", deployment, "namespace", namespace)
 	return nil
 }
 
@@ -88,8 +96,8 @@ func (k *KustomizeManager) testRequestChain(ctx context.Context) error {
 	}
 
 	// Build the request URL for the microservice chain test
-	// This will verify the full chain: Gateway -> Frontend -> Backend -> Database
-	requestURL := fmt.Sprintf("%s/proxy/backend:8080/proxy/database:8080", gatewayURL)
+	// This will verify the full chain: Gateway -> Frontend -> Backend -> Database (cross-namespace)
+	requestURL := fmt.Sprintf("%s/proxy/backend:8080/proxy/database.database:8080", gatewayURL)
 	k.logger.Info("Making HTTP request to test full microservice chain", "url", requestURL)
 
 	// Create HTTP client with reasonable timeout

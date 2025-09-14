@@ -1,19 +1,17 @@
 apiVersion: networking.istio.io/v1beta1
 kind: Sidecar
 metadata:
-  name: backend
+  name: database
   namespace: microservices
   labels:
-    app.kubernetes.io/name: backend-sidecar
+    app.kubernetes.io/name: database-sidecar
     app.kubernetes.io/component: networking
 spec:
   workloadSelector:
     labels:
-      app.kubernetes.io/name: backend
+      app.kubernetes.io/name: database
   egress:
   - hosts:
-    - "database/*"
     - "istio-system/*"
-    - "./example.com"
   outboundTrafficPolicy:
     mode: REGISTRY_ONLY

@@ -8,7 +8,6 @@ resources:
   - external-serviceentry.yaml
   - frontend
   - backend
-  - database
 
 commonLabels:
   app.kubernetes.io/part-of: three-tier-microservice

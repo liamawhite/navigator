@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"path/filepath"
 
+	"github.com/liamawhite/navigator/pkg/localenv/database"
 	"github.com/liamawhite/navigator/pkg/localenv/fortio"
 	"github.com/liamawhite/navigator/pkg/localenv/istio"
 	"github.com/liamawhite/navigator/pkg/localenv/kind"
@@ -147,21 +148,69 @@ and proxy analysis features.`,
 			return fmt.Errorf("failed to label default namespace for Istio injection: %w", err)
 		}
 
-		// Install microservices topology
-		logger.Info("Installing microservices", "scenario", "three-tier")
+		// Install microservices and database in parallel
+		logger.Info("Installing microservices and database in parallel", "scenario", "three-tier")
 
-		// Create microservice Kustomize manager
+		// Create managers
 		microKustomizeMgr, err := microservice.NewKustomizeManager(absKubeconfigPath, logger)
 		if err != nil {
 			return fmt.Errorf("failed to create Kustomize manager for microservice installation: %w", err)
 		}
 
-		// Install microservices using Kustomize
-		if err := microKustomizeMgr.InstallMicroservice(ctx); err != nil {
-			return fmt.Errorf("failed to install microservices: %w", err)
+		dbKustomizeMgr, err := database.NewKustomizeManager(absKubeconfigPath, logger)
+		if err != nil {
+			return fmt.Errorf("failed to create Kustomize manager for database installation: %w", err)
 		}
 
-		logger.Info("Microservices installed successfully")
+		// Install both components in parallel using goroutines
+		type installResult struct {
+			component string
+			err       error
+		}
+
+		resultCh := make(chan installResult, 2)
+
+		// Install microservices
+		go func() {
+			logger.Info("Starting microservices installation...")
+			err := microKustomizeMgr.InstallMicroservice(ctx)
+			resultCh <- installResult{component: "microservices", err: err}
+		}()
+
+		// Install database
+		go func() {
+			logger.Info("Starting database installation...")
+			err := dbKustomizeMgr.InstallDatabase(ctx)
+			resultCh <- installResult{component: "database", err: err}
+		}()
+
+		// Wait for both installations to complete
+		var microErr, dbErr error
+		for i := 0; i < 2; i++ {
+			result := <-resultCh
+			switch result.component {
+			case "microservices":
+				microErr = result.err
+				if microErr == nil {
+					logger.Info("✓ Microservices installed successfully")
+				}
+			case "database":
+				dbErr = result.err
+				if dbErr == nil {
+					logger.Info("✓ Database installed successfully")
+				}
+			}
+		}
+
+		// Check for any installation errors
+		if microErr != nil {
+			return fmt.Errorf("failed to install microservices: %w", microErr)
+		}
+		if dbErr != nil {
+			return fmt.Errorf("failed to install database: %w", dbErr)
+		}
+
+		logger.Info("All components installed successfully")
 
 		// Verify the microservice chain is working
 		logger.Info("Verifying microservice connectivity...")
@@ -191,7 +240,7 @@ and proxy analysis features.`,
 			logger.Info("✓ Prometheus addon verification successful")
 		}
 
-		// Verify microservice chain
+		// Verify microservice chain (including database connectivity)
 		logger.Info("Step 3/3: Verifying microservice request chain...")
 		if err := microKustomizeMgr.VerifyMicroserviceChain(ctx); err != nil {
 			logger.Error("Microservice verification failed", "error", err)
@@ -218,6 +267,7 @@ and proxy analysis features.`,
 				"kubeconfig", kubeconfigPath,
 				"istio_version", demoIstioVersion,
 				"microservices_namespace", "microservices",
+				"database_namespace", "database", 
 				"test_url", "Gateway -> Frontend -> Backend -> Database chain verified",
 				"http_port", kind.HTTPNodePort,
 				"https_port", kind.HTTPSNodePort,
@@ -226,11 +276,11 @@ and proxy analysis features.`,
 
 			// Print curl examples for manual testing after all structured logging
 			fmt.Printf("\n🧪 Test the microservice chain manually:\n")
-			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database:8080\"\n", kind.HTTPNodePort)
+			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database.database:8080\"\n", kind.HTTPNodePort)
 			fmt.Printf("\n🔍 Test individual services:\n")
 			fmt.Printf("   curl -s \"http://localhost:%d\"                              # Frontend only\n", kind.HTTPNodePort)
 			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080\"             # Frontend -> Backend\n", kind.HTTPNodePort)
-			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database:8080\" # Full chain\n", kind.HTTPNodePort)
+			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database.database:8080\" # Full chain\n", kind.HTTPNodePort)
 			fmt.Printf("\n📊 Access Prometheus metrics:\n")
 			fmt.Printf("   http://localhost:%d\n", kind.PrometheusNodePort)
 			fmt.Printf("\n")
@@ -288,6 +338,26 @@ This command deletes the specified Kind cluster and cleans up associated resourc
 				}
 			} else {
 				logger.Debug("No Fortio load generator found or could not check")
+			}
+
+			// Try to clean up database first (best effort)
+			logger.Info("Attempting database cleanup")
+
+			dbKustomizeMgr, err := database.NewKustomizeManager(absKubeconfigPath, logger)
+			if err != nil {
+				logger.Debug("Could not create database Kustomize manager for cleanup", "error", err)
+			} else {
+				// Check if database is installed
+				if installed, version, err := dbKustomizeMgr.IsDatabaseInstalled(ctx); err == nil && installed {
+					logger.Info("Found database installation, cleaning up", "version", version)
+					if err := dbKustomizeMgr.UninstallDatabase(ctx); err != nil {
+						logger.Warn("Failed to uninstall database", "error", err)
+					} else {
+						logger.Info("Database uninstalled successfully")
+					}
+				} else {
+					logger.Debug("No database installation found or could not check")
+				}
 			}
 
 			// Try to clean up microservices (best effort)

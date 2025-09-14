@@ -23,7 +23,7 @@ spec:
     - -keepalive        # Keep connections alive for efficiency
     - -logger-force-color=false  # Disable color for cleaner logs
     - -h2               # Use HTTP/2
-    - http://istio-ingressgateway.istio-system.svc.cluster.local/proxy/backend:8080/proxy/database:8080
+    - http://istio-ingressgateway.istio-system.svc.cluster.local/microservices/proxy/backend:8080/proxy/database.database:8080
     resources:
       requests:
         memory: "64Mi"
@@ -58,7 +58,7 @@ spec:
     - -keepalive        # Keep connections alive for efficiency
     - -logger-force-color=false  # Disable color for cleaner logs
     - -h2               # Use HTTP/2
-    - http://istio-ingressgateway.istio-system.svc.cluster.local/proxy/backend:8080/proxy/example.com:80/proxy/backend:8080/proxy/database:8080
+    - http://istio-ingressgateway.istio-system.svc.cluster.local/microservices/proxy/backend:8080/proxy/example.com:80/microservices/proxy/backend:8080/proxy/database.database:8080
     resources:
       requests:
         memory: "64Mi"
@@ -93,7 +93,7 @@ spec:
     - -keepalive        # Keep connections alive for efficiency
     - -logger-force-color=false  # Disable color for cleaner logs
     - -h2               # Use HTTP/2
-    - http://istio-ingressgateway.istio-system.svc.cluster.local/legacy
+    - http://istio-ingressgateway.istio-system.svc.cluster.local/monolith/proxy/database.database:8080
     resources:
       requests:
         memory: "64Mi"
