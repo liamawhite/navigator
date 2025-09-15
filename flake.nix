@@ -34,26 +34,6 @@
               nodejs
               nodePackages.npm
               licenser
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-              # Playwright system dependencies (Linux only)
-              glib
-              nspr
-              nss
-              dbus
-              atk
-              expat
-              at-spi2-atk
-              xorg.libX11
-              xorg.libXcomposite
-              xorg.libXdamage
-              xorg.libXext
-              xorg.libXfixes
-              xorg.libXrandr
-              mesa # provides libgbm
-              xorg.libxcb
-              libxkbcommon
-              systemd # provides libudev
-              alsa-lib
             ];
           };
         }

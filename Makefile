@@ -111,6 +111,7 @@ test-e2e: build-navctl-dev
 test-e2e-ci: build-navctl-dev
 	@echo "🧪 Running E2E tests in CI mode (with demo setup)..."
 	@cd ui && npm ci
+	@cd ui && sudo npx playwright install-deps chromium
 	@cd ui && npx playwright install chromium
 	@cd ui && npm run e2e:ci
 
