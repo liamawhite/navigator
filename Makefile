@@ -111,7 +111,7 @@ test-e2e: build-navctl-dev
 test-e2e-ci: build-navctl-dev
 	@echo "🧪 Running E2E tests in CI mode (with demo setup)..."
 	@cd ui && npm ci
-	@cd ui && npx playwright install --with-deps chromium
+	@cd ui && npx playwright install chromium
 	@cd ui && npm run e2e:ci
 
 test-e2e-setup: build-navctl-dev
@@ -119,7 +119,7 @@ test-e2e-setup: build-navctl-dev
 	@echo "🎭 Setting up demo cluster..."
 	@./bin/navctl demo start --name navigator-e2e --istio-version 1.25.4
 	@echo "🧪 Running E2E tests..."
-	@cd ui && npm ci && npx playwright install --with-deps chromium && E2E_DEMO_NAME=navigator-e2e npm run e2e
+	@cd ui && npm ci && npx playwright install chromium && E2E_DEMO_NAME=navigator-e2e npm run e2e
 	@echo "🧹 Cleaning up demo cluster..."
 	@./bin/navctl demo stop --name navigator-e2e
 
