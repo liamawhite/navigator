@@ -24,10 +24,8 @@ import {
     DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { serviceApi } from '../utils/api';
-import type {
-    v1alpha1ClusterSyncInfo,
-    v1alpha1SyncStatus,
-} from '../types/generated/openapi-service_registry';
+import type { v1alpha1ClusterSyncInfo } from '../types/generated/openapi-cluster_registry';
+import { v1alpha1SyncStatus } from '../types/generated/openapi-cluster_registry';
 import { ChevronDown, Server, Circle, AlertTriangle } from 'lucide-react';
 import {
     Tooltip,
@@ -38,13 +36,13 @@ import {
 
 const getSyncStatusColor = (status?: v1alpha1SyncStatus): string => {
     switch (status) {
-        case 'SYNC_STATUS_INITIALIZING':
+        case v1alpha1SyncStatus.SYNC_STATUS_INITIALIZING:
             return 'bg-blue-500';
-        case 'SYNC_STATUS_HEALTHY':
+        case v1alpha1SyncStatus.SYNC_STATUS_HEALTHY:
             return 'bg-green-500';
-        case 'SYNC_STATUS_STALE':
+        case v1alpha1SyncStatus.SYNC_STATUS_STALE:
             return 'bg-yellow-500';
-        case 'SYNC_STATUS_DISCONNECTED':
+        case v1alpha1SyncStatus.SYNC_STATUS_DISCONNECTED:
             return 'bg-red-500';
         default:
             return 'bg-gray-500';
@@ -53,13 +51,13 @@ const getSyncStatusColor = (status?: v1alpha1SyncStatus): string => {
 
 const getSyncStatusText = (status?: v1alpha1SyncStatus): string => {
     switch (status) {
-        case 'SYNC_STATUS_INITIALIZING':
+        case v1alpha1SyncStatus.SYNC_STATUS_INITIALIZING:
             return 'Initializing';
-        case 'SYNC_STATUS_HEALTHY':
+        case v1alpha1SyncStatus.SYNC_STATUS_HEALTHY:
             return 'Healthy';
-        case 'SYNC_STATUS_STALE':
+        case v1alpha1SyncStatus.SYNC_STATUS_STALE:
             return 'Stale';
-        case 'SYNC_STATUS_DISCONNECTED':
+        case v1alpha1SyncStatus.SYNC_STATUS_DISCONNECTED:
             return 'Disconnected';
         default:
             return 'Unknown';
@@ -144,15 +142,17 @@ export const ClusterSyncStatus: React.FC = () => {
     }, [isOpen]);
 
     const getOverallStatus = (): v1alpha1SyncStatus => {
-        if (clusters.length === 0) return 'SYNC_STATUS_DISCONNECTED';
+        if (clusters.length === 0)
+            return v1alpha1SyncStatus.SYNC_STATUS_DISCONNECTED;
 
         const statuses = clusters.map((c) => c.syncStatus);
-        if (statuses.includes('SYNC_STATUS_DISCONNECTED'))
-            return 'SYNC_STATUS_DISCONNECTED';
-        if (statuses.includes('SYNC_STATUS_STALE')) return 'SYNC_STATUS_STALE';
-        if (statuses.includes('SYNC_STATUS_INITIALIZING'))
-            return 'SYNC_STATUS_INITIALIZING';
-        return 'SYNC_STATUS_HEALTHY';
+        if (statuses.includes(v1alpha1SyncStatus.SYNC_STATUS_DISCONNECTED))
+            return v1alpha1SyncStatus.SYNC_STATUS_DISCONNECTED;
+        if (statuses.includes(v1alpha1SyncStatus.SYNC_STATUS_STALE))
+            return v1alpha1SyncStatus.SYNC_STATUS_STALE;
+        if (statuses.includes(v1alpha1SyncStatus.SYNC_STATUS_INITIALIZING))
+            return v1alpha1SyncStatus.SYNC_STATUS_INITIALIZING;
+        return v1alpha1SyncStatus.SYNC_STATUS_HEALTHY;
     };
 
     const overallStatus = getOverallStatus();

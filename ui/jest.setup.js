@@ -14,6 +14,11 @@
 
 require('@testing-library/jest-dom');
 
+// Polyfill for TextEncoder/TextDecoder (needed for React Router DOM)
+const { TextEncoder, TextDecoder } = require('util');
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
 // Mock CSS imports
 Object.defineProperty(window, 'matchMedia', {
     writable: true,

@@ -22,6 +22,11 @@ export default {
             {
                 tsconfig: {
                     jsx: 'react-jsx',
+                    esModuleInterop: true,
+                    allowSyntheticDefaultImports: true,
+                    module: 'esnext',
+                    target: 'es2020',
+                    moduleResolution: 'node',
                 },
             },
         ],
@@ -30,6 +35,7 @@ export default {
         '^@/(.*)$': '<rootDir>/src/$1',
         '\\.(css|less|scss)$': 'identity-obj-proxy',
     },
+    transformIgnorePatterns: ['node_modules/(?!(clsx|tailwind-merge)/)'],
     testMatch: [
         '<rootDir>/src/**/__tests__/**/*.(ts|tsx|js)',
         '<rootDir>/src/**/*.(test|spec).(ts|tsx|js)',

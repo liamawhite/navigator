@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, expect } from '@jest/globals';
+// Jest globals are available globally
 import { cn, formatLastUpdated } from './utils';
 
 describe('cn', () => {

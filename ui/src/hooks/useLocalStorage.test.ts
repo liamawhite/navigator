@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -220,9 +219,9 @@ describe('useLocalStorage', () => {
 
         // Mock setItem to throw an error
         const originalSetItem = localStorageMock.setItem;
-        localStorageMock.setItem = jest.fn(() => {
+        localStorageMock.setItem = jest.fn((_key: string, _value: string) => {
             throw new Error('Storage quota exceeded');
-        });
+        }) as jest.Mock<void, [string, string]>;
 
         const consoleSpy = jest
             .spyOn(console, 'warn')

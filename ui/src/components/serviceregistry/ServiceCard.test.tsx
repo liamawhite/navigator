@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ServiceCard } from './ServiceCard';
 import type { v1alpha1Service } from '../../types/generated/openapi-service_registry/models/v1alpha1Service';
