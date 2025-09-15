@@ -30,3 +30,9 @@ dist/
 chart-downloader
 
 .playwright-mcp
+
+# Jest testing
+ui/coverage/
+
+# Jest cache (if present)
+ui/.jest/

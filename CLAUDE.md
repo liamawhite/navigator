@@ -227,8 +227,14 @@ cd ui && npm run preview
 
 ### Testing
 ```bash
-# Run unit tests (default make target)
+# Run all tests (Go + UI)
+make check
+
+# Run Go unit tests only
 make test-unit
+
+# Run UI tests only  
+make test-ui
 
 # Run tests with verbose output
 go test -v ./...
@@ -243,6 +249,18 @@ go test -tags=test -v ./...
 
 # Run unit tests only (skip integration tests)
 go test -short ./...
+```
+
+#### UI Testing with Jest
+```bash
+# Run UI unit/component tests
+cd ui && npm test
+
+# Run tests in watch mode
+cd ui && npm run test:watch
+
+# Generate coverage report
+cd ui && npm run test:coverage
 ```
 
 ### Protocol Buffer Generation
@@ -429,11 +447,21 @@ All HTTP and gRPC requests automatically receive:
 ## Testing Patterns
 
 ### Unit Tests
+
+**Go Tests:**
 - Use `testify` for assertions and test structure
 - Manager tests use connection mocks
 - Edge tests use fake Kubernetes clients with `fake.NewSimpleClientset()`
 - Test files follow Go conventions: `*_test.go`
 - Tests use build tags: `go test -tags=test`
+
+**UI Tests (Jest):**
+- Test files use patterns: `*.test.ts`, `*.test.tsx`, or in `__tests__/` directories
+- **Utility tests**: Test pure functions and helpers (e.g., `lib/utils.test.ts`)
+- **Component tests**: Test React component rendering and user interactions
+- **Hook tests**: Test custom React hooks with React Testing Library
+- **Coverage thresholds**: 70% minimum for branches, functions, lines, and statements
+- **File exclusions**: Generated code, type definitions, and main entry points excluded from coverage
 
 ### UI Testing and Debugging
 For debugging UI issues, especially graph visualization problems, use Playwright for browser automation:

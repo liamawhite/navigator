@@ -13,17 +13,20 @@
 // limitations under the License.
 
 import axios from 'axios';
-import type { v1alpha1Service } from '../types/generated/openapi';
-import type { v1alpha1ListServicesResponse } from '../types/generated/openapi';
 import type {
+    v1alpha1Service,
+    v1alpha1ListServicesResponse,
     v1alpha1GetProxyConfigResponse,
     v1alpha1ServiceInstanceDetail,
-    v1alpha1ListClustersResponse,
-    v1alpha1ClusterSyncInfo,
     v1alpha1GetIstioResourcesResponse,
 } from '../types/generated/openapi-service_registry';
+import type {
+    v1alpha1ListClustersResponse,
+    v1alpha1ClusterSyncInfo,
+} from '../types/generated/openapi-cluster_registry';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL =
+    (typeof window !== 'undefined' && (window as any).VITE_API_URL) || ''; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 const api = axios.create({
     baseURL: API_BASE_URL,

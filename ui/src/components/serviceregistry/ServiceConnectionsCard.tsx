@@ -54,9 +54,7 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
         error,
     } = useServiceConnections(serviceName, namespace);
 
-    const { data: clusters, isLoading: clustersLoading } = useClusters({
-        refetchInterval: 30000, // Refresh every 30 seconds
-    });
+    const { data: clusters, isLoading: clustersLoading } = useClusters();
 
     // Track if initial refresh has been triggered to prevent memory leaks
     const hasTriggeredInitialRefresh = useRef(false);
@@ -187,27 +185,33 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                                     : 'Unknown error'}
                             </p>
                         </div>
-                    ) : connections &&
-                      (connections.inbound?.length ||
-                          connections.outbound?.length) ? (
-                        <ServiceConnectionsVisualization
-                            serviceName={serviceName}
-                            namespace={namespace}
-                            inbound={connections.inbound || []}
-                            outbound={connections.outbound || []}
-                        />
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                            <Network className="w-16 h-16 mb-4" />
-                            <p className="text-center">
-                                No service connections found
-                            </p>
-                            <p className="text-sm text-center mt-2">
-                                This service has no inbound or outbound traffic
-                                in the selected time range
-                            </p>
-                        </div>
-                    )}
+                    ) : connections && !('code' in connections) ? (
+                        // Type guard ensures we have the correct response type
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (connections as any).inbound?.length ||
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (connections as any).outbound?.length ? (
+                            <ServiceConnectionsVisualization
+                                serviceName={serviceName}
+                                namespace={namespace}
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                inbound={(connections as any).inbound || []}
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                outbound={(connections as any).outbound || []}
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                                <Network className="w-16 h-16 mb-4" />
+                                <p className="text-center">
+                                    No service connections found
+                                </p>
+                                <p className="text-sm text-center mt-2">
+                                    This service has no inbound or outbound
+                                    traffic in the selected time range
+                                </p>
+                            </div>
+                        )
+                    ) : null}
                 </CardContent>
             )}
         </Card>

@@ -24,9 +24,9 @@ DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -X github.com/liamawhite/navigator/pkg/version.version=$(VERSION) -X github.com/liamawhite/navigator/pkg/version.commit=$(COMMIT) -X github.com/liamawhite/navigator/pkg/version.date=$(DATE)
 
 .PHONY: build build-edge build-manager build-navctl build-navctl-dev build-ui build-ui-dev
-.PHONY: check clean dirty format generate generate-cli-docs lint local test-unit
+.PHONY: check clean dirty format generate generate-cli-docs lint local test-unit test-ui
 
-check: generate format lint test-unit dirty
+check: generate format lint test-unit test-ui dirty
 
 format:
 	licenser apply -r "Navigator Authors"
@@ -39,6 +39,9 @@ lint:
 
 test-unit: 
 	go test -race -tags=test -v ./manager/... ./edge/... ./navctl/... ./pkg/...
+
+test-ui:
+	cd ui && npm ci && npm run test
 
 generate: clean
 	cd api && buf generate
