@@ -15,7 +15,13 @@
         "generate": "for spec in $(ls ./src/types/openapi/frontend/v1alpha1/*.swagger.json); do openapi --input $spec --output ./src/types/generated/openapi-$(basename $spec .swagger.json) --client axios; done",
         "test": "jest",
         "test:watch": "jest --watch",
-        "test:coverage": "jest --coverage"
+        "test:coverage": "jest --coverage",
+        "e2e": "playwright test --config=e2e/playwright.config.ts",
+        "e2e:ci": "E2E_SETUP_DEMO=true playwright test --config=e2e/playwright.config.ts",
+        "e2e:debug": "playwright test --config=e2e/playwright.config.ts --debug",
+        "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
+        "e2e:headed": "playwright test --config=e2e/playwright.config.ts --headed",
+        "e2e:report": "playwright show-report e2e/playwright-report"
     },
     "dependencies": {
         "@catppuccin/codemirror": "1.0.1",

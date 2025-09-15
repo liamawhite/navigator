@@ -1,0 +1,51 @@
+<testsuites id="" name="" tests="8" failures="0" skipped="0" errors="0" time="13.877371">
+<testsuite name="service-discovery.spec.ts" timestamp="2025-09-15T15:36:24.209Z" hostname="chromium" tests="8" failures="0" skipped="0" time="12.764" errors="0">
+<testcase name="Service Discovery › should display service list on home page" classname="service-discovery.spec.ts" time="0.915">
+<system-out>
+<![CDATA[✅ navctl ready: navigator version v0.2.0-12-gefce3d3-dirty
+commit: efce3d3
+built: 2025-09-15 13:57:04 UTC
+go: go1.24.4
+✅ Using existing demo cluster: navigator-demo
+✅ Demo cluster ready with services: frontend, backend, database
+✅ All expected services discovered by API
+]]>
+</system-out>
+</testcase>
+<testcase name="Service Discovery › should show demo microservices" classname="service-discovery.spec.ts" time="0.707">
+<system-out>
+<![CDATA[✅ All expected services discovered by API
+]]>
+</system-out>
+</testcase>
+<testcase name="Service Discovery › should identify services with Istio sidecars" classname="service-discovery.spec.ts" time="0.729">
+<system-out>
+<![CDATA[✅ All expected services discovered by API
+Database sidecar indicator visible: true
+]]>
+</system-out>
+</testcase>
+<testcase name="Service Discovery › should navigate to service details when clicking service card" classname="service-discovery.spec.ts" time="0.84">
+<system-out>
+<![CDATA[✅ All expected services discovered by API
+]]>
+</system-out>
+</testcase>
+<testcase name="Service Discovery › should show service instance counts" classname="service-discovery.spec.ts" time="0.702">
+<system-out>
+<![CDATA[✅ All expected services discovered by API
+]]>
+</system-out>
+</testcase>
+<testcase name="Service Discovery › should update service list in real-time" classname="service-discovery.spec.ts" time="6.853">
+<system-out>
+<![CDATA[✅ All expected services discovered by API
+]]>
+</system-out>
+</testcase>
+<testcase name="Service Discovery › should handle empty state gracefully" classname="service-discovery.spec.ts" time="1.287">
+</testcase>
+<testcase name="Service Discovery › should validate API data matches UI display" classname="service-discovery.spec.ts" time="0.731">
+</testcase>
+</testsuite>
+</testsuites>
