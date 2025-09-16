@@ -18,7 +18,7 @@ import { Network, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 import { useServiceConnections } from '../../hooks/useServiceConnections';
 import { useClusters } from '../../hooks/useClusters';
 import { useMetricsContext, TIME_RANGES } from '../../contexts/MetricsContext';
-import { ServiceConnectionsVisualization } from './ServiceConnectionsVisualization';
+import { ServiceConnectionsTable } from './ServiceConnectionsTable';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -28,6 +28,28 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { formatLastUpdated } from '@/lib/utils';
+import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
+
+// Type definitions for service connections response
+type ServiceConnectionsResponse = {
+    inbound: v1alpha1ServicePairMetrics[];
+    outbound: v1alpha1ServicePairMetrics[];
+    timestamp: string;
+    clusters_queried: string[];
+};
+
+// Type guard to check if response is valid service connections
+function isServiceConnectionsResponse(
+    response: unknown
+): response is ServiceConnectionsResponse {
+    return (
+        typeof response === 'object' &&
+        response !== null &&
+        !('code' in response) &&
+        'inbound' in response &&
+        'outbound' in response
+    );
+}
 
 interface ServiceConnectionsCardProps {
     serviceName: string;
@@ -185,19 +207,12 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                                     : 'Unknown error'}
                             </p>
                         </div>
-                    ) : connections && !('code' in connections) ? (
-                        // Type guard ensures we have the correct response type
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (connections as any).inbound?.length ||
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (connections as any).outbound?.length ? (
-                            <ServiceConnectionsVisualization
-                                serviceName={serviceName}
-                                namespace={namespace}
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                inbound={(connections as any).inbound || []}
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                outbound={(connections as any).outbound || []}
+                    ) : isServiceConnectionsResponse(connections) ? (
+                        connections.inbound?.length ||
+                        connections.outbound?.length ? (
+                            <ServiceConnectionsTable
+                                inbound={connections.inbound || []}
+                                outbound={connections.outbound || []}
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">

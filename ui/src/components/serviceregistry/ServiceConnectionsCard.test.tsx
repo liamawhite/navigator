@@ -35,14 +35,16 @@ jest.mock('../../contexts/MetricsContext', () => ({
     ],
 }));
 
-jest.mock('./ServiceConnectionsVisualization', () => ({
-    ServiceConnectionsVisualization: ({
-        serviceName,
+jest.mock('./ServiceConnectionsTable', () => ({
+    ServiceConnectionsTable: ({
+        inbound,
+        outbound,
     }: {
-        serviceName: string;
+        inbound: unknown[];
+        outbound: unknown[];
     }) => (
-        <div data-testid="service-connections-viz">
-            Visualization for {serviceName}
+        <div data-testid="service-connections-table">
+            Connections: {inbound.length} inbound, {outbound.length} outbound
         </div>
     ),
 }));
@@ -174,8 +176,10 @@ describe('ServiceConnectionsCard', () => {
             />
         );
 
-        expect(screen.getByTestId('service-connections-viz')).toBeTruthy();
-        expect(screen.getByText('Visualization for test-service')).toBeTruthy();
+        expect(screen.getByTestId('service-connections-table')).toBeTruthy();
+        expect(
+            screen.getByText('Connections: 1 inbound, 1 outbound')
+        ).toBeTruthy();
     });
 
     it('should show collapsed state when no metrics enabled', () => {
