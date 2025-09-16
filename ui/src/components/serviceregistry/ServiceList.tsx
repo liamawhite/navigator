@@ -122,7 +122,6 @@ export const ServiceList: React.FC<ServiceListProps> = ({
         };
     }, [services, sortField, sortDirection]);
 
-
     const ServiceTable = ({
         serviceList,
         title,
