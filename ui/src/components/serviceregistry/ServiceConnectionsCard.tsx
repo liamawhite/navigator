@@ -18,7 +18,7 @@ import { Network, AlertCircle, Clock, RefreshCw } from 'lucide-react';
 import { useServiceConnections } from '../../hooks/useServiceConnections';
 import { useClusters } from '../../hooks/useClusters';
 import { useMetricsContext, TIME_RANGES } from '../../contexts/MetricsContext';
-import { ServiceConnectionsVisualization } from './ServiceConnectionsVisualization';
+import { ServiceConnectionsTable } from './ServiceConnectionsTable';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -191,7 +191,7 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                         (connections as any).inbound?.length ||
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         (connections as any).outbound?.length ? (
-                            <ServiceConnectionsVisualization
+                            <ServiceConnectionsTable
                                 serviceName={serviceName}
                                 namespace={namespace}
                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
