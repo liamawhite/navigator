@@ -23,6 +23,7 @@ import (
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"github.com/prometheus/common/model"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -117,6 +118,7 @@ func (p *Provider) GetServiceConnections(ctx context.Context, serviceName, names
 			DestinationService:   pair.DestinationService,
 			RequestRate:          pair.RequestRate,
 			ErrorRate:            pair.ErrorRate,
+			LatencyP99:           durationpb.New(time.Duration(pair.LatencyP99 * float64(time.Millisecond))),
 		})
 	}
 

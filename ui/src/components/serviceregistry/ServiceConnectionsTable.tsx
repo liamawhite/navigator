@@ -29,6 +29,7 @@ interface ConnectionRowData {
     cluster: string;
     requestRate: number;
     successRate: number;
+    latencyP99: string | undefined;
     isClickable: boolean;
 }
 
@@ -52,6 +53,39 @@ export const ServiceConnectionsTable: React.FC<
             return `${rate.toFixed(1)}%`;
         } else {
             return `${rate.toFixed(2)}%`;
+        }
+    };
+
+    const parseDurationToMs = (duration: string | undefined): number => {
+        if (!duration) return 0;
+
+        // Parse protobuf duration string format (e.g., "0.150s", "25ms")
+        const match = duration.match(/^(\d+(?:\.\d+)?)(s|ms|ns)$/);
+        if (!match) return 0;
+
+        const value = parseFloat(match[1]);
+        const unit = match[2];
+
+        switch (unit) {
+            case 's':
+                return value * 1000; // seconds to milliseconds
+            case 'ms':
+                return value; // already milliseconds
+            case 'ns':
+                return value / 1000000; // nanoseconds to milliseconds
+            default:
+                return 0;
+        }
+    };
+
+    const formatLatency = (duration: string | undefined): string => {
+        const latencyMs = parseDurationToMs(duration);
+        if (latencyMs === 0) {
+            return '-';
+        } else if (latencyMs >= 1000) {
+            return `${(latencyMs / 1000).toFixed(1)}s`;
+        } else {
+            return `${latencyMs.toFixed(0)}ms`;
         }
     };
 
@@ -88,6 +122,7 @@ export const ServiceConnectionsTable: React.FC<
 
                 const requestRate = conn.requestRate || 0;
                 const errorRate = conn.errorRate || 0;
+                const latencyP99 = conn.latencyP99;
                 const successRate =
                     requestRate > 0
                         ? ((requestRate - errorRate) / requestRate) * 100
@@ -99,6 +134,7 @@ export const ServiceConnectionsTable: React.FC<
                     cluster,
                     requestRate,
                     successRate,
+                    latencyP99,
                     isClickable: service !== 'unknown' && ns !== 'unknown',
                 };
             })
@@ -155,111 +191,217 @@ export const ServiceConnectionsTable: React.FC<
                 {/* Divider line for desktop */}
                 <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-border transform -translate-x-1/2"></div>
                 <div>
-                    <Table>
-                        <TableBody>
-                            {inboundConnections.map((conn, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>
-                                        {conn.isClickable ? (
-                                            <button
-                                                onClick={() =>
-                                                    handleServiceClick(
-                                                        conn.service,
-                                                        conn.namespace
-                                                    )
-                                                }
-                                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left hover:cursor-pointer"
-                                            >
-                                                {conn.service}.{conn.namespace}
-                                            </button>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                {conn.service}.{conn.namespace}
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground text-xs">
-                                        {conn.cluster}
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono text-sm px-1">
-                                        {formatRequestRate(conn.requestRate)}{' '}
-                                        rps
-                                    </TableCell>
-                                    <TableCell
-                                        className={`text-right font-mono text-sm px-1 ${getSuccessRateColor(
-                                            conn.successRate
-                                        )}`}
-                                    >
-                                        {formatSuccessRate(conn.successRate)}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {inboundConnections.length === 0 && (
+                    {inboundConnections.length > 0 ? (
+                        <Table>
+                            <TableBody>
+                                {inboundConnections.map((conn, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            {conn.isClickable ? (
+                                                <button
+                                                    onClick={() =>
+                                                        handleServiceClick(
+                                                            conn.service,
+                                                            conn.namespace
+                                                        )
+                                                    }
+                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left hover:cursor-pointer"
+                                                >
+                                                    {conn.service}.
+                                                    {conn.namespace}
+                                                </button>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    {conn.service}.
+                                                    {conn.namespace}
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground text-xs">
+                                            {conn.cluster}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono text-sm px-1">
+                                            {formatLatency(conn.latencyP99)}
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono text-sm px-1">
+                                            {formatRequestRate(
+                                                conn.requestRate
+                                            )}{' '}
+                                            rps
+                                        </TableCell>
+                                        <TableCell
+                                            className={`text-right font-mono text-sm px-1 ${getSuccessRateColor(
+                                                conn.successRate
+                                            )}`}
+                                        >
+                                            {formatSuccessRate(
+                                                conn.successRate
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {Array.from(
+                                    {
+                                        length: Math.max(
+                                            0,
+                                            outboundConnections.length -
+                                                inboundConnections.length
+                                        ),
+                                    },
+                                    (_, index) => (
+                                        <TableRow
+                                            key={`empty-${index}`}
+                                            className="border-0"
+                                        >
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                )}
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={4}
-                                        className="text-center text-muted-foreground py-8"
-                                    >
-                                        No inbound connections
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2">
+                                        Service
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2">
+                                        Cluster
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
+                                        P99
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
+                                        Throughput
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
+                                        Success
                                     </TableCell>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <div className="flex items-center justify-center text-gray-600 dark:text-gray-400 h-full min-h-24">
+                            No Inbound Connections
+                        </div>
+                    )}
                 </div>
 
                 <div>
-                    <Table>
-                        <TableBody>
-                            {outboundConnections.map((conn, index) => (
-                                <TableRow key={index}>
-                                    <TableCell
-                                        className={`font-mono text-sm px-1 ${getSuccessRateColor(
-                                            conn.successRate
-                                        )}`}
-                                    >
-                                        {formatSuccessRate(conn.successRate)}
-                                    </TableCell>
-                                    <TableCell className="font-mono text-sm px-1">
-                                        {formatRequestRate(conn.requestRate)}{' '}
-                                        rps
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground text-xs text-right">
-                                        {conn.cluster}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {conn.isClickable ? (
-                                            <button
-                                                onClick={() =>
-                                                    handleServiceClick(
-                                                        conn.service,
-                                                        conn.namespace
-                                                    )
-                                                }
-                                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-right hover:cursor-pointer"
-                                            >
-                                                {conn.service}.{conn.namespace}
-                                            </button>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                {conn.service}.{conn.namespace}
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {outboundConnections.length === 0 && (
+                    {outboundConnections.length > 0 ? (
+                        <Table>
+                            <TableBody>
+                                {outboundConnections.map((conn, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell
+                                            className={`font-mono text-sm px-1 ${getSuccessRateColor(
+                                                conn.successRate
+                                            )}`}
+                                        >
+                                            {formatSuccessRate(
+                                                conn.successRate
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="font-mono text-sm px-1">
+                                            {formatRequestRate(
+                                                conn.requestRate
+                                            )}{' '}
+                                            rps
+                                        </TableCell>
+                                        <TableCell className="font-mono text-sm px-1">
+                                            {formatLatency(conn.latencyP99)}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground text-xs text-right">
+                                            {conn.cluster}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {conn.isClickable ? (
+                                                <button
+                                                    onClick={() =>
+                                                        handleServiceClick(
+                                                            conn.service,
+                                                            conn.namespace
+                                                        )
+                                                    }
+                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-right hover:cursor-pointer"
+                                                >
+                                                    {conn.service}.
+                                                    {conn.namespace}
+                                                </button>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    {conn.service}.
+                                                    {conn.namespace}
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {Array.from(
+                                    {
+                                        length: Math.max(
+                                            0,
+                                            inboundConnections.length -
+                                                outboundConnections.length
+                                        ),
+                                    },
+                                    (_, index) => (
+                                        <TableRow
+                                            key={`empty-${index}`}
+                                            className="border-0"
+                                        >
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                            <TableCell className="border-0">
+                                                &nbsp;
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                )}
                                 <TableRow>
-                                    <TableCell
-                                        colSpan={4}
-                                        className="text-center text-muted-foreground py-8"
-                                    >
-                                        No outbound connections
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-left">
+                                        Success
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-left">
+                                        Throughput
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-left">
+                                        P99
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
+                                        Cluster
+                                    </TableCell>
+                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
+                                        Service
                                     </TableCell>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <div className="flex items-center justify-center text-gray-600 dark:text-gray-400 h-full min-h-24">
+                            No Outbound Connections
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
