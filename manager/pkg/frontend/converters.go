@@ -19,15 +19,25 @@ import (
 
 	"github.com/liamawhite/navigator/manager/pkg/connections"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // convertAggregatedService converts an AggregatedService to the frontend API format
 func convertAggregatedService(aggService *connections.AggregatedService) *frontendv1alpha1.Service {
 	instances := make([]*frontendv1alpha1.ServiceInstance, 0, len(aggService.Instances))
 
+	// Determine the overall proxy mode for this service
+	serviceProxyMode := typesv1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
 	for _, aggInstance := range aggService.Instances {
 		instance := convertAggregatedServiceInstance(aggInstance)
 		instances = append(instances, instance)
+
+		// Service proxy mode priority: ROUTER > SIDECAR > UNKNOWN_PROXY_MODE
+		if aggInstance.ProxyMode == typesv1alpha1.ProxyMode_ROUTER {
+			serviceProxyMode = typesv1alpha1.ProxyMode_ROUTER
+		} else if aggInstance.ProxyMode == typesv1alpha1.ProxyMode_SIDECAR && serviceProxyMode == typesv1alpha1.ProxyMode_UNKNOWN_PROXY_MODE {
+			serviceProxyMode = typesv1alpha1.ProxyMode_SIDECAR
+		}
 	}
 
 	return &frontendv1alpha1.Service{
@@ -37,6 +47,7 @@ func convertAggregatedService(aggService *connections.AggregatedService) *fronte
 		Instances:   instances,
 		ClusterIps:  aggService.ClusterIPs,
 		ExternalIps: aggService.ExternalIPs,
+		ProxyMode:   serviceProxyMode,
 	}
 }
 

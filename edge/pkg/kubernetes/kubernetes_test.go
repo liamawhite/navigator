@@ -541,6 +541,338 @@ func TestClient_extractExternalIP(t *testing.T) {
 	}
 }
 
+func TestClient_determineProxyMode(t *testing.T) {
+	client := &Client{
+		logger: logging.For("test"),
+	}
+
+	tests := []struct {
+		name        string
+		pod         *corev1.Pod
+		expected    types.ProxyMode
+		description string
+	}{
+		{
+			name:        "nil pod",
+			pod:         nil,
+			expected:    types.ProxyMode_UNKNOWN_PROXY_MODE,
+			description: "Nil pod should return unknown mode",
+		},
+		{
+			name: "pod with nil labels",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: nil,
+				},
+			},
+			expected:    types.ProxyMode_UNKNOWN_PROXY_MODE,
+			description: "Pod with nil labels should return unknown mode",
+		},
+		{
+			name: "waypoint proxy with istio.io/waypoint-for label",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"istio.io/waypoint-for": "namespace",
+					},
+				},
+			},
+			expected:    types.ProxyMode_SIDECAR,
+			description: "Waypoint proxy should be classified as sidecar to avoid false gateway detection",
+		},
+		{
+			name: "gateway with dataplane-mode=none (should not be waypoint)",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"istio.io/dataplane-mode": "none",
+						"app":                     "istio-ingressgateway",
+					},
+				},
+			},
+			expected:    types.ProxyMode_ROUTER,
+			description: "Gateway with dataplane-mode=none should be router, not sidecar",
+		},
+		{
+			name: "gateway with istio.io/gateway-name label",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"istio.io/gateway-name": "my-gateway",
+					},
+				},
+			},
+			expected:    types.ProxyMode_ROUTER,
+			description: "Istio gateway label should indicate router mode",
+		},
+		{
+			name: "gateway with kubernetes gateway.networking.k8s.io/gateway-name label",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"gateway.networking.k8s.io/gateway-name": "k8s-gateway",
+					},
+				},
+			},
+			expected:    types.ProxyMode_ROUTER,
+			description: "Kubernetes Gateway API label should indicate router mode",
+		},
+		{
+			name: "istio ingress gateway with app label",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "istio-ingressgateway",
+					},
+				},
+			},
+			expected:    types.ProxyMode_ROUTER,
+			description: "Istio ingress gateway app label should indicate router mode",
+		},
+		{
+			name: "istio egress gateway with app label",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "istio-egressgateway",
+					},
+				},
+			},
+			expected:    types.ProxyMode_ROUTER,
+			description: "Istio egress gateway app label should indicate router mode",
+		},
+		{
+			name: "legacy istio ingress gateway label",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"istio": "ingressgateway",
+					},
+				},
+			},
+			expected:    types.ProxyMode_ROUTER,
+			description: "Legacy istio label should indicate router mode",
+		},
+		{
+			name: "envoy container with router arg",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.20.0",
+							Args:  []string{"proxy", "router", "--domain", "cluster.local"},
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_ROUTER,
+			description: "Envoy container with router argument should indicate router mode",
+		},
+		{
+			name: "envoy container with sidecar arg",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.20.0",
+							Args:  []string{"proxy", "sidecar", "--domain", "cluster.local"},
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_SIDECAR,
+			description: "Envoy container with sidecar argument should indicate sidecar mode",
+		},
+		{
+			name: "envoy container with insufficient args",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.20.0",
+							Args:  []string{"proxy"},
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_SIDECAR,
+			description: "Envoy container with insufficient args should fall back to general Envoy detection",
+		},
+		{
+			name: "non-envoy container with router arg",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+							Args:  []string{"nginx", "router"},
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_NONE,
+			description: "Non-Envoy container should not affect proxy mode detection",
+		},
+		{
+			name: "envoy container with unknown arg",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.20.0",
+							Args:  []string{"proxy", "unknown-mode"},
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_SIDECAR,
+			description: "Envoy container with unknown args should fall back to general Envoy detection",
+		},
+		{
+			name: "pod without envoy containers",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_NONE,
+			description: "Pod without Envoy containers should return none mode",
+		},
+		{
+			name: "multiple containers with envoy sidecar",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+						{
+							Name:  "istio-proxy",
+							Image: "istio/proxyv2:1.20.0",
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_SIDECAR,
+			description: "Pod with Envoy sidecar should return sidecar mode",
+		},
+		{
+			name: "waypoint takes precedence over gateway label",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"istio.io/gateway-name": "my-gateway",
+						"istio.io/waypoint-for": "namespace",
+					},
+				},
+			},
+			expected:    types.ProxyMode_SIDECAR,
+			description: "Waypoint detection should take precedence to avoid false gateway detection",
+		},
+		{
+			name: "empty labels map",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_NONE,
+			description: "Pod with empty labels and no Envoy should return none mode",
+		},
+		{
+			name: "container args with router but not envoy",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+							Args:  []string{"nginx", "router"},
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_NONE,
+			description: "Non-Envoy container with router args should not affect detection",
+		},
+		{
+			name: "envoy container in init containers",
+			pod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:  "istio-init",
+							Image: "istio/proxyv2:1.20.0",
+							Args:  []string{"proxy", "router"},
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
+			expected:    types.ProxyMode_SIDECAR,
+			description: "Envoy in init containers is detected by hasEnvoySidecarInPod",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := client.determineProxyMode(test.pod)
+			assert.Equal(t, test.expected, result, test.description)
+		})
+	}
+}
+
 func TestClient_convertServiceWithMaps_WithIPs(t *testing.T) {
 	client := &Client{}
 

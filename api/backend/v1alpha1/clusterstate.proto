@@ -18,6 +18,7 @@ package navigator.backend.v1alpha1;
 
 import "types/v1alpha1/istio_resources.proto";
 import "types/v1alpha1/kubernetes_types.proto";
+import "types/v1alpha1/proxy_types.proto";
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1";
 
@@ -99,22 +100,6 @@ message Container {
   int32 restart_count = 5;
 }
 
-// ProxyType indicates the type of Istio proxy running in a service instance.
-enum ProxyType {
-  // UNSPECIFIED indicates the proxy type is not specified or unknown.
-  UNSPECIFIED = 0;
-  
-  // NONE indicates no Istio proxy is present.
-  NONE = 1;
-  
-  // SIDECAR indicates an Istio sidecar proxy is present.
-  SIDECAR = 2;
-  
-  // GATEWAY indicates an Istio gateway proxy is present.
-  GATEWAY = 3;
-}
-
-
 // ServiceInstance represents a single instance of a service.
 message ServiceInstance {
   // ip is the IP address of the service instance.
@@ -144,7 +129,7 @@ message ServiceInstance {
   // annotations are the Kubernetes annotations assigned to the pod.
   map<string, string> annotations = 9;
   
-  // proxy_type indicates the type of Istio proxy running in this instance.
-  ProxyType proxy_type = 10;
+  // proxy_mode indicates the type of Istio proxy running in this instance.
+  navigator.types.v1alpha1.ProxyMode proxy_mode = 10;
 }
 

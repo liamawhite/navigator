@@ -25,12 +25,12 @@ import (
 func TestFilterVirtualServicesForWorkload(t *testing.T) {
 	sidecarInstance := &backendv1alpha1.ServiceInstance{
 		Labels:    map[string]string{"app": "test"},
-		ProxyType: backendv1alpha1.ProxyType_SIDECAR,
+		ProxyMode: typesv1alpha1.ProxyMode_SIDECAR,
 	}
 
 	gatewayInstance := &backendv1alpha1.ServiceInstance{
 		Labels:    map[string]string{"app": "istio-ingressgateway"},
-		ProxyType: backendv1alpha1.ProxyType_GATEWAY,
+		ProxyMode: typesv1alpha1.ProxyMode_ROUTER,
 	}
 
 	virtualServices := []*typesv1alpha1.VirtualService{
@@ -76,7 +76,7 @@ func TestVirtualServiceAppliesToWorkloadTraffic(t *testing.T) {
 		{
 			name:          "nil virtual service should not apply",
 			vs:            nil,
-			instance:      &backendv1alpha1.ServiceInstance{ProxyType: backendv1alpha1.ProxyType_SIDECAR},
+			instance:      &backendv1alpha1.ServiceInstance{ProxyMode: typesv1alpha1.ProxyMode_SIDECAR},
 			namespace:     "default",
 			expectedMatch: false,
 		},
@@ -87,7 +87,7 @@ func TestVirtualServiceAppliesToWorkloadTraffic(t *testing.T) {
 				Namespace: "default",
 				Gateways:  []string{},
 			},
-			instance:      &backendv1alpha1.ServiceInstance{ProxyType: backendv1alpha1.ProxyType_SIDECAR},
+			instance:      &backendv1alpha1.ServiceInstance{ProxyMode: typesv1alpha1.ProxyMode_SIDECAR},
 			namespace:     "default",
 			expectedMatch: true,
 		},
@@ -98,7 +98,7 @@ func TestVirtualServiceAppliesToWorkloadTraffic(t *testing.T) {
 				Namespace: "default",
 				Gateways:  []string{"mesh"},
 			},
-			instance:      &backendv1alpha1.ServiceInstance{ProxyType: backendv1alpha1.ProxyType_SIDECAR},
+			instance:      &backendv1alpha1.ServiceInstance{ProxyMode: typesv1alpha1.ProxyMode_SIDECAR},
 			namespace:     "default",
 			expectedMatch: true,
 		},
@@ -109,7 +109,7 @@ func TestVirtualServiceAppliesToWorkloadTraffic(t *testing.T) {
 				Namespace: "default",
 				Gateways:  []string{"istio-ingressgateway"},
 			},
-			instance:      &backendv1alpha1.ServiceInstance{ProxyType: backendv1alpha1.ProxyType_SIDECAR},
+			instance:      &backendv1alpha1.ServiceInstance{ProxyMode: typesv1alpha1.ProxyMode_SIDECAR},
 			namespace:     "default",
 			expectedMatch: false,
 		},
@@ -121,7 +121,7 @@ func TestVirtualServiceAppliesToWorkloadTraffic(t *testing.T) {
 				Gateways:  []string{"istio-ingressgateway"},
 			},
 			instance: &backendv1alpha1.ServiceInstance{
-				ProxyType: backendv1alpha1.ProxyType_GATEWAY,
+				ProxyMode: typesv1alpha1.ProxyMode_ROUTER,
 				Labels:    map[string]string{"app": "istio-ingressgateway"},
 			},
 			namespace:     "default",
@@ -135,7 +135,7 @@ func TestVirtualServiceAppliesToWorkloadTraffic(t *testing.T) {
 				Gateways:  []string{"mesh"},
 			},
 			instance: &backendv1alpha1.ServiceInstance{
-				ProxyType: backendv1alpha1.ProxyType_GATEWAY,
+				ProxyMode: typesv1alpha1.ProxyMode_ROUTER,
 				Labels:    map[string]string{"app": "istio-ingressgateway"},
 			},
 			namespace:     "default",

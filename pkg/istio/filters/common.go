@@ -86,7 +86,7 @@ func isGatewayWorkload(instance *backendv1alpha1.ServiceInstance) bool {
 	if instance == nil {
 		return false
 	}
-	return instance.ProxyType == backendv1alpha1.ProxyType_GATEWAY
+	return instance.ProxyMode == typesv1alpha1.ProxyMode_ROUTER
 }
 
 // getGatewayNamesFromWorkload extracts potential gateway names that this workload might serve

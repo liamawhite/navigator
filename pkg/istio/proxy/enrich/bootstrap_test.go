@@ -58,25 +58,25 @@ func TestEnrichBootstrapProxyMode(t *testing.T) {
 		{
 			name:        "router gateway proxy",
 			nodeID:      "router~10.244.0.2~gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Istio ingress gateway with router prefix",
 		},
 		{
 			name:        "gateway proxy explicit",
 			nodeID:      "gateway~10.244.0.3~istio-gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Gateway proxy with explicit gateway prefix",
 		},
 		{
 			name:        "router uppercase",
 			nodeID:      "ROUTER~10.244.0.2~gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Case insensitive matching for router",
 		},
 		{
 			name:        "gateway uppercase",
 			nodeID:      "GATEWAY~10.244.0.3~gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Case insensitive matching for gateway",
 		},
 		{
@@ -118,13 +118,13 @@ func TestEnrichBootstrapProxyMode(t *testing.T) {
 		{
 			name:        "router with minimal format",
 			nodeID:      "router~",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Minimal router format should still match",
 		},
 		{
 			name:        "gateway with minimal format",
 			nodeID:      "gateway~",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Minimal gateway format should still match",
 		},
 		{
@@ -193,25 +193,25 @@ func TestInferProxyMode(t *testing.T) {
 		{
 			name:        "router proxy standard format",
 			nodeID:      "router~10.244.0.2~gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Standard Istio router/gateway node ID",
 		},
 		{
 			name:        "gateway proxy standard format",
 			nodeID:      "gateway~10.244.0.3~gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Standard Istio gateway node ID",
 		},
 		{
 			name:        "router uppercase",
 			nodeID:      "ROUTER~10.244.0.2~gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Case insensitive router detection",
 		},
 		{
 			name:        "gateway uppercase",
 			nodeID:      "GATEWAY~10.244.0.3~gateway.istio-system~cluster.local",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Case insensitive gateway detection",
 		},
 		{
@@ -259,13 +259,13 @@ func TestInferProxyMode(t *testing.T) {
 		{
 			name:        "gateway with only tilde",
 			nodeID:      "gateway~",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Minimal valid gateway format",
 		},
 		{
 			name:        "router with only tilde",
 			nodeID:      "router~",
-			expected:    v1alpha1.ProxyMode_GATEWAY,
+			expected:    v1alpha1.ProxyMode_ROUTER,
 			description: "Minimal valid router format",
 		},
 		{

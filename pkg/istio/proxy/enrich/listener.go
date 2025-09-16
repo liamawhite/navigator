@@ -65,7 +65,7 @@ func inferIstioListenerType(name, address string, port uint32, useOriginalDst bo
 		}
 
 		// Gateway-specific logic: 0.0.0.0 listeners without useOriginalDst
-		if proxyMode == v1alpha1.ProxyMode_GATEWAY && !useOriginalDst {
+		if proxyMode == v1alpha1.ProxyMode_ROUTER && !useOriginalDst {
 			return v1alpha1.ListenerType_GATEWAY_INBOUND
 		}
 

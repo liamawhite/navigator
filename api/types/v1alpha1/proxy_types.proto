@@ -22,11 +22,11 @@ option go_package = "github.com/liamawhite/navigator/pkg/api/types/v1alpha1";
 enum ProxyMode {
   // UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode
   UNKNOWN_PROXY_MODE = 0;
+  // NONE indicates no proxy is present
+  NONE = 1;
   // SIDECAR indicates a sidecar proxy (most common in Istio)
-  SIDECAR = 1;
-  // GATEWAY indicates a gateway proxy (ingress/egress gateways)
-  GATEWAY = 2;
-  // ROUTER indicates a router proxy
+  SIDECAR = 2;
+  // ROUTER indicates a router proxy (used for ingress/egress gateways)
   ROUTER = 3;
 }
 

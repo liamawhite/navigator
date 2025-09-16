@@ -23,6 +23,7 @@ import {
     ChevronDown,
     Hexagon,
     Globe,
+    ArrowRightToLine,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +42,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useState, useMemo } from 'react';
+import { v1alpha1ProxyMode } from '../../types/generated/openapi-service_registry/models/v1alpha1ProxyMode';
 
 interface ServiceListProps {
     onServiceSelect?: (serviceId: string) => void;
@@ -66,13 +68,24 @@ export const ServiceList: React.FC<ServiceListProps> = ({
         }
     };
 
-    const sortedServices = useMemo(() => {
-        if (!services) return [];
+    const { gateways, regularServices } = useMemo(() => {
+        if (!services) return { gateways: [], regularServices: [] };
 
-        return [...services].sort((a, b) => {
-            // First sort by namespace
-            const namespaceA = a.namespace.toLowerCase();
-            const namespaceB = b.namespace.toLowerCase();
+        // Split services into gateways and regular services
+        const gatewayList = services.filter(
+            (service) => service.proxyMode === v1alpha1ProxyMode.ROUTER
+        );
+        const serviceList = services.filter(
+            (service) => service.proxyMode !== v1alpha1ProxyMode.ROUTER
+        );
+
+        // Sort function for both lists
+        const sortServices = (
+            a: (typeof services)[0],
+            b: (typeof services)[0]
+        ) => {
+            const namespaceA = a.namespace?.toLowerCase() || '';
+            const namespaceB = b.namespace?.toLowerCase() || '';
 
             if (sortField === 'namespace') {
                 // Primary sort by namespace
@@ -83,15 +96,15 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                         return sortDirection === 'asc' ? 1 : -1;
                 }
                 // Secondary sort by service name within same namespace
-                const nameA = a.name.toLowerCase();
-                const nameB = b.name.toLowerCase();
+                const nameA = a.name?.toLowerCase() || '';
+                const nameB = b.name?.toLowerCase() || '';
                 if (nameA < nameB) return -1;
                 if (nameA > nameB) return 1;
                 return 0;
             } else {
                 // Primary sort by service name
-                const nameA = a.name.toLowerCase();
-                const nameB = b.name.toLowerCase();
+                const nameA = a.name?.toLowerCase() || '';
+                const nameB = b.name?.toLowerCase() || '';
                 if (nameA !== nameB) {
                     if (nameA < nameB) return sortDirection === 'asc' ? -1 : 1;
                     if (nameA > nameB) return sortDirection === 'asc' ? 1 : -1;
@@ -101,45 +114,176 @@ export const ServiceList: React.FC<ServiceListProps> = ({
                 if (namespaceA > namespaceB) return 1;
                 return 0;
             }
-        });
+        };
+
+        return {
+            gateways: [...gatewayList].sort(sortServices),
+            regularServices: [...serviceList].sort(sortServices),
+        };
     }, [services, sortField, sortDirection]);
 
-    const SortableHeader = ({
-        field,
-        children,
+
+    const ServiceTable = ({
+        serviceList,
+        title,
+        icon,
     }: {
-        field: SortField;
-        children: React.ReactNode;
+        serviceList: typeof services;
+        title: string;
+        icon: React.ReactNode;
     }) => {
-        const isActive = sortField === field;
-        const isSecondary = sortField !== field; // This column is the secondary sort
+        if (!serviceList || serviceList.length === 0) return null;
 
         return (
-            <TableHead
-                className="cursor-pointer hover:bg-muted/50 select-none"
-                onClick={() => handleSort(field)}
-            >
-                <div className="flex items-center gap-1">
-                    {children}
-                    <div className="flex flex-col">
-                        {/* Primary sort indicator */}
-                        {isActive &&
-                            (sortDirection === 'desc' ? (
-                                <ChevronDown className="w-4 h-4 text-foreground" />
-                            ) : (
-                                <ChevronUp className="w-4 h-4 text-foreground" />
-                            ))}
-                        {/* Secondary sort indicator (always ascending) */}
-                        {isSecondary && (
-                            <ChevronUp className="w-3 h-3 text-muted-foreground opacity-60" />
-                        )}
-                        {/* Hover hint for inactive columns */}
-                        {!isActive && !isSecondary && (
-                            <ChevronUp className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-30 transition-opacity" />
-                        )}
+            <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        {icon}
+                        <h3 className="text-lg font-semibold text-foreground">
+                            {title}
+                        </h3>
                     </div>
+                    <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                        {serviceList.length}{' '}
+                        {title.toLowerCase().replace(/s$/, '')}
+                        {serviceList.length !== 1 ? 's' : ''}
+                    </span>
                 </div>
-            </TableHead>
+
+                <div className="bg-background border rounded-lg shadow-sm overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="group">
+                                <TableHead
+                                    className="w-64 cursor-pointer hover:bg-muted/50 select-none"
+                                    onClick={() => handleSort('name')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        <div>Service</div>
+                                        {sortField === 'name' &&
+                                            (sortDirection === 'desc' ? (
+                                                <ChevronDown className="w-4 h-4 text-foreground" />
+                                            ) : (
+                                                <ChevronUp className="w-4 h-4 text-foreground" />
+                                            ))}
+                                        {sortField !== 'name' && (
+                                            <ChevronUp className="w-3 h-3 text-muted-foreground opacity-60" />
+                                        )}
+                                    </div>
+                                </TableHead>
+                                <TableHead
+                                    className="w-32 cursor-pointer hover:bg-muted/50 select-none"
+                                    onClick={() => handleSort('namespace')}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        <div>Namespace</div>
+                                        {sortField === 'namespace' &&
+                                            (sortDirection === 'desc' ? (
+                                                <ChevronDown className="w-4 h-4 text-foreground" />
+                                            ) : (
+                                                <ChevronUp className="w-4 h-4 text-foreground" />
+                                            ))}
+                                        {sortField !== 'namespace' && (
+                                            <ChevronUp className="w-3 h-3 text-muted-foreground opacity-60" />
+                                        )}
+                                    </div>
+                                </TableHead>
+                                <TableHead className="w-20">
+                                    <div>Clusters</div>
+                                </TableHead>
+                                <TableHead className="w-20">
+                                    <div>Instances</div>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {serviceList.map((service) => {
+                                const proxiedInstances =
+                                    service.instances?.filter(
+                                        (i) => i.envoyPresent
+                                    ).length || 0;
+
+                                const uniqueClusters = new Set(
+                                    service.instances?.map(
+                                        (i) => i.clusterName
+                                    ) || []
+                                ).size;
+
+                                return (
+                                    <TableRow
+                                        key={service.id}
+                                        className="cursor-pointer hover:bg-muted/50"
+                                        onClick={() =>
+                                            onServiceSelect?.(service.id || '')
+                                        }
+                                    >
+                                        <TableCell className="w-64">
+                                            <div className="flex items-center gap-2">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Hexagon
+                                                                className={`w-4 h-4 ${
+                                                                    proxiedInstances >
+                                                                    0
+                                                                        ? 'text-purple-600 dark:text-purple-400 fill-purple-100 dark:fill-purple-900'
+                                                                        : 'text-transparent fill-transparent'
+                                                                }`}
+                                                            />
+                                                        </TooltipTrigger>
+                                                        {proxiedInstances >
+                                                            0 && (
+                                                            <TooltipContent>
+                                                                <p>
+                                                                    {proxiedInstances ===
+                                                                    (service
+                                                                        .instances
+                                                                        ?.length ||
+                                                                        0)
+                                                                        ? 'Envoy present in all instances'
+                                                                        : `Envoy present in ${proxiedInstances} of ${service.instances?.length || 0} instances`}
+                                                                </p>
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <span className="font-medium text-foreground truncate">
+                                                    {service.name}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="w-32">
+                                            <Badge
+                                                variant="secondary"
+                                                className="text-xs text-foreground bg-muted"
+                                            >
+                                                {service.namespace}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="w-20">
+                                            <div className="flex items-center gap-2">
+                                                <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                <span className="text-foreground">
+                                                    {uniqueClusters}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="w-20">
+                                            <div className="flex items-center gap-2">
+                                                <Database className="w-4 h-4 text-green-600 dark:text-green-400" />
+                                                <span className="text-foreground">
+                                                    {service.instances
+                                                        ?.length || 0}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
         );
     };
 
@@ -219,116 +363,57 @@ export const ServiceList: React.FC<ServiceListProps> = ({
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-3">
                 <h2 className="text-2xl font-bold text-foreground">
                     Discovered Services
                 </h2>
-                <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                    {sortedServices.length} service
-                    {sortedServices.length !== 1 ? 's' : ''}
-                </span>
+                <div className="flex items-center gap-2">
+                    {gateways.length > 0 && (
+                        <span className="text-sm text-muted-foreground bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-full">
+                            {gateways.length} gateway
+                            {gateways.length !== 1 ? 's' : ''}
+                        </span>
+                    )}
+                    <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                        {gateways.length + regularServices.length} total
+                    </span>
+                </div>
             </div>
 
-            <div className="bg-background border rounded-lg shadow-sm overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="group">
-                            <SortableHeader field="name">
-                                Service
-                            </SortableHeader>
-                            <SortableHeader field="namespace">
-                                Namespace
-                            </SortableHeader>
-                            <TableHead>Clusters</TableHead>
-                            <TableHead>Instances</TableHead>
-                            <TableHead>Status</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {sortedServices.map((service) => {
-                            const proxiedInstances = service.instances.filter(
-                                (i) => i.envoyPresent
-                            ).length;
+            {gateways.length > 0 && (
+                <ServiceTable
+                    serviceList={gateways}
+                    title="Gateways"
+                    icon={
+                        <ArrowRightToLine className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                    }
+                />
+            )}
 
-                            const uniqueClusters = new Set(
-                                service.instances.map((i) => i.clusterName)
-                            ).size;
+            {regularServices.length > 0 && (
+                <ServiceTable
+                    serviceList={regularServices}
+                    title="Services"
+                    icon={
+                        <Server className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    }
+                />
+            )}
 
-                            return (
-                                <TableRow
-                                    key={service.id}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() =>
-                                        onServiceSelect?.(service.id)
-                                    }
-                                >
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Server className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                            <span className="font-medium text-foreground">
-                                                {service.name}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant="secondary"
-                                            className="text-xs text-foreground bg-muted"
-                                        >
-                                            {service.namespace}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                            <span className="text-foreground">
-                                                {uniqueClusters}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Database className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                            <span className="text-foreground">
-                                                {service.instances.length}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Badge
-                                                variant="outline"
-                                                className="text-green-700 border-green-300 bg-green-50 dark:text-green-400 dark:border-green-700 dark:bg-green-950"
-                                            >
-                                                Running
-                                            </Badge>
-                                            {proxiedInstances > 0 && (
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Hexagon className="w-4 h-4 text-purple-600 dark:text-purple-400 fill-purple-100 dark:fill-purple-900" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>
-                                                                {proxiedInstances ===
-                                                                service
-                                                                    .instances
-                                                                    .length
-                                                                    ? 'Envoy present in all instances'
-                                                                    : `Envoy present in ${proxiedInstances} of ${service.instances.length} instances`}
-                                                            </p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </div>
+            {gateways.length === 0 && regularServices.length === 0 && (
+                <Card className="border-0 shadow-md">
+                    <CardContent className="text-center py-12">
+                        <Server className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                            No services found
+                        </h3>
+                        <p className="text-muted-foreground">
+                            Your cluster doesn't have any services yet, or they
+                            haven't been discovered.
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 };

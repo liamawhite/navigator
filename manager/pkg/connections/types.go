@@ -17,7 +17,8 @@ package connections
 import (
 	"time"
 
-	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // Connection represents an active connection from an edge process
@@ -25,9 +26,9 @@ type Connection struct {
 	ClusterID    string
 	ConnectedAt  time.Time
 	LastUpdate   time.Time
-	Stream       v1alpha1.ManagerService_ConnectServer
-	ClusterState *v1alpha1.ClusterState
-	Capabilities *v1alpha1.EdgeCapabilities
+	Stream       backendv1alpha1.ManagerService_ConnectServer
+	ClusterState *backendv1alpha1.ClusterState
+	Capabilities *backendv1alpha1.EdgeCapabilities
 }
 
 // AggregatedService represents a service consolidated across multiple clusters
@@ -65,6 +66,7 @@ type AggregatedServiceInstance struct {
 	Labels         map[string]string
 	Annotations    map[string]string
 	IsEnvoyPresent bool
+	ProxyMode      typesv1alpha1.ProxyMode // Istio proxy mode for this instance
 }
 
 // ReadOptimizedIndexes contains read-optimized data structures

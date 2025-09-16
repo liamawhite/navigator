@@ -20,8 +20,9 @@ import (
 	"strings"
 	"sync"
 
-	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
-	types "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"istio.io/api/label"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,8 +60,8 @@ func (k *Client) convertServiceWithMaps(
 	svc *corev1.Service,
 	endpointSlicesByService map[string][]discoveryv1.EndpointSlice,
 	podsByName map[string]*corev1.Pod,
-) *v1alpha1.Service {
-	protoService := &v1alpha1.Service{
+) *backendv1alpha1.Service {
+	protoService := &backendv1alpha1.Service{
 		Name:      svc.Name,
 		Namespace: svc.Namespace,
 	}
@@ -89,8 +90,8 @@ func (k *Client) convertServiceWithMaps(
 func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 	endpointSlices []discoveryv1.EndpointSlice,
 	podsByName map[string]*corev1.Pod,
-) []*v1alpha1.ServiceInstance {
-	var instances []*v1alpha1.ServiceInstance
+) []*backendv1alpha1.ServiceInstance {
+	var instances []*backendv1alpha1.ServiceInstance
 
 	for _, slice := range endpointSlices {
 		for _, endpoint := range slice.Endpoints {
@@ -107,17 +108,19 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 
 			// Check for Envoy sidecar and extract additional pod info if we have a pod name
 			envoyPresent := false
-			var containers []*v1alpha1.Container
+			var containers []*backendv1alpha1.Container
 			podStatus := ""
 			nodeName := ""
 			createdAt := ""
 			labels := make(map[string]string)
 			annotations := make(map[string]string)
+			proxyMode := typesv1alpha1.ProxyMode_NONE
 
 			if podName != "" {
 				podKey := slice.Namespace + "/" + podName
 				if pod, exists := podsByName[podKey]; exists {
 					envoyPresent = k.hasEnvoySidecarInPod(pod)
+					proxyMode = k.determineProxyMode(pod)
 
 					// Extract container information
 					containers = k.extractContainerInfo(pod)
@@ -145,7 +148,7 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 
 			// Create service instance for each IP address
 			for _, address := range endpoint.Addresses {
-				instance := &v1alpha1.ServiceInstance{
+				instance := &backendv1alpha1.ServiceInstance{
 					Ip:           address,
 					PodName:      podName,
 					EnvoyPresent: envoyPresent,
@@ -155,6 +158,7 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 					CreatedAt:    createdAt,
 					Labels:       labels,
 					Annotations:  annotations,
+					ProxyMode:    proxyMode,
 				}
 				instances = append(instances, instance)
 			}
@@ -203,8 +207,8 @@ func (k *Client) isEnvoyContainer(container corev1.Container) bool {
 }
 
 // extractContainerInfo extracts container information from a pod
-func (k *Client) extractContainerInfo(pod *corev1.Pod) []*v1alpha1.Container {
-	var containers []*v1alpha1.Container
+func (k *Client) extractContainerInfo(pod *corev1.Pod) []*backendv1alpha1.Container {
+	var containers []*backendv1alpha1.Container
 
 	// Extract information from all containers
 	for _, container := range pod.Spec.Containers {
@@ -236,7 +240,7 @@ func (k *Client) extractContainerInfo(pod *corev1.Pod) []*v1alpha1.Container {
 			}
 		}
 
-		containers = append(containers, &v1alpha1.Container{
+		containers = append(containers, &backendv1alpha1.Container{
 			Name:         container.Name,
 			Image:        container.Image,
 			Status:       status,
@@ -281,18 +285,18 @@ func (k *Client) fetchPods(ctx context.Context, wg *sync.WaitGroup, podsByName *
 }
 
 // convertServiceType converts Kubernetes service type to protobuf ServiceType enum
-func (k *Client) convertServiceType(serviceType corev1.ServiceType) types.ServiceType {
+func (k *Client) convertServiceType(serviceType corev1.ServiceType) typesv1alpha1.ServiceType {
 	switch serviceType {
 	case corev1.ServiceTypeClusterIP:
-		return types.ServiceType_CLUSTER_IP
+		return typesv1alpha1.ServiceType_CLUSTER_IP
 	case corev1.ServiceTypeNodePort:
-		return types.ServiceType_NODE_PORT
+		return typesv1alpha1.ServiceType_NODE_PORT
 	case corev1.ServiceTypeLoadBalancer:
-		return types.ServiceType_LOAD_BALANCER
+		return typesv1alpha1.ServiceType_LOAD_BALANCER
 	case corev1.ServiceTypeExternalName:
-		return types.ServiceType_EXTERNAL_NAME
+		return typesv1alpha1.ServiceType_EXTERNAL_NAME
 	default:
-		return types.ServiceType_SERVICE_TYPE_UNSPECIFIED
+		return typesv1alpha1.ServiceType_SERVICE_TYPE_UNSPECIFIED
 	}
 }
 
@@ -313,4 +317,47 @@ func (k *Client) extractExternalIP(svc *corev1.Service) string {
 	}
 
 	return ""
+}
+
+// determineProxyMode determines the Istio proxy mode for a pod based on labels and container args
+func (k *Client) determineProxyMode(pod *corev1.Pod) typesv1alpha1.ProxyMode {
+	if pod == nil || pod.Labels == nil {
+		return typesv1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
+	}
+
+	labels := pod.Labels
+
+	// Check for waypoint first (to exclude them from being identified as gateways)
+	// The istio.io/waypoint-for label is the definitive waypoint indicator
+	if labels[label.IoIstioWaypointFor.Name] != "" {
+		return typesv1alpha1.ProxyMode_SIDECAR // Waypoints are L7 proxies, not gateways
+	}
+
+	// Check for gateway labels using constants where available - these indicate router mode
+	if labels["istio.io/gateway-name"] != "" ||
+		labels[label.IoK8sNetworkingGatewayGatewayName.Name] != "" ||
+		labels["app"] == "istio-ingressgateway" ||
+		labels["app"] == "istio-egressgateway" ||
+		labels["istio"] == "ingressgateway" {
+		return typesv1alpha1.ProxyMode_ROUTER
+	}
+
+	// Check container args for proxy mode
+	for _, container := range pod.Spec.Containers {
+		if k.isEnvoyContainer(container) && len(container.Args) > 1 {
+			switch container.Args[1] {
+			case "router":
+				return typesv1alpha1.ProxyMode_ROUTER
+			case "sidecar":
+				return typesv1alpha1.ProxyMode_SIDECAR
+			}
+		}
+	}
+
+	// Check if Envoy is present at all (sidecar mode)
+	if k.hasEnvoySidecarInPod(pod) {
+		return typesv1alpha1.ProxyMode_SIDECAR
+	}
+
+	return typesv1alpha1.ProxyMode_NONE
 }
