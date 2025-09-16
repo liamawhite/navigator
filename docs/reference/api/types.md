@@ -478,6 +478,7 @@ ServicePairMetrics represents metrics between a source and destination service.
 | destination_service | [string](#string) |  | destination_service is the service name of the destination service. |
 | error_rate | [double](#double) |  | error_rate is the error rate in requests per second. |
 | request_rate | [double](#double) |  | request_rate is the request rate in requests per second. |
+| latency_p99 | [double](#double) |  | latency_p99 is the 99th percentile latency in milliseconds. |
 
 
 

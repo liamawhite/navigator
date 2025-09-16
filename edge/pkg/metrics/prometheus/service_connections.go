@@ -59,6 +59,26 @@ sum by (
 )(
   rate(istio_requests_total{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}", response_code=~"0|4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
 )`))
+
+	inboundLatencyP99QueryTemplate = template.Must(template.New("inboundLatencyP99").Parse(`
+histogram_quantile(0.99,
+  sum by (
+    source_cluster, source_workload_namespace, source_canonical_service,
+    destination_cluster, destination_service_namespace, destination_canonical_service, le
+  )(
+    rate(istio_request_duration_milliseconds_bucket{reporter="destination", destination_canonical_service="{{.ServiceName}}", destination_service_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+  )
+)`))
+
+	outboundLatencyP99QueryTemplate = template.Must(template.New("outboundLatencyP99").Parse(`
+histogram_quantile(0.99,
+  sum by (
+    source_cluster, source_workload_namespace, source_canonical_service,
+    destination_cluster, destination_service_namespace, destination_canonical_service, le
+  )(
+    rate(istio_request_duration_milliseconds_bucket{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+  )
+)`))
 )
 
 // serviceConnectionsQueryTemplateData holds the data for service-specific query templates
@@ -87,7 +107,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		Error            error
 	}
 
-	results := make(chan connectionQueryResult, 4)
+	results := make(chan connectionQueryResult, 6)
 	var wg sync.WaitGroup
 
 	// Create cancellable context for goroutines
@@ -214,6 +234,66 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_error_rate"}
 	}()
 
+	// Inbound latency P99 query
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// Check for cancellation before starting work
+		select {
+		case <-queryCtx.Done():
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_latency_p99"}
+			return
+		default:
+		}
+
+		query, err := p.buildServiceConnectionQuery(inboundLatencyP99QueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+		if err != nil {
+			results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound latency P99 query: %w", err), QueryType: "inbound_latency_p99"}
+			return
+		}
+
+		p.logger.Debug("executing inbound latency P99 query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+		resp, err := p.client.query(queryCtx, query)
+		if err != nil {
+			results <- connectionQueryResult{Error: err, QueryType: "inbound_latency_p99"}
+			return
+		}
+
+		processedMetrics := p.processLatencyResponse(resp, timestamp)
+		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "inbound_latency_p99"}
+	}()
+
+	// Outbound latency P99 query
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// Check for cancellation before starting work
+		select {
+		case <-queryCtx.Done():
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "outbound_latency_p99"}
+			return
+		default:
+		}
+
+		query, err := p.buildServiceConnectionQuery(outboundLatencyP99QueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+		if err != nil {
+			results <- connectionQueryResult{Error: fmt.Errorf("failed to build outbound latency P99 query: %w", err), QueryType: "outbound_latency_p99"}
+			return
+		}
+
+		p.logger.Debug("executing outbound latency P99 query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+		resp, err := p.client.query(queryCtx, query)
+		if err != nil {
+			results <- connectionQueryResult{Error: err, QueryType: "outbound_latency_p99"}
+			return
+		}
+
+		processedMetrics := p.processLatencyResponse(resp, timestamp)
+		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_latency_p99"}
+	}()
+
 	// Wait for all goroutines to complete
 	wg.Wait()
 	close(results)
@@ -221,6 +301,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	// Collect and merge results
 	allRequestPairs := make(map[string]*metrics.ServicePairMetrics)
 	allErrorPairs := make(map[string]*metrics.ServicePairMetrics)
+	allLatencyPairs := make(map[string]*metrics.ServicePairMetrics)
 
 	for result := range results {
 		if result.Error != nil {
@@ -243,11 +324,15 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 			for key, pair := range result.ProcessedMetrics.PairData {
 				allErrorPairs[key] = pair
 			}
+		case "latency_p99":
+			for key, pair := range result.ProcessedMetrics.PairData {
+				allLatencyPairs[key] = pair
+			}
 		}
 	}
 
-	// Merge request and error data
-	mergedPairs := p.mergePairMaps(allRequestPairs, allErrorPairs)
+	// Merge request, error, and latency data
+	mergedPairs := p.mergePairMaps(allRequestPairs, allErrorPairs, allLatencyPairs)
 
 	// Convert to slice
 	var pairs []metrics.ServicePairMetrics
@@ -260,7 +345,8 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		"namespace", serviceNamespace,
 		"total_pairs", len(pairs),
 		"request_pairs", len(allRequestPairs),
-		"error_pairs", len(allErrorPairs))
+		"error_pairs", len(allErrorPairs),
+		"latency_pairs", len(allLatencyPairs))
 
 	return &metrics.ServiceGraphMetrics{
 		Pairs: pairs,

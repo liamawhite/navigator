@@ -105,8 +105,52 @@ func (p *Provider) processRequestRateResponse(response model.Value, timestamp ti
 	return processedMetrics{PairData: pairMap, MetricType: "request_rate"}
 }
 
-// mergePairMaps merges request rate and error rate data
-func (p *Provider) mergePairMaps(requestPairs, errorPairs map[string]*metrics.ServicePairMetrics) map[string]*metrics.ServicePairMetrics {
+// processLatencyResponse processes latency P99 response data
+func (p *Provider) processLatencyResponse(response model.Value, timestamp time.Time) processedMetrics {
+	pairMap := make(map[string]*metrics.ServicePairMetrics)
+
+	if response == nil {
+		return processedMetrics{PairData: pairMap, MetricType: "latency_p99"}
+	}
+
+	latencyVector, ok := response.(model.Vector)
+	if !ok {
+		return processedMetrics{
+			Error:      fmt.Errorf("expected Vector result for latency P99, got %T", response),
+			MetricType: "latency_p99",
+		}
+	}
+
+	for _, sample := range latencyVector {
+		key := p.createPairKey(sample.Metric)
+		if key == "" {
+			continue
+		}
+
+		// Handle NaN values and keep as-is (check if already in milliseconds)
+		latencyMs := float64(sample.Value)
+		if latencyMs != latencyMs { // Check for NaN
+			latencyMs = 0.0
+		}
+
+		pair := &metrics.ServicePairMetrics{
+			SourceCluster:        p.getStringValue(sample.Metric, "source_cluster"),
+			SourceNamespace:      p.getStringValue(sample.Metric, "source_workload_namespace"),
+			SourceService:        p.getStringValue(sample.Metric, "source_canonical_service"),
+			DestinationCluster:   p.getStringValue(sample.Metric, "destination_cluster"),
+			DestinationNamespace: p.getStringValue(sample.Metric, "destination_service_namespace"),
+			DestinationService:   p.getStringValue(sample.Metric, "destination_canonical_service"),
+			LatencyP99:           latencyMs,
+		}
+
+		pairMap[key] = pair
+	}
+
+	return processedMetrics{PairData: pairMap, MetricType: "latency_p99"}
+}
+
+// mergePairMaps merges request rate, error rate, and latency data
+func (p *Provider) mergePairMaps(requestPairs, errorPairs, latencyPairs map[string]*metrics.ServicePairMetrics) map[string]*metrics.ServicePairMetrics {
 	merged := make(map[string]*metrics.ServicePairMetrics)
 
 	// Start with request rate data
@@ -120,6 +164,7 @@ func (p *Provider) mergePairMaps(requestPairs, errorPairs map[string]*metrics.Se
 			DestinationService:   pair.DestinationService,
 			RequestRate:          pair.RequestRate,
 			ErrorRate:            0.0, // Default to 0
+			LatencyP99:           0.0, // Default to 0
 		}
 	}
 
@@ -138,6 +183,27 @@ func (p *Provider) mergePairMaps(requestPairs, errorPairs map[string]*metrics.Se
 				DestinationService:   errorPair.DestinationService,
 				RequestRate:          0.0, // Default to 0
 				ErrorRate:            errorPair.ErrorRate,
+				LatencyP99:           0.0, // Default to 0
+			}
+		}
+	}
+
+	// Add latency data
+	for key, latencyPair := range latencyPairs {
+		if existing, exists := merged[key]; exists {
+			existing.LatencyP99 = latencyPair.LatencyP99
+		} else {
+			// Create new pair with just latency
+			merged[key] = &metrics.ServicePairMetrics{
+				SourceCluster:        latencyPair.SourceCluster,
+				SourceNamespace:      latencyPair.SourceNamespace,
+				SourceService:        latencyPair.SourceService,
+				DestinationCluster:   latencyPair.DestinationCluster,
+				DestinationNamespace: latencyPair.DestinationNamespace,
+				DestinationService:   latencyPair.DestinationService,
+				RequestRate:          0.0, // Default to 0
+				ErrorRate:            0.0, // Default to 0
+				LatencyP99:           latencyPair.LatencyP99,
 			}
 		}
 	}

@@ -128,6 +128,7 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 						DestinationService:   pair.DestinationService,
 						ErrorRate:            pair.ErrorRate,
 						RequestRate:          pair.RequestRate,
+						LatencyP99:           pair.LatencyP99,
 					})
 				}
 				results <- clusterResult{clusterID: cID, pairs: pairs}

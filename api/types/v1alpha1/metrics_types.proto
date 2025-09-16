@@ -43,6 +43,9 @@ message ServicePairMetrics {
   
   // request_rate is the request rate in requests per second.
   double request_rate = 8;
+  
+  // latency_p99 is the 99th percentile latency in milliseconds.
+  double latency_p99 = 9;
 }
 
 // GraphMetricsFilters specify filters for service graph metrics queries.

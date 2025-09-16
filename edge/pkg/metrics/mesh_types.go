@@ -40,6 +40,7 @@ type ServicePairMetrics struct {
 	DestinationService   string    `json:"destination_service"`
 	ErrorRate            float64   `json:"error_rate"`   // requests per second
 	RequestRate          float64   `json:"request_rate"` // requests per second
+	LatencyP99           float64   `json:"latency_p99"`  // 99th percentile latency in milliseconds
 	Timestamp            time.Time `json:"timestamp"`
 }
 

@@ -170,6 +170,11 @@
           "type": "number",
           "format": "double",
           "description": "request_rate is the request rate in requests per second."
+        },
+        "latencyP99": {
+          "type": "number",
+          "format": "double",
+          "description": "latency_p99 is the 99th percentile latency in milliseconds."
         }
       },
       "description": "ServicePairMetrics represents metrics between a source and destination service."

@@ -38,5 +38,9 @@ export type v1alpha1ServicePairMetrics = {
      * request_rate is the request rate in requests per second.
      */
     requestRate?: number;
+    /**
+     * latency_p99 is the 99th percentile latency in milliseconds.
+     */
+    latencyP99?: number;
 };
 
