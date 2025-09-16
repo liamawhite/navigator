@@ -1125,9 +1125,9 @@ ProxyMode indicates the type of proxy (extracted from node ID)
 | Name | Number | Description |
 | ---- | ------ | ----------- |
 | UNKNOWN_PROXY_MODE | 0 | UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode |
-| SIDECAR | 1 | SIDECAR indicates a sidecar proxy (most common in Istio) |
-| GATEWAY | 2 | GATEWAY indicates a gateway proxy (ingress/egress gateways) |
-| ROUTER | 3 | ROUTER indicates a router proxy |
+| NONE | 1 | NONE indicates no proxy is present |
+| SIDECAR | 2 | SIDECAR indicates a sidecar proxy (most common in Istio) |
+| ROUTER | 3 | ROUTER indicates a router proxy (used for ingress/egress gateways) |
 
 
 

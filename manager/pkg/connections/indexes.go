@@ -95,6 +95,7 @@ func (m *Manager) rebuildIndexes() {
 					Labels:         instance.Labels,
 					Annotations:    instance.Annotations,
 					IsEnvoyPresent: instance.EnvoyPresent,
+					ProxyMode:      instance.ProxyMode,
 				}
 
 				// Add to global instances index

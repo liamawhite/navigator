@@ -1161,12 +1161,12 @@
       "type": "string",
       "enum": [
         "UNKNOWN_PROXY_MODE",
+        "NONE",
         "SIDECAR",
-        "GATEWAY",
         "ROUTER"
       ],
       "default": "UNKNOWN_PROXY_MODE",
-      "description": "- UNKNOWN_PROXY_MODE: UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode\n - SIDECAR: SIDECAR indicates a sidecar proxy (most common in Istio)\n - GATEWAY: GATEWAY indicates a gateway proxy (ingress/egress gateways)\n - ROUTER: ROUTER indicates a router proxy",
+      "description": "- UNKNOWN_PROXY_MODE: UNKNOWN_PROXY_MODE indicates an unknown or unspecified proxy mode\n - NONE: NONE indicates no proxy is present\n - SIDECAR: SIDECAR indicates a sidecar proxy (most common in Istio)\n - ROUTER: ROUTER indicates a router proxy (used for ingress/egress gateways)",
       "title": "ProxyMode indicates the type of proxy (extracted from node ID)"
     },
     "v1alpha1RequestAuthentication": {
@@ -1329,6 +1329,10 @@
             "type": "string"
           },
           "description": "external_ips maps cluster names to their external IP addresses for this service."
+        },
+        "proxyMode": {
+          "$ref": "#/definitions/v1alpha1ProxyMode",
+          "description": "proxy_mode indicates the Istio proxy mode for this service (determined from instances).\nServices with instances that have ProxyMode_ROUTER are gateway services."
         }
       },
       "description": "Service represents a Kubernetes service with its backing instances.\nServices in different clusters that share the same name and namespace are considered the same service."

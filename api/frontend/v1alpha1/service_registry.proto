@@ -121,6 +121,10 @@ message Service {
 
   // external_ips maps cluster names to their external IP addresses for this service.
   map<string, string> external_ips = 6;
+
+  // proxy_mode indicates the Istio proxy mode for this service (determined from instances).
+  // Services with instances that have ProxyMode_ROUTER are gateway services.
+  navigator.types.v1alpha1.ProxyMode proxy_mode = 7;
 }
 
 // ServiceInstance represents a single backend instance serving a service.

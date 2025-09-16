@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { v1alpha1ProxyMode } from './v1alpha1ProxyMode';
 import type { v1alpha1ServiceInstance } from './v1alpha1ServiceInstance';
 /**
  * Service represents a Kubernetes service with its backing instances.
@@ -32,5 +33,10 @@ export type v1alpha1Service = {
      * external_ips maps cluster names to their external IP addresses for this service.
      */
     externalIps?: Record<string, string>;
+    /**
+     * proxy_mode indicates the Istio proxy mode for this service (determined from instances).
+     * Services with instances that have ProxyMode_ROUTER are gateway services.
+     */
+    proxyMode?: v1alpha1ProxyMode;
 };
 

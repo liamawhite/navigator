@@ -398,6 +398,7 @@ Services in different clusters that share the same name and namespace are consid
 | instances | [ServiceInstance](#navigator-frontend-v1alpha1-ServiceInstance) | repeated | instances are the backend instances (pods) that serve this service across all clusters. |
 | cluster_ips | [Service.ClusterIpsEntry](#navigator-frontend-v1alpha1-Service-ClusterIpsEntry) | repeated | cluster_ips maps cluster names to their cluster IP addresses for this service. |
 | external_ips | [Service.ExternalIpsEntry](#navigator-frontend-v1alpha1-Service-ExternalIpsEntry) | repeated | external_ips maps cluster names to their external IP addresses for this service. |
+| proxy_mode | [navigator.types.v1alpha1.ProxyMode](#navigator-types-v1alpha1-ProxyMode) |  | proxy_mode indicates the Istio proxy mode for this service (determined from instances). Services with instances that have ProxyMode_ROUTER are gateway services. |
 
 
 

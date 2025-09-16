@@ -49,7 +49,7 @@ func inferProxyMode(nodeID string) v1alpha1.ProxyMode {
 	}
 
 	if strings.HasPrefix(nodeID, "router~") || strings.HasPrefix(nodeID, "gateway~") {
-		return v1alpha1.ProxyMode_GATEWAY
+		return v1alpha1.ProxyMode_ROUTER
 	}
 
 	// Fallback for unknown patterns

@@ -285,7 +285,7 @@ func TestEnrichListenerType(t *testing.T) {
 
 func TestEnrichListenerTypeGateway(t *testing.T) {
 	// Test with gateway proxy mode
-	enrichFunc := enrichListenerType(v1alpha1.ProxyMode_GATEWAY)
+	enrichFunc := enrichListenerType(v1alpha1.ProxyMode_ROUTER)
 
 	tests := []struct {
 		name           string
@@ -585,7 +585,7 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 			address:        "0.0.0.0",
 			port:           80,
 			useOriginalDst: false,
-			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			proxyMode:      v1alpha1.ProxyMode_ROUTER,
 			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
 			description:    "Gateway 0.0.0.0 listener without OriginalDst should be GATEWAY_INBOUND",
 		},
@@ -595,7 +595,7 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 			address:        "0.0.0.0",
 			port:           443,
 			useOriginalDst: false,
-			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			proxyMode:      v1alpha1.ProxyMode_ROUTER,
 			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
 			description:    "Gateway HTTPS listener should be GATEWAY_INBOUND",
 		},
@@ -605,7 +605,7 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 			address:        "0.0.0.0",
 			port:           8080,
 			useOriginalDst: false,
-			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			proxyMode:      v1alpha1.ProxyMode_ROUTER,
 			expectedType:   v1alpha1.ListenerType_GATEWAY_INBOUND,
 			description:    "Gateway custom port should be GATEWAY_INBOUND",
 		},
@@ -625,7 +625,7 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 			address:        "0.0.0.0",
 			port:           15001,
 			useOriginalDst: true,
-			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			proxyMode:      v1alpha1.ProxyMode_ROUTER,
 			expectedType:   v1alpha1.ListenerType_VIRTUAL_OUTBOUND,
 			description:    "Gateway with OriginalDst should be VIRTUAL_OUTBOUND",
 		},
@@ -635,7 +635,7 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 			address:        "0.0.0.0",
 			port:           15090,
 			useOriginalDst: false,
-			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			proxyMode:      v1alpha1.ProxyMode_ROUTER,
 			expectedType:   v1alpha1.ListenerType_PROXY_METRICS,
 			description:    "Gateway metrics port should still be PROXY_METRICS",
 		},
@@ -645,7 +645,7 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 			address:        "0.0.0.0",
 			port:           15021,
 			useOriginalDst: false,
-			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			proxyMode:      v1alpha1.ProxyMode_ROUTER,
 			expectedType:   v1alpha1.ListenerType_PROXY_HEALTHCHECK,
 			description:    "Gateway health port should still be PROXY_HEALTHCHECK",
 		},
@@ -655,7 +655,7 @@ func TestInferIstioListenerTypeGateway(t *testing.T) {
 			address:        "10.96.1.100",
 			port:           8080,
 			useOriginalDst: false,
-			proxyMode:      v1alpha1.ProxyMode_GATEWAY,
+			proxyMode:      v1alpha1.ProxyMode_ROUTER,
 			expectedType:   v1alpha1.ListenerType_SERVICE_OUTBOUND,
 			description:    "Gateway service IP should still be SERVICE_OUTBOUND",
 		},
