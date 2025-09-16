@@ -19,8 +19,6 @@ import { ArrowRight } from 'lucide-react';
 import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
 
 interface ServiceConnectionsTableProps {
-    serviceName: string;
-    namespace: string;
     inbound: v1alpha1ServicePairMetrics[];
     outbound: v1alpha1ServicePairMetrics[];
 }
@@ -36,7 +34,7 @@ interface ConnectionRowData {
 
 export const ServiceConnectionsTable: React.FC<
     ServiceConnectionsTableProps
-> = ({ serviceName: _serviceName, namespace: _namespace, inbound, outbound }) => {
+> = ({ inbound, outbound }) => {
     const navigate = useNavigate();
 
     const formatRequestRate = (rate: number): string => {
@@ -50,7 +48,7 @@ export const ServiceConnectionsTable: React.FC<
     };
 
     const formatSuccessRate = (rate: number): string => {
-        if (rate >= 99.95) {
+        if (rate >= SUCCESS_RATE_DISPLAY_THRESHOLD) {
             return '100%';
         } else if (rate >= 10) {
             return `${rate.toFixed(1)}%`;
@@ -60,17 +58,23 @@ export const ServiceConnectionsTable: React.FC<
     };
 
     const getSuccessRateColor = (rate: number): string => {
-        if (rate >= 99) return 'text-green-600';
-        if (rate >= 95) return 'text-amber-600';
+        if (rate >= SUCCESS_RATE_EXCELLENT) return 'text-green-600';
+        if (rate >= SUCCESS_RATE_GOOD) return 'text-amber-600';
         return 'text-red-600';
     };
+
+    // Configuration constants
+    const MIN_REQUEST_RATE = 0.01;
+    const SUCCESS_RATE_EXCELLENT = 99;
+    const SUCCESS_RATE_GOOD = 95;
+    const SUCCESS_RATE_DISPLAY_THRESHOLD = 99.95;
 
     const processConnections = (
         connections: v1alpha1ServicePairMetrics[],
         type: 'inbound' | 'outbound'
     ): ConnectionRowData[] => {
         return connections
-            .filter((conn) => (conn.requestRate || 0) >= 0.01)
+            .filter((conn) => (conn.requestRate || 0) >= MIN_REQUEST_RATE)
             .map((conn) => {
                 const service =
                     type === 'inbound'
