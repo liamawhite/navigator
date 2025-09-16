@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package navigator.types.v1alpha1;
 
+import "google/protobuf/duration.proto";
+
 option go_package = "github.com/liamawhite/navigator/pkg/api/types/v1alpha1";
 
 // ServicePairMetrics represents metrics between a source and destination service.
@@ -44,8 +46,8 @@ message ServicePairMetrics {
   // request_rate is the request rate in requests per second.
   double request_rate = 8;
   
-  // latency_p99 is the 99th percentile latency in milliseconds.
-  double latency_p99 = 9;
+  // latency_p99 is the 99th percentile latency.
+  google.protobuf.Duration latency_p99 = 9;
 }
 
 // GraphMetricsFilters specify filters for service graph metrics queries.

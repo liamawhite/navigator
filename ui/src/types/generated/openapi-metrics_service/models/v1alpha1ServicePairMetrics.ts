@@ -39,8 +39,8 @@ export type v1alpha1ServicePairMetrics = {
      */
     requestRate?: number;
     /**
-     * latency_p99 is the 99th percentile latency in milliseconds.
+     * latency_p99 is the 99th percentile latency.
      */
-    latencyP99?: number;
+    latencyP99?: string;
 };
 

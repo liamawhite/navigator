@@ -29,7 +29,7 @@ interface ConnectionRowData {
     cluster: string;
     requestRate: number;
     successRate: number;
-    latencyP99: number;
+    latencyP99: string | undefined;
     isClickable: boolean;
 }
 
@@ -56,7 +56,30 @@ export const ServiceConnectionsTable: React.FC<
         }
     };
 
-    const formatLatency = (latencyMs: number): string => {
+    const parseDurationToMs = (duration: string | undefined): number => {
+        if (!duration) return 0;
+
+        // Parse protobuf duration string format (e.g., "0.150s", "25ms")
+        const match = duration.match(/^(\d+(?:\.\d+)?)(s|ms|ns)$/);
+        if (!match) return 0;
+
+        const value = parseFloat(match[1]);
+        const unit = match[2];
+
+        switch (unit) {
+            case 's':
+                return value * 1000; // seconds to milliseconds
+            case 'ms':
+                return value; // already milliseconds
+            case 'ns':
+                return value / 1000000; // nanoseconds to milliseconds
+            default:
+                return 0;
+        }
+    };
+
+    const formatLatency = (duration: string | undefined): string => {
+        const latencyMs = parseDurationToMs(duration);
         if (latencyMs === 0) {
             return '-';
         } else if (latencyMs >= 1000) {
@@ -99,7 +122,7 @@ export const ServiceConnectionsTable: React.FC<
 
                 const requestRate = conn.requestRate || 0;
                 const errorRate = conn.errorRate || 0;
-                const latencyP99 = conn.latencyP99 || 0;
+                const latencyP99 = conn.latencyP99;
                 const successRate =
                     requestRate > 0
                         ? ((requestRate - errorRate) / requestRate) * 100
