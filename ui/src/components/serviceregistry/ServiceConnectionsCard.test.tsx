@@ -40,8 +40,8 @@ jest.mock('./ServiceConnectionsTable', () => ({
         inbound,
         outbound,
     }: {
-        inbound: any[];
-        outbound: any[];
+        inbound: unknown[];
+        outbound: unknown[];
     }) => (
         <div data-testid="service-connections-table">
             Connections: {inbound.length} inbound, {outbound.length} outbound
@@ -177,7 +177,9 @@ describe('ServiceConnectionsCard', () => {
         );
 
         expect(screen.getByTestId('service-connections-table')).toBeTruthy();
-        expect(screen.getByText('Connections: 1 inbound, 1 outbound')).toBeTruthy();
+        expect(
+            screen.getByText('Connections: 1 inbound, 1 outbound')
+        ).toBeTruthy();
     });
 
     it('should show collapsed state when no metrics enabled', () => {

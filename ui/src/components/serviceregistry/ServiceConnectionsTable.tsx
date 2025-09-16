@@ -48,9 +48,7 @@ export const ServiceConnectionsTable: React.FC<
     };
 
     const formatSuccessRate = (rate: number): string => {
-        if (rate >= SUCCESS_RATE_DISPLAY_THRESHOLD) {
-            return '100%';
-        } else if (rate >= 10) {
+        if (rate >= 10) {
             return `${rate.toFixed(1)}%`;
         } else {
             return `${rate.toFixed(2)}%`;
@@ -67,7 +65,6 @@ export const ServiceConnectionsTable: React.FC<
     const MIN_REQUEST_RATE = 0.01;
     const SUCCESS_RATE_EXCELLENT = 99;
     const SUCCESS_RATE_GOOD = 95;
-    const SUCCESS_RATE_DISPLAY_THRESHOLD = 99.95;
 
     const processConnections = (
         connections: v1alpha1ServicePairMetrics[],
