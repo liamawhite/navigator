@@ -227,6 +227,99 @@ func (p *Provider) createPairKey(metric model.Metric) string {
 	return fmt.Sprintf("%s:%s:%s->%s:%s:%s", srcCluster, sourceNs, source, destCluster, destNs, dest)
 }
 
+// processDownstreamRequestRateResponse processes downstream request rate for gateways
+func (p *Provider) processDownstreamRequestRateResponse(response model.Value, timestamp time.Time, serviceName string) processedMetrics {
+	pairMap := make(map[string]*metrics.ServicePairMetrics)
+
+	if response == nil {
+		return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_request_rate"}
+	}
+
+	requestVector, ok := response.(model.Vector)
+	if !ok {
+		return processedMetrics{
+			Error:      fmt.Errorf("expected Vector result for downstream request rates, got %T", response),
+			MetricType: "gateway_downstream_request_rate",
+		}
+	}
+
+	for _, sample := range requestVector {
+		pod := p.getStringValue(sample.Metric, "pod")
+		namespace := p.getStringValue(sample.Metric, "namespace")
+
+		if pod == "" || namespace == "" {
+			continue
+		}
+
+		// Create a special pair for gateway downstream metrics
+		// Use "unknown" as source since this represents inbound traffic from outside
+		key := fmt.Sprintf("unknown:->%s:%s:%s", p.clusterName, namespace, serviceName)
+
+		pair := &metrics.ServicePairMetrics{
+			SourceCluster:        "unknown",
+			SourceNamespace:      "unknown",
+			SourceService:        "unknown",
+			DestinationCluster:   p.clusterName,
+			DestinationNamespace: namespace,
+			DestinationService:   serviceName, // Use service name instead of pod name
+			RequestRate:          float64(sample.Value),
+		}
+
+		pairMap[key] = pair
+	}
+
+	return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_request_rate"}
+}
+
+// processDownstreamLatencyResponse processes downstream latency for gateways
+func (p *Provider) processDownstreamLatencyResponse(response model.Value, timestamp time.Time, serviceName string) processedMetrics {
+	pairMap := make(map[string]*metrics.ServicePairMetrics)
+
+	if response == nil {
+		return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency"}
+	}
+
+	latencyVector, ok := response.(model.Vector)
+	if !ok {
+		return processedMetrics{
+			Error:      fmt.Errorf("expected Vector result for downstream latency, got %T", response),
+			MetricType: "gateway_downstream_latency",
+		}
+	}
+
+	for _, sample := range latencyVector {
+		pod := p.getStringValue(sample.Metric, "pod")
+		namespace := p.getStringValue(sample.Metric, "namespace")
+
+		if pod == "" || namespace == "" {
+			continue
+		}
+
+		// Handle NaN values
+		latencyMs := float64(sample.Value)
+		if latencyMs != latencyMs { // Check for NaN
+			latencyMs = 0.0
+		}
+
+		// Create a special pair for gateway downstream metrics
+		key := fmt.Sprintf("unknown:->%s:%s:%s", p.clusterName, namespace, serviceName)
+
+		pair := &metrics.ServicePairMetrics{
+			SourceCluster:        "unknown",
+			SourceNamespace:      "unknown",
+			SourceService:        "unknown",
+			DestinationCluster:   p.clusterName,
+			DestinationNamespace: namespace,
+			DestinationService:   serviceName, // Use service name instead of pod name
+			LatencyP99:           latencyMs,
+		}
+
+		pairMap[key] = pair
+	}
+
+	return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency"}
+}
+
 // getStringValue safely extracts string values from Prometheus metric labels
 func (p *Provider) getStringValue(metric model.Metric, key string) string {
 	if value, ok := metric[model.LabelName(key)]; ok {

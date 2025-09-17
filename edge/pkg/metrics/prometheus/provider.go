@@ -91,17 +91,18 @@ func (p *Provider) GetClusterName() string {
 }
 
 // GetServiceConnections (new interface) retrieves service connection metrics for a specific service - implements interfaces.MetricsProvider
-func (p *Provider) GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime *timestamppb.Timestamp) (*typesv1alpha1.ServiceGraphMetrics, error) {
+func (p *Provider) GetServiceConnections(ctx context.Context, serviceName, namespace string, proxyMode typesv1alpha1.ProxyMode, startTime, endTime *timestamppb.Timestamp) (*typesv1alpha1.ServiceGraphMetrics, error) {
 	p.logger.Info("retrieving service connections from Prometheus",
 		"service_name", serviceName,
 		"namespace", namespace,
+		"proxy_mode", proxyMode.String(),
 		"cluster", p.clusterName)
 
 	// Health check will be performed by the actual query - no need to precheck
 
 	// Use the fixed getServiceConnectionsInternal method instead of the buggy client method
 	// Note: startTime and endTime are currently ignored since getServiceConnectionsInternal uses a fixed 5m window
-	result, err := p.getServiceConnectionsInternal(ctx, serviceName, namespace, metrics.MeshMetricsFilters{})
+	result, err := p.getServiceConnectionsInternal(ctx, serviceName, namespace, proxyMode, metrics.MeshMetricsFilters{})
 	if err != nil {
 		return nil, err
 	}

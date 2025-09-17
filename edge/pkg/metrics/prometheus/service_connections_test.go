@@ -41,7 +41,7 @@ func TestGetServiceConnections_NoClient(t *testing.T) {
 	}
 
 	filters := metrics.MeshMetricsFilters{}
-	result, err := provider.getServiceConnectionsInternal(context.Background(), "frontend", "default", filters)
+	result, err := provider.getServiceConnectionsInternal(context.Background(), "frontend", "default", typesv1alpha1.ProxyMode_SIDECAR, filters)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -115,7 +115,7 @@ func TestGetServiceConnections_DoubleCountingFix(t *testing.T) {
 	// Execute the service connections query using the Provider's public method (which now calls the FIXED method)
 	now := timestamppb.Now()
 	fiveMinutesAgo := timestamppb.New(time.Now().Add(-5 * time.Minute))
-	result, err := provider.GetServiceConnections(context.Background(), "backend", "microservices", fiveMinutesAgo, now)
+	result, err := provider.GetServiceConnections(context.Background(), "backend", "microservices", typesv1alpha1.ProxyMode_SIDECAR, fiveMinutesAgo, now)
 
 	require.NoError(t, err)
 	require.NotNil(t, result)

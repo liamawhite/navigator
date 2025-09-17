@@ -93,7 +93,7 @@ func (m *mockMetricsProvider) GetProviderInfo() metrics.ProviderInfo {
 	}
 }
 
-func (m *mockMetricsProvider) GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime *timestamppb.Timestamp) (*types.ServiceGraphMetrics, error) {
+func (m *mockMetricsProvider) GetServiceConnections(ctx context.Context, serviceName, namespace string, proxyMode types.ProxyMode, startTime, endTime *timestamppb.Timestamp) (*types.ServiceGraphMetrics, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

@@ -153,6 +153,13 @@ export const ServiceConnectionsTable: React.FC<
         }
     };
 
+    const formatServiceName = (service: string, namespace: string): string => {
+        if (service === 'unknown' && namespace === 'unknown') {
+            return 'unknown';
+        }
+        return `${service}.${namespace}`;
+    };
+
     const inboundConnections = processConnections(inbound, 'inbound');
     const outboundConnections = processConnections(outbound, 'outbound');
 
@@ -207,13 +214,17 @@ export const ServiceConnectionsTable: React.FC<
                                                     }
                                                     className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left hover:cursor-pointer"
                                                 >
-                                                    {conn.service}.
-                                                    {conn.namespace}
+                                                    {formatServiceName(
+                                                        conn.service,
+                                                        conn.namespace
+                                                    )}
                                                 </button>
                                             ) : (
                                                 <span className="text-muted-foreground">
-                                                    {conn.service}.
-                                                    {conn.namespace}
+                                                    {formatServiceName(
+                                                        conn.service,
+                                                        conn.namespace
+                                                    )}
                                                 </span>
                                             )}
                                         </TableCell>
@@ -335,13 +346,17 @@ export const ServiceConnectionsTable: React.FC<
                                                     }
                                                     className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-right hover:cursor-pointer"
                                                 >
-                                                    {conn.service}.
-                                                    {conn.namespace}
+                                                    {formatServiceName(
+                                                        conn.service,
+                                                        conn.namespace
+                                                    )}
                                                 </button>
                                             ) : (
                                                 <span className="text-muted-foreground">
-                                                    {conn.service}.
-                                                    {conn.namespace}
+                                                    {formatServiceName(
+                                                        conn.service,
+                                                        conn.namespace
+                                                    )}
                                                 </span>
                                             )}
                                         </TableCell>

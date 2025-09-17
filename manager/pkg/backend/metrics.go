@@ -62,7 +62,7 @@ func NewMeshMetricsService(connectionManager providers.ConnectionManager, logger
 }
 
 // GetServiceConnections requests service connections metrics from a specific edge cluster
-func (m *MeshMetricsService) GetServiceConnections(ctx context.Context, clusterID string, req *frontendv1alpha1.GetServiceConnectionsRequest) (*typesv1alpha1.ServiceGraphMetrics, error) {
+func (m *MeshMetricsService) GetServiceConnections(ctx context.Context, clusterID string, req *frontendv1alpha1.GetServiceConnectionsRequest, proxyMode typesv1alpha1.ProxyMode) (*typesv1alpha1.ServiceGraphMetrics, error) {
 	m.logger.Info("requesting service connections from edge cluster",
 		"cluster_id", clusterID,
 		"service_name", req.ServiceName,
@@ -104,6 +104,7 @@ func (m *MeshMetricsService) GetServiceConnections(ctx context.Context, clusterI
 		Namespace:   req.Namespace,
 		StartTime:   startTime,
 		EndTime:     endTime,
+		ProxyMode:   proxyMode,
 	}
 
 	// Send request to edge cluster
