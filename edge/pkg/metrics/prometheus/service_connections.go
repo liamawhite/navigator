@@ -84,13 +84,13 @@ histogram_quantile(0.99,
 	// Gateway-specific downstream metrics templates
 	gatewayDownstreamRequestRateQueryTemplate = template.Must(template.New("gatewayDownstreamRequestRate").Parse(`
 sum by (pod, namespace)(
-  rate(envoy_http_downstream_rq_total{pod=~".*gateway.*", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+  rate(envoy_http_downstream_rq_total{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 
 	gatewayDownstreamLatencyQueryTemplate = template.Must(template.New("gatewayDownstreamLatency").Parse(`
 histogram_quantile(0.99,
   sum by (pod, namespace, le)(
-    rate(envoy_http_downstream_rq_time_bucket{pod=~".*gateway.*", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+    rate(envoy_http_downstream_rq_time_bucket{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
   )
 )`))
 )
