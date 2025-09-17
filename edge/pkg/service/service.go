@@ -513,7 +513,7 @@ func (e *EdgeService) processServiceConnectionsRequest(req *v1alpha1.ServiceConn
 		}
 	} else {
 		// Get service connections using metrics provider
-		serviceConnections, err := e.metricsProvider.GetServiceConnections(e.ctx, req.ServiceName, req.Namespace, req.StartTime, req.EndTime)
+		serviceConnections, err := e.metricsProvider.GetServiceConnections(e.ctx, req.ServiceName, req.Namespace, req.ProxyMode, req.StartTime, req.EndTime)
 		if err != nil {
 			e.logger.Error("failed to get service connections from metrics provider",
 				"request_id", req.RequestId,

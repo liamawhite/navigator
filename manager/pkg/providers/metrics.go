@@ -23,5 +23,5 @@ import (
 
 // MeshMetricsProvider defines the interface for retrieving service mesh metrics
 type MeshMetricsProvider interface {
-	GetServiceConnections(ctx context.Context, clusterID string, req *frontendv1alpha1.GetServiceConnectionsRequest) (*typesv1alpha1.ServiceGraphMetrics, error)
+	GetServiceConnections(ctx context.Context, clusterID string, req *frontendv1alpha1.GetServiceConnectionsRequest, proxyMode typesv1alpha1.ProxyMode) (*typesv1alpha1.ServiceGraphMetrics, error)
 }

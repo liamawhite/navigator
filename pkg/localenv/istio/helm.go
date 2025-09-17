@@ -415,7 +415,7 @@ func (h *HelmManager) mergeGatewayValues(userValues map[string]interface{}) map[
 		values[k] = v
 	}
 
-	// Add fixed NodePort assignments for consistent port binding
+	// Add fixed NodePort assignments for consistent port binding and gateway-specific stats
 	serviceValues := map[string]interface{}{
 		"service": map[string]interface{}{
 			"type": "NodePort",
@@ -439,6 +439,11 @@ func (h *HelmManager) mergeGatewayValues(userValues map[string]interface{}) map[
 					"protocol": "TCP",
 				},
 			},
+		},
+		"podAnnotations": map[string]interface{}{
+			"sidecar.istio.io/statsInclusionRegexps": ".*downstream_rq_(total|4xx|5xx|time).*",
+			// Allow downstream histogram buckets for P99 calculation, exclude other buckets
+			"sidecar.istio.io/statsExclusionRegexps": ".*_bucket(?!.*downstream_rq_time_bucket).*",
 		},
 	}
 

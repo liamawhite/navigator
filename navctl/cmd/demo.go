@@ -244,47 +244,41 @@ and proxy analysis features.`,
 		logger.Info("Step 3/3: Verifying microservice request chain...")
 		if err := microKustomizeMgr.VerifyMicroserviceChain(ctx); err != nil {
 			logger.Error("Microservice verification failed", "error", err)
-			logger.Info("Demo cluster ready but verification incomplete - try manual testing",
-				"cluster", demoClusterName,
-				"kubeconfig", kubeconfigPath,
-				"istio_version", demoIstioVersion,
-				"microservices_namespace", "microservices",
-				"http_port", kind.HTTPNodePort)
-		} else {
-			logger.Info("✓ Microservice verification successful - full chain working!")
-
-			// Start Fortio load generation
-			logger.Info("Starting continuous load generation at 5 RPS...")
-			fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "load-generator", logger)
-			if err := fortioMgr.InstallFortio(ctx); err != nil {
-				logger.Warn("Failed to start Fortio load generator", "error", err)
-			} else {
-				logger.Info("✓ Load generation started - 5 RPS through full microservice chain")
-			}
-
-			logger.Info("🎉 Demo cluster ready and verified!",
-				"cluster", demoClusterName,
-				"kubeconfig", kubeconfigPath,
-				"istio_version", demoIstioVersion,
-				"microservices_namespace", "microservices",
-				"database_namespace", "database",
-				"test_url", "Gateway -> Frontend -> Backend -> Database chain verified",
-				"http_port", kind.HTTPNodePort,
-				"https_port", kind.HTTPSNodePort,
-				"status_port", kind.StatusNodePort,
-				"prometheus_port", kind.PrometheusNodePort)
-
-			// Print curl examples for manual testing after all structured logging
-			fmt.Printf("\n🧪 Test the microservice chain manually:\n")
-			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database.database:8080\"\n", kind.HTTPNodePort)
-			fmt.Printf("\n🔍 Test individual services:\n")
-			fmt.Printf("   curl -s \"http://localhost:%d\"                              # Frontend only\n", kind.HTTPNodePort)
-			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080\"             # Frontend -> Backend\n", kind.HTTPNodePort)
-			fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database.database:8080\" # Full chain\n", kind.HTTPNodePort)
-			fmt.Printf("\n📊 Access Prometheus metrics:\n")
-			fmt.Printf("   http://localhost:%d\n", kind.PrometheusNodePort)
-			fmt.Printf("\n")
+			return fmt.Errorf("microservice verification failed: %w", err)
 		}
+		logger.Info("✓ Microservice verification successful - full chain working!")
+
+		// Start Fortio load generation
+		logger.Info("Starting continuous load generation at 5 RPS...")
+		fortioMgr := fortio.NewFortioManager(absKubeconfigPath, "load-generator", logger)
+		if err := fortioMgr.InstallFortio(ctx); err != nil {
+			logger.Warn("Failed to start Fortio load generator", "error", err)
+		} else {
+			logger.Info("✓ Load generation started - 5 RPS through full microservice chain")
+		}
+
+		logger.Info("🎉 Demo cluster ready and verified!",
+			"cluster", demoClusterName,
+			"kubeconfig", kubeconfigPath,
+			"istio_version", demoIstioVersion,
+			"microservices_namespace", "microservices",
+			"database_namespace", "database",
+			"test_url", "Gateway -> Frontend -> Backend -> Database chain verified",
+			"http_port", kind.HTTPNodePort,
+			"https_port", kind.HTTPSNodePort,
+			"status_port", kind.StatusNodePort,
+			"prometheus_port", kind.PrometheusNodePort)
+
+		// Print curl examples for manual testing after all structured logging
+		fmt.Printf("\n🧪 Test the microservice chain manually:\n")
+		fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database.database:8080\"\n", kind.HTTPNodePort)
+		fmt.Printf("\n🔍 Test individual services:\n")
+		fmt.Printf("   curl -s \"http://localhost:%d\"                              # Frontend only\n", kind.HTTPNodePort)
+		fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080\"             # Frontend -> Backend\n", kind.HTTPNodePort)
+		fmt.Printf("   curl -s \"http://localhost:%d/proxy/backend:8080/proxy/database.database:8080\" # Full chain\n", kind.HTTPNodePort)
+		fmt.Printf("\n📊 Access Prometheus metrics:\n")
+		fmt.Printf("   http://localhost:%d\n", kind.PrometheusNodePort)
+		fmt.Printf("\n")
 
 		return nil
 	},

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // Targeted query templates for specific service connections
@@ -79,6 +80,19 @@ histogram_quantile(0.99,
     rate(istio_request_duration_milliseconds_bucket{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
   )
 )`))
+
+	// Gateway-specific downstream metrics templates
+	gatewayDownstreamRequestRateQueryTemplate = template.Must(template.New("gatewayDownstreamRequestRate").Parse(`
+sum by (pod, namespace)(
+  rate(envoy_http_downstream_rq_total{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+)`))
+
+	gatewayDownstreamLatencyQueryTemplate = template.Must(template.New("gatewayDownstreamLatency").Parse(`
+histogram_quantile(0.99,
+  sum by (pod, namespace, le)(
+    rate(envoy_http_downstream_rq_time_bucket{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+  )
+)`))
 )
 
 // serviceConnectionsQueryTemplateData holds the data for service-specific query templates
@@ -90,7 +104,7 @@ type serviceConnectionsQueryTemplateData struct {
 }
 
 // getServiceConnectionsInternal returns targeted metrics for a specific service's connections
-func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceName, serviceNamespace string, filters metrics.MeshMetricsFilters) (*metrics.ServiceGraphMetrics, error) {
+func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceName, serviceNamespace string, proxyMode typesv1alpha1.ProxyMode, filters metrics.MeshMetricsFilters) (*metrics.ServiceGraphMetrics, error) {
 	// Check if client is available
 	if p.client == nil {
 		return nil, fmt.Errorf("prometheus client not available")
@@ -100,6 +114,12 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	timeRange := "5m"
 	timestamp := time.Now()
 
+	// Check if this is a gateway service (ROUTER proxy mode) to determine if we need downstream metrics
+	isGateway := proxyMode == typesv1alpha1.ProxyMode_ROUTER
+	if isGateway {
+		p.logger.Debug("detected gateway service, enabling downstream metrics collection", "service", serviceName, "namespace", serviceNamespace, "proxy_mode", proxyMode.String())
+	}
+
 	// Execute targeted queries in parallel with proper cancellation support
 	type connectionQueryResult struct {
 		ProcessedMetrics processedMetrics
@@ -107,7 +127,12 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		Error            error
 	}
 
-	results := make(chan connectionQueryResult, 6)
+	// Adjust channel size based on whether we have gateway metrics
+	channelSize := 6
+	if isGateway {
+		channelSize = 8 // Add 2 for downstream metrics
+	}
+	results := make(chan connectionQueryResult, channelSize)
 	var wg sync.WaitGroup
 
 	// Create cancellable context for goroutines
@@ -294,6 +319,69 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_latency_p99"}
 	}()
 
+	// Add downstream metrics queries for gateway services only
+	if isGateway {
+		// Gateway downstream request rate query
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Check for cancellation before starting work
+			select {
+			case <-queryCtx.Done():
+				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "gateway_downstream_request_rate"}
+				return
+			default:
+			}
+
+			query, err := p.buildServiceConnectionQuery(gatewayDownstreamRequestRateQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+			if err != nil {
+				results <- connectionQueryResult{Error: fmt.Errorf("failed to build gateway downstream request rate query: %w", err), QueryType: "gateway_downstream_request_rate"}
+				return
+			}
+
+			p.logger.Debug("executing gateway downstream request rate query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+			resp, err := p.client.query(queryCtx, query)
+			if err != nil {
+				results <- connectionQueryResult{Error: err, QueryType: "gateway_downstream_request_rate"}
+				return
+			}
+
+			processedMetrics := p.processDownstreamRequestRateResponse(resp, timestamp, serviceName)
+			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "gateway_downstream_request_rate"}
+		}()
+
+		// Gateway downstream latency query
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Check for cancellation before starting work
+			select {
+			case <-queryCtx.Done():
+				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "gateway_downstream_latency"}
+				return
+			default:
+			}
+
+			query, err := p.buildServiceConnectionQuery(gatewayDownstreamLatencyQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+			if err != nil {
+				results <- connectionQueryResult{Error: fmt.Errorf("failed to build gateway downstream latency query: %w", err), QueryType: "gateway_downstream_latency"}
+				return
+			}
+
+			p.logger.Debug("executing gateway downstream latency query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+			resp, err := p.client.query(queryCtx, query)
+			if err != nil {
+				results <- connectionQueryResult{Error: err, QueryType: "gateway_downstream_latency"}
+				return
+			}
+
+			processedMetrics := p.processDownstreamLatencyResponse(resp, timestamp, serviceName)
+			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "gateway_downstream_latency"}
+		}()
+	}
+
 	// Wait for all goroutines to complete
 	wg.Wait()
 	close(results)
@@ -325,6 +413,16 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 				allErrorPairs[key] = pair
 			}
 		case "latency_p99":
+			for key, pair := range result.ProcessedMetrics.PairData {
+				allLatencyPairs[key] = pair
+			}
+		case "gateway_downstream_request_rate":
+			// Merge downstream request rate into the request pairs
+			for key, pair := range result.ProcessedMetrics.PairData {
+				allRequestPairs[key] = pair
+			}
+		case "gateway_downstream_latency":
+			// Merge downstream latency into the latency pairs
 			for key, pair := range result.ProcessedMetrics.PairData {
 				allLatencyPairs[key] = pair
 			}

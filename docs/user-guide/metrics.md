@@ -187,6 +187,24 @@ Navigator collects and displays the following metrics for service-to-service com
 - **Real-time Updates**: UI refreshes based on configured interval
 - **Cross-Cluster**: Metrics aggregated across all connected clusters with capabilities
 
+## Gateway Inbound Metrics
+
+Istio disables most Envoy stats by default for performance reasons. To see inbound request metrics at your gateways (requests hitting the gateway before routing to services), add these annotations to your gateway pods:
+
+```yaml
+podAnnotations:
+  sidecar.istio.io/statsInclusionRegexps: ".*downstream_rq_(total|4xx|5xx|time).*"
+  # Allow downstream histogram buckets for P99 calculation, exclude other buckets
+  sidecar.istio.io/statsExclusionRegexps: ".*_bucket(?!.*downstream_rq_time_bucket).*"
+```
+
+This enables comprehensive gateway inbound metrics including:
+- **Request rates**: `envoy_http_downstream_rq_total` for inbound request tracking
+- **Error rates**: `envoy_http_downstream_rq_4xx` and `envoy_http_downstream_rq_5xx` for error analysis  
+- **P99 latency**: `envoy_http_downstream_rq_time_bucket` histogram for accurate percentile calculation
+
+These metrics complement the standard `istio_request_*` metrics by providing visibility into traffic **before** it enters the service mesh, giving you a complete picture of request flows from external sources through your gateways.
+
 ## Cluster Capabilities
 
 ### Edge Reporting

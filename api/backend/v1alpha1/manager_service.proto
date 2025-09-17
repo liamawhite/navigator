@@ -138,6 +138,9 @@ message ServiceConnectionsRequest {
   
   // end_time specifies the end time for the metrics query.
   google.protobuf.Timestamp end_time = 5;
+  
+  // proxy_mode indicates whether this service is a gateway (ROUTER) or regular service (SIDECAR).
+  navigator.types.v1alpha1.ProxyMode proxy_mode = 6;
 }
 
 // ServiceConnectionsResponse is sent by the edge process in response to a service connections request.

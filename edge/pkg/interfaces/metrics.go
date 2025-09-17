@@ -25,6 +25,6 @@ import (
 // MetricsProvider interface for dependency injection
 type MetricsProvider interface {
 	GetProviderInfo() metrics.ProviderInfo
-	GetServiceConnections(ctx context.Context, serviceName, namespace string, startTime, endTime *timestamppb.Timestamp) (*typesv1alpha1.ServiceGraphMetrics, error)
+	GetServiceConnections(ctx context.Context, serviceName, namespace string, proxyMode typesv1alpha1.ProxyMode, startTime, endTime *timestamppb.Timestamp) (*typesv1alpha1.ServiceGraphMetrics, error)
 	Close() error
 }

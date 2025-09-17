@@ -98,8 +98,8 @@ type MockMeshMetricsProvider struct {
 	mock.Mock
 }
 
-func (m *MockMeshMetricsProvider) GetServiceConnections(ctx context.Context, clusterID string, req *frontendv1alpha1.GetServiceConnectionsRequest) (*typesv1alpha1.ServiceGraphMetrics, error) {
-	args := m.Called(ctx, clusterID, req)
+func (m *MockMeshMetricsProvider) GetServiceConnections(ctx context.Context, clusterID string, req *frontendv1alpha1.GetServiceConnectionsRequest, proxyMode typesv1alpha1.ProxyMode) (*typesv1alpha1.ServiceGraphMetrics, error) {
+	args := m.Called(ctx, clusterID, req, proxyMode)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

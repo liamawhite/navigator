@@ -318,6 +318,7 @@ ServiceConnectionsRequest is sent by the manager to request service connections 
 | namespace | [string](#string) |  | namespace is the Kubernetes namespace of the service. |
 | start_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | start_time specifies the start time for the metrics query. |
 | end_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | end_time specifies the end time for the metrics query. |
+| proxy_mode | [navigator.types.v1alpha1.ProxyMode](#navigator-types-v1alpha1-ProxyMode) |  | proxy_mode indicates whether this service is a gateway (ROUTER) or regular service (SIDECAR). |
 
 
 

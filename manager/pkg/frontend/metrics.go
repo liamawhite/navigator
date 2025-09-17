@@ -58,7 +58,8 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 	// Validate that the service exists before querying metrics
 	// Use the same service ID format as the rest of the system: namespace:serviceName
 	serviceID := fmt.Sprintf("%s:%s", req.Namespace, req.ServiceName)
-	if _, serviceExists := m.connectionManager.GetAggregatedService(serviceID); !serviceExists {
+	aggregatedService, serviceExists := m.connectionManager.GetAggregatedService(serviceID)
+	if !serviceExists {
 		m.logger.Debug("service not found", "service_name", req.ServiceName, "namespace", req.Namespace, "service_id", serviceID)
 		return &frontendv1alpha1.GetServiceConnectionsResponse{
 			Inbound:         []*typesv1alpha1.ServicePairMetrics{},
@@ -66,6 +67,13 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 			Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
 			ClustersQueried: []string{},
 		}, nil
+	}
+
+	// Determine the ProxyMode from service instances
+	// All instances of a service should have the same ProxyMode
+	proxyMode := typesv1alpha1.ProxyMode_SIDECAR // Default to SIDECAR
+	if len(aggregatedService.Instances) > 0 {
+		proxyMode = aggregatedService.Instances[0].ProxyMode
 	}
 
 	var clustersQueried []string
@@ -108,7 +116,7 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 			}
 
 			// Request targeted service connections from this cluster
-			serviceConnectionsMetrics, err := m.meshMetricsProvider.GetServiceConnections(clusterCtx, cID, req)
+			serviceConnectionsMetrics, err := m.meshMetricsProvider.GetServiceConnections(clusterCtx, cID, req, proxyMode)
 			if err != nil {
 				m.logger.Error("failed to get service connections from cluster", "cluster_id", cID, "error", err)
 				results <- clusterResult{clusterID: cID, err: err}

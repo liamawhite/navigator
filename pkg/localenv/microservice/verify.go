@@ -97,7 +97,7 @@ func (k *KustomizeManager) testRequestChain(ctx context.Context) error {
 
 	// Build the request URL for the microservice chain test
 	// This will verify the full chain: Gateway -> Frontend -> Backend -> Database (cross-namespace)
-	requestURL := fmt.Sprintf("%s/proxy/backend:8080/proxy/database.database:8080", gatewayURL)
+	requestURL := fmt.Sprintf("%s/microservices/proxy/backend:8080/proxy/database.database:8080", gatewayURL)
 	k.logger.Info("Making HTTP request to test full microservice chain", "url", requestURL)
 
 	// Create HTTP client with reasonable timeout
