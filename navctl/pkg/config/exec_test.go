@@ -274,16 +274,16 @@ func TestTokenExecutor_ClearExpiredTokens(t *testing.T) {
 	defer executor.Close()
 
 	// Manually add an expired token to cache
-	executor.cache["expired-key"] = &TokenCache{
+	executor.cache.put("expired-key", &TokenCache{
 		Token:     "expired-token",
 		ExpiresAt: time.Now().Add(-1 * time.Hour),
-	}
+	})
 
 	// Add a valid token
-	executor.cache["valid-key"] = &TokenCache{
+	executor.cache.put("valid-key", &TokenCache{
 		Token:     "valid-token",
 		ExpiresAt: time.Now().Add(1 * time.Hour),
-	}
+	})
 
 	// Verify cache has both tokens
 	stats := executor.GetCacheStats()
