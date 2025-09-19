@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Table,
@@ -160,7 +160,7 @@ export const ServiceConnectionsTable: React.FC<
     const SUCCESS_RATE_EXCELLENT = 99;
     const SUCCESS_RATE_GOOD = 95;
 
-    const processConnections = (
+    const processConnections = useCallback((
         connections: v1alpha1ServicePairMetrics[],
         type: 'inbound' | 'outbound'
     ): ConnectionRowData[] => {
@@ -199,7 +199,7 @@ export const ServiceConnectionsTable: React.FC<
                     isClickable: service !== 'unknown' && ns !== 'unknown',
                 };
             });
-    };
+    }, []);
 
     const handleSort = (field: SortField) => {
         let newDirection: SortDirection;
@@ -221,17 +221,19 @@ export const ServiceConnectionsTable: React.FC<
         });
     };
 
-    const sortConnections = (
+    const sortConnections = useCallback((
         connections: ConnectionRowData[],
         sortState: SortState
     ): ConnectionRowData[] => {
         if (!sortState.field || !sortState.direction) {
-            // Default sort: namespace first, then service name
+            // Default sort: RPS descending (highest traffic first)
             return [...connections].sort((a, b) => {
-                if (a.namespace !== b.namespace) {
-                    return a.namespace.localeCompare(b.namespace);
+                const rpsComparison = b.requestRate - a.requestRate;
+                // If RPS is equal, sort by service name for stability
+                if (rpsComparison === 0) {
+                    return a.service.localeCompare(b.service);
                 }
-                return a.service.localeCompare(b.service);
+                return rpsComparison;
             });
         }
 
@@ -241,19 +243,24 @@ export const ServiceConnectionsTable: React.FC<
 
             switch (sortState.field) {
                 case 'service':
-                    primaryComparison = a.service.localeCompare(b.service) * multiplier;
+                    primaryComparison =
+                        a.service.localeCompare(b.service) * multiplier;
                     break;
                 case 'cluster':
-                    primaryComparison = a.cluster.localeCompare(b.cluster) * multiplier;
+                    primaryComparison =
+                        a.cluster.localeCompare(b.cluster) * multiplier;
                     break;
                 case 'requestRate':
-                    primaryComparison = (a.requestRate - b.requestRate) * multiplier;
+                    primaryComparison =
+                        (a.requestRate - b.requestRate) * multiplier;
                     break;
                 case 'successRate':
-                    primaryComparison = (a.successRate - b.successRate) * multiplier;
+                    primaryComparison =
+                        (a.successRate - b.successRate) * multiplier;
                     break;
                 case 'latencyP99':
-                    primaryComparison = (a.latencyP99Ms - b.latencyP99Ms) * multiplier;
+                    primaryComparison =
+                        (a.latencyP99Ms - b.latencyP99Ms) * multiplier;
                     break;
                 default:
                     primaryComparison = 0;
@@ -266,7 +273,7 @@ export const ServiceConnectionsTable: React.FC<
 
             return primaryComparison;
         });
-    };
+    }, []);
 
     const getSortIcon = (field: SortField, sortState: SortState) => {
         const baseClasses = 'w-3 h-3 transition-all duration-200';
@@ -371,13 +378,14 @@ export const ServiceConnectionsTable: React.FC<
         return `${service}.${namespace}`;
     };
 
-    const inboundConnections = sortConnections(
-        processConnections(inbound, 'inbound'),
-        sortState
+    const inboundConnections = useMemo(
+        () => sortConnections(processConnections(inbound, 'inbound'), sortState),
+        [inbound, sortState, processConnections, sortConnections]
     );
-    const outboundConnections = sortConnections(
-        processConnections(outbound, 'outbound'),
-        sortState
+    
+    const outboundConnections = useMemo(
+        () => sortConnections(processConnections(outbound, 'outbound'), sortState),
+        [outbound, sortState, processConnections, sortConnections]
     );
 
     if (inboundConnections.length === 0 && outboundConnections.length === 0) {
