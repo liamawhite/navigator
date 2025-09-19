@@ -324,8 +324,8 @@ func createSingleDemoCluster(ctx context.Context, clusterName string, clusterInd
 		return fmt.Errorf("failed to create Helm manager for Istio installation: %w", err)
 	}
 
-	// Install Istio
-	istioConfig := istio.DefaultIstioConfig(demoIstioVersion)
+	// Install Istio with cluster name
+	istioConfig := istio.DefaultIstioConfigWithCluster(demoIstioVersion, clusterName)
 	if err := helmMgr.InstallIstio(ctx, istioConfig); err != nil {
 		return fmt.Errorf("failed to install Istio: %w", err)
 	}

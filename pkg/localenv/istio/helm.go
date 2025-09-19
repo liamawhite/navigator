@@ -105,6 +105,20 @@ func DefaultIstioConfig(version string) IstioInstallConfig {
 	}
 }
 
+// DefaultIstioConfigWithCluster returns default configuration for Istio installation with cluster name
+func DefaultIstioConfigWithCluster(version, clusterName string) IstioInstallConfig {
+	config := DefaultIstioConfig(version)
+	
+	// Add cluster name to global configuration
+	config.Values["global"] = map[string]interface{}{
+		"multiCluster": map[string]interface{}{
+			"clusterName": clusterName,
+		},
+	}
+	
+	return config
+}
+
 // InstallIstio installs Istio components in the correct order: base, istiod, gateway
 func (h *HelmManager) InstallIstio(ctx context.Context, config IstioInstallConfig) error {
 	h.logger.Info("Starting Istio installation",
