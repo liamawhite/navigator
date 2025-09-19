@@ -14,8 +14,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ArrowRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
 
@@ -31,10 +43,16 @@ interface ConnectionRowData {
     requestRate: number;
     successRate: number;
     latencyP99: string | undefined;
+    latencyP99Ms: number;
     isClickable: boolean;
 }
 
-type SortField = 'service' | 'cluster' | 'requestRate' | 'successRate' | 'latencyP99';
+type SortField =
+    | 'service'
+    | 'cluster'
+    | 'requestRate'
+    | 'successRate'
+    | 'latencyP99';
 type SortDirection = 'asc' | 'desc' | null;
 
 interface SortState {
@@ -46,7 +64,7 @@ export const ServiceConnectionsTable: React.FC<
     ServiceConnectionsTableProps
 > = ({ inbound, outbound }) => {
     const navigate = useNavigate();
-    
+
     // Load sort preferences from localStorage with fallback to default
     const loadSortState = (): SortState => {
         try {
@@ -63,13 +81,18 @@ export const ServiceConnectionsTable: React.FC<
         }
         return { field: 'requestRate', direction: 'desc' };
     };
-    
-    const [sortState, setSortState] = useState<SortState>(() => loadSortState());
-    
+
+    const [sortState, setSortState] = useState<SortState>(() =>
+        loadSortState()
+    );
+
     // Save sort preferences to localStorage
     useEffect(() => {
         try {
-            localStorage.setItem('serviceConnections.sort', JSON.stringify(sortState));
+            localStorage.setItem(
+                'serviceConnections.sort',
+                JSON.stringify(sortState)
+            );
         } catch (error) {
             console.warn('Failed to save sort preference:', error);
         }
@@ -172,6 +195,7 @@ export const ServiceConnectionsTable: React.FC<
                     requestRate,
                     successRate,
                     latencyP99,
+                    latencyP99Ms: parseDurationToMs(latencyP99),
                     isClickable: service !== 'unknown' && ns !== 'unknown',
                 };
             });
@@ -191,10 +215,16 @@ export const ServiceConnectionsTable: React.FC<
             newDirection = 'asc';
         }
 
-        setSortState({ field: newDirection ? field : null, direction: newDirection });
+        setSortState({
+            field: newDirection ? field : null,
+            direction: newDirection,
+        });
     };
 
-    const sortConnections = (connections: ConnectionRowData[], sortState: SortState): ConnectionRowData[] => {
+    const sortConnections = (
+        connections: ConnectionRowData[],
+        sortState: SortState
+    ): ConnectionRowData[] => {
         if (!sortState.field || !sortState.direction) {
             // Default sort: namespace first, then service name
             return [...connections].sort((a, b) => {
@@ -207,31 +237,44 @@ export const ServiceConnectionsTable: React.FC<
 
         return [...connections].sort((a, b) => {
             const multiplier = sortState.direction === 'asc' ? 1 : -1;
-            
+            let primaryComparison = 0;
+
             switch (sortState.field) {
                 case 'service':
-                    return a.service.localeCompare(b.service) * multiplier;
+                    primaryComparison = a.service.localeCompare(b.service) * multiplier;
+                    break;
                 case 'cluster':
-                    return a.cluster.localeCompare(b.cluster) * multiplier;
+                    primaryComparison = a.cluster.localeCompare(b.cluster) * multiplier;
+                    break;
                 case 'requestRate':
-                    return (a.requestRate - b.requestRate) * multiplier;
+                    primaryComparison = (a.requestRate - b.requestRate) * multiplier;
+                    break;
                 case 'successRate':
-                    return (a.successRate - b.successRate) * multiplier;
+                    primaryComparison = (a.successRate - b.successRate) * multiplier;
+                    break;
                 case 'latencyP99':
-                    return (parseDurationToMs(a.latencyP99) - parseDurationToMs(b.latencyP99)) * multiplier;
+                    primaryComparison = (a.latencyP99Ms - b.latencyP99Ms) * multiplier;
+                    break;
                 default:
-                    return 0;
+                    primaryComparison = 0;
             }
+
+            // If primary comparison is equal, use secondary sort by service name for stability
+            if (primaryComparison === 0) {
+                return a.service.localeCompare(b.service);
+            }
+
+            return primaryComparison;
         });
     };
 
     const getSortIcon = (field: SortField, sortState: SortState) => {
-        const baseClasses = "w-3 h-3 transition-all duration-200";
-        
+        const baseClasses = 'w-3 h-3 transition-all duration-200';
+
         if (sortState.field !== field) {
             return <ArrowUpDown className={`${baseClasses} opacity-40`} />;
         }
-        
+
         if (sortState.direction === 'asc') {
             return <ArrowUp className={`${baseClasses} opacity-100`} />;
         } else if (sortState.direction === 'desc') {
@@ -241,35 +284,40 @@ export const ServiceConnectionsTable: React.FC<
         }
     };
 
-    const SortableHeader = ({ 
-        field, 
-        children, 
-        className = ""
-    }: { 
-        field: SortField; 
-        children: React.ReactNode; 
-        className?: string; 
+    const SortableHeader = ({
+        field,
+        children,
+        className = '',
+    }: {
+        field: SortField;
+        children: React.ReactNode;
+        className?: string;
     }) => {
-        const isActive = sortState.field === field && sortState.direction !== null;
-        
+        const isActive =
+            sortState.field === field && sortState.direction !== null;
+
         const getTooltipText = () => {
             if (isActive) {
-                const nextAction = sortState.direction === 'asc' ? 'descending' : sortState.direction === 'desc' ? 'default' : 'ascending';
+                const nextAction =
+                    sortState.direction === 'asc'
+                        ? 'descending'
+                        : sortState.direction === 'desc'
+                          ? 'default'
+                          : 'ascending';
                 return `Currently sorted ${sortState.direction}ending. Click to sort ${nextAction}.`;
             }
             return `Click to sort by ${children} (ascending first)`;
         };
-        
+
         // Determine alignment based on className
         const isRightAligned = className.includes('text-right');
-        const isLeftAligned = className.includes('text-left');
         const flexClass = isRightAligned ? 'justify-end' : 'justify-start';
-        
+
         return (
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <TableHead 
+                        <TableHead
                             className={`group cursor-pointer hover:bg-muted/50 select-none text-xs text-gray-500 dark:text-gray-500 font-medium py-2 transition-colors ${className}`}
                             onClick={() => handleSort(field)}
                             tabIndex={0}
@@ -281,14 +329,22 @@ export const ServiceConnectionsTable: React.FC<
                             }}
                             role="button"
                             aria-label={`Sort by ${field} ${
-                                isActive ? `(currently ${sortState.direction}ending)` : ''
+                                isActive
+                                    ? `(currently ${sortState.direction}ending)`
+                                    : ''
                             }`}
                         >
-                            <div className={`flex items-center gap-1 ${flexClass}`}>
+                            <div
+                                className={`flex items-center gap-1 ${flexClass}`}
+                            >
                                 <span>{children}</span>
-                                <div className={`transition-all duration-150 ${
-                                    isActive ? 'opacity-100' : 'opacity-40 group-hover:opacity-70'
-                                }`}>
+                                <div
+                                    className={`transition-all duration-150 ${
+                                        isActive
+                                            ? 'opacity-100'
+                                            : 'opacity-40 group-hover:opacity-70'
+                                    }`}
+                                >
                                     {getSortIcon(field, sortState)}
                                 </div>
                             </div>
@@ -315,8 +371,14 @@ export const ServiceConnectionsTable: React.FC<
         return `${service}.${namespace}`;
     };
 
-    const inboundConnections = sortConnections(processConnections(inbound, 'inbound'), sortState);
-    const outboundConnections = sortConnections(processConnections(outbound, 'outbound'), sortState);
+    const inboundConnections = sortConnections(
+        processConnections(inbound, 'inbound'),
+        sortState
+    );
+    const outboundConnections = sortConnections(
+        processConnections(outbound, 'outbound'),
+        sortState
+    );
 
     if (inboundConnections.length === 0 && outboundConnections.length === 0) {
         return (
@@ -357,11 +419,30 @@ export const ServiceConnectionsTable: React.FC<
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <SortableHeader field="service">Service</SortableHeader>
-                                    <SortableHeader field="cluster">Cluster</SortableHeader>
-                                    <SortableHeader field="latencyP99" className="text-right">P99</SortableHeader>
-                                    <SortableHeader field="requestRate" className="text-right">Throughput</SortableHeader>
-                                    <SortableHeader field="successRate" className="text-right">Success</SortableHeader>
+                                    <SortableHeader field="service">
+                                        Service
+                                    </SortableHeader>
+                                    <SortableHeader field="cluster">
+                                        Cluster
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        field="latencyP99"
+                                        className="text-right"
+                                    >
+                                        P99
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        field="requestRate"
+                                        className="text-right"
+                                    >
+                                        Throughput
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        field="successRate"
+                                        className="text-right"
+                                    >
+                                        Success
+                                    </SortableHeader>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -460,11 +541,36 @@ export const ServiceConnectionsTable: React.FC<
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <SortableHeader field="successRate" className="text-left">Success</SortableHeader>
-                                    <SortableHeader field="requestRate" className="text-left">Throughput</SortableHeader>
-                                    <SortableHeader field="latencyP99" className="text-left">P99</SortableHeader>
-                                    <SortableHeader field="cluster" className="text-right">Cluster</SortableHeader>
-                                    <SortableHeader field="service" className="text-right">Service</SortableHeader>
+                                    <SortableHeader
+                                        field="successRate"
+                                        className="text-left"
+                                    >
+                                        Success
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        field="requestRate"
+                                        className="text-left"
+                                    >
+                                        Throughput
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        field="latencyP99"
+                                        className="text-left"
+                                    >
+                                        P99
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        field="cluster"
+                                        className="text-right"
+                                    >
+                                        Cluster
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        field="service"
+                                        className="text-right"
+                                    >
+                                        Service
+                                    </SortableHeader>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
