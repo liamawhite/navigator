@@ -1,0 +1,45 @@
+# Navigator Demo Configuration
+# This configuration is designed to work with the demo clusters created by `navctl demo start`
+
+apiVersion: navigator.io/v1alpha1
+kind: NavctlConfig
+
+# Manager service configuration
+manager:
+  host: localhost
+  port: 8080
+  maxMessageSize: 10
+
+# UI server configuration  
+ui:
+  port: 8082
+  disabled: false
+  noBrowser: false
+
+# Edge configurations for demo clusters
+edges:
+  # Demo cluster 1 with Prometheus metrics
+  - name: demo-cluster-1
+    clusterId: navigator-demo-1
+    context: kind-navigator-demo-1
+    syncInterval: 30
+    logLevel: info
+    logFormat: text
+    metrics:
+      type: prometheus
+      endpoint: http://localhost:30090
+      queryInterval: 30
+      timeout: 10
+
+  # Demo cluster 2 with Prometheus metrics
+  - name: demo-cluster-2
+    clusterId: navigator-demo-2
+    context: kind-navigator-demo-2
+    syncInterval: 30
+    logLevel: info
+    logFormat: text
+    metrics:
+      type: prometheus
+      endpoint: http://localhost:31090
+      queryInterval: 30
+      timeout: 10

@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/liamawhite/navigator/pkg/localenv/database"
 	"github.com/liamawhite/navigator/pkg/localenv/fortio"
@@ -34,9 +35,15 @@ import (
 )
 
 var (
-	demoClusterName  string
-	demoCleanup      bool
-	demoIstioVersion string
+	demoCleanup bool
+	// kubeconfigMutex serializes operations that modify the kubeconfig file
+	// This prevents concurrent access that causes locking issues
+	kubeconfigMutex sync.Mutex
+)
+
+const (
+	demoClusterName  = "navigator-demo"
+	demoIstioVersion = "1.25.4"
 )
 
 // demoCmd represents the demo command
@@ -132,7 +139,8 @@ and proxy analysis features.`,
 			fmt.Printf("   📊 Prometheus: http://localhost:%d\n", prometheusPort)
 			fmt.Printf("   📄 Kubeconfig: %s-kubeconfig\n", clusterName)
 		}
-		fmt.Printf("\n")
+		fmt.Printf("\n🚀 To start Navigator with both demo clusters and metrics enabled:\n")
+		fmt.Printf("   navctl local --demo\n\n")
 
 		return nil
 	},
@@ -208,12 +216,7 @@ Otherwise, it will stop the single cluster with the specified name.`,
 
 func init() {
 	// Add flags to start command
-	demoStartCmd.Flags().StringVar(&demoClusterName, "name", "navigator-demo", "Name of the demo cluster(s)")
 	demoStartCmd.Flags().BoolVar(&demoCleanup, "cleanup", false, "Delete existing clusters if they exist")
-	demoStartCmd.Flags().StringVar(&demoIstioVersion, "istio-version", "1.25.4", "Istio version to install")
-
-	// Add flags to stop command
-	demoStopCmd.Flags().StringVar(&demoClusterName, "name", "navigator-demo", "Name of the demo cluster(s)")
 
 	// Add subcommands to demo
 	demoCmd.AddCommand(demoStartCmd)
@@ -265,7 +268,14 @@ func createSingleDemoCluster(ctx context.Context, clusterName string, clusterInd
 		}
 
 		logger.Info("Deleting existing cluster", "cluster", clusterName)
-		if err := kindMgr.DeleteCluster(ctx, clusterName); err != nil {
+		
+		// Serialize cluster deletion to prevent kubeconfig locking conflicts
+		// when multiple clusters are being deleted in parallel
+		kubeconfigMutex.Lock()
+		err := kindMgr.DeleteCluster(ctx, clusterName)
+		kubeconfigMutex.Unlock()
+		
+		if err != nil {
 			return fmt.Errorf("failed to delete existing cluster: %w", err)
 		}
 	}
@@ -273,7 +283,12 @@ func createSingleDemoCluster(ctx context.Context, clusterName string, clusterInd
 	// Create the cluster with unique port mappings for parallel clusters
 	config := kind.DemoKindConfigWithPorts(clusterName, clusterIndex)
 
-	if err := kindMgr.CreateCluster(ctx, config); err != nil {
+	// Serialize cluster creation to prevent kubeconfig locking conflicts
+	kubeconfigMutex.Lock()
+	err = kindMgr.CreateCluster(ctx, config)
+	kubeconfigMutex.Unlock()
+	
+	if err != nil {
 		return fmt.Errorf("failed to create demo cluster: %w", err)
 	}
 
