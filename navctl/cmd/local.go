@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/liamawhite/navigator/edge/pkg/config"
+	edgeConfig "github.com/liamawhite/navigator/edge/pkg/config"
 	"github.com/liamawhite/navigator/edge/pkg/interfaces"
 	"github.com/liamawhite/navigator/edge/pkg/kubernetes"
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
@@ -78,6 +78,29 @@ var localCmd = &cobra.Command{
 	RunE:  runLocal,
 }
 
+// LocalRuntime holds the configuration and services needed to run Navigator locally
+type LocalRuntime struct {
+	Logger        *slog.Logger
+	ManagerConfig *managerConfig.Config
+	UIConfig      *UIConfig
+	EdgeConfigs   []EdgeRuntimeConfig
+}
+
+// EdgeRuntimeConfig holds configuration for a single edge service
+type EdgeRuntimeConfig struct {
+	Name           string
+	KubeconfigPath string
+	ContextName    string
+	EdgeConfig     *edgeConfig.Config
+}
+
+// UIConfig holds UI server configuration
+type UIConfig struct {
+	Port      int
+	Disabled  bool
+	NoBrowser bool
+}
+
 func runLocal(cmd *cobra.Command, args []string) error {
 	logger := logging.For("navctl-local")
 
@@ -86,17 +109,26 @@ func runLocal(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot use --demo and --config flags together")
 	}
 
-	// Determine if we're using config file mode or CLI mode
+	// Prepare runtime configuration based on mode
+	var runtime *LocalRuntime
+	var err error
+
 	if demoMode || configFile != "" {
-		return runLocalWithConfig(logger)
+		runtime, err = prepareConfigFileRuntime(logger, logLevel, logFormat)
+	} else {
+		runtime, err = prepareCLIRuntime(logger, logLevel, logFormat)
 	}
 
-	// Traditional CLI mode
-	return runLocalWithCLI(logger)
+	if err != nil {
+		return err
+	}
+
+	// Run Navigator services with the prepared configuration
+	return runNavigatorServices(runtime)
 }
 
-// runLocalWithConfig runs navctl local using a configuration file
-func runLocalWithConfig(logger *slog.Logger) error {
+// prepareConfigFileRuntime prepares LocalRuntime from configuration file
+func prepareConfigFileRuntime(logger *slog.Logger, globalLogLevel, globalLogFormat string) (*LocalRuntime, error) {
 	var configManager *navctlConfig.Manager
 	var err error
 
@@ -105,14 +137,14 @@ func runLocalWithConfig(logger *slog.Logger) error {
 		// Load embedded demo configuration
 		configManager, err = navctlConfig.LoadDemoConfig(logger)
 		if err != nil {
-			return fmt.Errorf("failed to load demo configuration: %w", err)
+			return nil, fmt.Errorf("failed to load demo configuration: %w", err)
 		}
 		logger.Info("loaded embedded demo configuration")
 	} else {
 		// Load configuration from file
 		configManager, err = navctlConfig.NewManager(configFile, logger)
 		if err != nil {
-			return fmt.Errorf("failed to load configuration: %w", err)
+			return nil, fmt.Errorf("failed to load configuration: %w", err)
 		}
 	}
 
@@ -120,30 +152,165 @@ func runLocalWithConfig(logger *slog.Logger) error {
 
 	// Validate configuration
 	if err := configManager.ValidateEdges(); err != nil {
-		return fmt.Errorf("configuration validation failed: %w", err)
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
 	}
 
-	logger.Info("starting Navigator services from config",
+	logger.Info("loaded Navigator configuration",
 		"config_file", configFile,
 		"edge_count", len(config.Edges),
 		"manager_host", config.Manager.Host,
 		"manager_port", config.Manager.Port)
 
+	// Prepare manager configuration
+	managerCfg := configManager.GetManagerConfig()
+	// Override with global CLI flags if provided
+	if globalLogLevel != "" {
+		managerCfg.LogLevel = globalLogLevel
+	}
+	if globalLogFormat != "" {
+		managerCfg.LogFormat = globalLogFormat
+	}
+
+	// Prepare UI configuration
+	uiConfig := configManager.GetUIConfig()
+
+	// Prepare edge configurations
+	var edgeConfigs []EdgeRuntimeConfig
+	edgeNames := configManager.GetEdgeNames()
+	for _, edgeName := range edgeNames {
+		edgeCfg, err := configManager.GetEdgeConfig(edgeName, globalLogLevel, globalLogFormat)
+		if err != nil {
+			logger.Error("failed to get edge config", "edge", edgeName, "error", err)
+			continue
+		}
+
+		kubeconfigPath, err := configManager.GetEdgeKubeconfig(edgeName)
+		if err != nil {
+			logger.Error("failed to get kubeconfig path", "edge", edgeName, "error", err)
+			continue
+		}
+
+		// Use default kubeconfig if not specified
+		if kubeconfigPath == "" {
+			if home := homedir.HomeDir(); home != "" {
+				kubeconfigPath = filepath.Join(home, ".kube", "config")
+			}
+		}
+
+		contextName, err := configManager.GetEdgeKubeContext(edgeName)
+		if err != nil {
+			logger.Error("failed to get kube context", "edge", edgeName, "error", err)
+			continue
+		}
+
+		edgeConfigs = append(edgeConfigs, EdgeRuntimeConfig{
+			Name:           edgeName,
+			KubeconfigPath: kubeconfigPath,
+			ContextName:    contextName,
+			EdgeConfig:     edgeCfg,
+		})
+	}
+
+	if len(edgeConfigs) == 0 {
+		return nil, fmt.Errorf("no valid edge configurations found")
+	}
+
+	return &LocalRuntime{
+		Logger:        logger,
+		ManagerConfig: managerCfg,
+		UIConfig: &UIConfig{
+			Port:      uiConfig.Port,
+			Disabled:  uiConfig.Disabled,
+			NoBrowser: uiConfig.NoBrowser,
+		},
+		EdgeConfigs: edgeConfigs,
+	}, nil
+}
+
+// prepareCLIRuntime prepares LocalRuntime from CLI flags
+func prepareCLIRuntime(logger *slog.Logger, globalLogLevel, globalLogFormat string) (*LocalRuntime, error) {
+	// Validate kubeconfig exists
+	if err := validateKubeconfig(); err != nil {
+		return nil, fmt.Errorf("kubeconfig validation failed: %w", err)
+	}
+
+	// Validate contexts
+	if err := validateContexts(logger); err != nil {
+		return nil, fmt.Errorf("context validation failed: %w", err)
+	}
+
+	// Get contexts to use
+	contextsToUse, err := getContextsToUse(logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine contexts: %w", err)
+	}
+
+	logger.Info("loaded Navigator CLI configuration",
+		"kubeconfig", kubeconfig,
+		"contexts", contextsToUse,
+		"manager_port", managerPort,
+		"manager_host", managerHost)
+
+	// Prepare manager configuration
+	managerCfg := &managerConfig.Config{
+		Port:           managerPort,
+		MaxMessageSize: maxMessageSize,
+		LogLevel:       globalLogLevel,
+		LogFormat:      globalLogFormat,
+	}
+
+	// Prepare edge configurations for each context
+	var edgeConfigs []EdgeRuntimeConfig
+	for _, contextName := range contextsToUse {
+		edgeConfig := &edgeConfig.Config{
+			ClusterID:       contextName, // Use context as cluster ID for CLI mode
+			ManagerEndpoint: fmt.Sprintf("%s:%d", managerHost, managerPort),
+			SyncInterval:    30,
+			LogLevel:        globalLogLevel,
+			LogFormat:       globalLogFormat,
+			MetricsConfig: metrics.Config{
+				Enabled: metricsEndpoint != "",
+			},
+		}
+
+		// Add metrics configuration if endpoint provided
+		if metricsEndpoint != "" {
+			edgeConfig.MetricsConfig.Type = "prometheus"
+			edgeConfig.MetricsConfig.Endpoint = metricsEndpoint
+			edgeConfig.MetricsConfig.QueryInterval = 30 // Default query interval
+			edgeConfig.MetricsConfig.Timeout = 10       // Default timeout
+		}
+
+		edgeConfigs = append(edgeConfigs, EdgeRuntimeConfig{
+			Name:           contextName,
+			KubeconfigPath: kubeconfig,
+			ContextName:    contextName,
+			EdgeConfig:     edgeConfig,
+		})
+	}
+
+	return &LocalRuntime{
+		Logger:        logger,
+		ManagerConfig: managerCfg,
+		UIConfig: &UIConfig{
+			Port:      uiPort,
+			Disabled:  disableUI,
+			NoBrowser: noBrowser,
+		},
+		EdgeConfigs: edgeConfigs,
+	}, nil
+}
+
+// runNavigatorServices runs all Navigator services using the provided runtime configuration
+func runNavigatorServices(runtime *LocalRuntime) error {
+	logger := runtime.Logger
+
 	// Setup context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Start manager service using config
-	managerCfg := configManager.GetManagerConfig()
-	// Override with global CLI flags if provided
-	if logLevel != "" {
-		managerCfg.LogLevel = logLevel
-	}
-	if logFormat != "" {
-		managerCfg.LogFormat = logFormat
-	}
-
-	managerSvc, err := startManagerServiceWithConfig(ctx, managerCfg, logger)
+	// Start manager service
+	managerSvc, err := startManagerServiceWithConfig(ctx, runtime.ManagerConfig, logger)
 	if err != nil {
 		return fmt.Errorf("failed to start manager service: %w", err)
 	}
@@ -157,14 +324,13 @@ func runLocalWithConfig(logger *slog.Logger) error {
 	// Wait a moment for manager to start
 	time.Sleep(2 * time.Second)
 
-	// Start edge services for each configured edge
+	// Start edge services
 	var edgeServices []*edgeService.EdgeService
-	edgeNames := configManager.GetEdgeNames()
-	for _, edgeName := range edgeNames {
-		logger.Info("starting edge service", "edge", edgeName)
-		edgeSvc, err := startEdgeServiceFromConfig(ctx, configManager, edgeName, logger)
+	for _, edgeConfig := range runtime.EdgeConfigs {
+		logger.Info("starting edge service", "edge", edgeConfig.Name)
+		edgeSvc, err := startEdgeServiceFromRuntime(ctx, edgeConfig, logger)
 		if err != nil {
-			logger.Error("failed to start edge service", "edge", edgeName, "error", err)
+			logger.Error("failed to start edge service", "edge", edgeConfig.Name, "error", err)
 			// Continue with other edges instead of failing completely
 			continue
 		}
@@ -187,9 +353,8 @@ func runLocalWithConfig(logger *slog.Logger) error {
 
 	// Start UI server unless disabled
 	var uiSvc *ui.Server
-	uiConfig := configManager.GetUIConfig()
-	if !uiConfig.Disabled {
-		uiSvc, err = startUIServerWithConfig(ctx, uiConfig, config.Manager.Port, logger)
+	if !runtime.UIConfig.Disabled {
+		uiSvc, err = startUIServerFromRuntime(ctx, runtime.UIConfig, runtime.ManagerConfig.Port, logger)
 		if err != nil {
 			return fmt.Errorf("failed to start UI server: %w", err)
 		}
@@ -206,17 +371,17 @@ func runLocalWithConfig(logger *slog.Logger) error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	logger.Info("Navigator services started successfully")
-	logger.Info("manager gRPC server listening", "port", config.Manager.Port)
-	logger.Info("manager HTTP gateway listening", "port", config.Manager.Port+1)
-	logger.Info("edge services running", "edges", edgeNames, "count", len(edgeServices))
+	logger.Info("manager gRPC server listening", "port", runtime.ManagerConfig.Port)
+	logger.Info("manager HTTP gateway listening", "port", runtime.ManagerConfig.Port+1)
+	logger.Info("edge services running", "count", len(edgeServices))
 
-	if !uiConfig.Disabled {
-		logger.Info("UI server listening", "port", uiConfig.Port)
-		if !uiConfig.NoBrowser {
+	if !runtime.UIConfig.Disabled {
+		logger.Info("UI server listening", "port", runtime.UIConfig.Port)
+		if !runtime.UIConfig.NoBrowser {
 			// Open browser after a short delay
 			go func() {
 				time.Sleep(1 * time.Second)
-				url := fmt.Sprintf("http://localhost:%d", uiConfig.Port)
+				url := fmt.Sprintf("http://localhost:%d", runtime.UIConfig.Port)
 				logger.Info("opening browser", "url", url)
 				if err := openBrowser(url); err != nil {
 					logger.Warn("failed to open browser", "error", err, "url", url)
@@ -240,213 +405,26 @@ func runLocalWithConfig(logger *slog.Logger) error {
 	return nil
 }
 
-// runLocalWithCLI runs navctl local using traditional CLI flags
-func runLocalWithCLI(logger *slog.Logger) error {
-	// Validate kubeconfig exists
-	if err := validateKubeconfig(); err != nil {
-		return fmt.Errorf("kubeconfig validation failed: %w", err)
-	}
-
-	// Validate contexts
-	if err := validateContexts(logger); err != nil {
-		return fmt.Errorf("context validation failed: %w", err)
-	}
-
-	// Get contexts to use
-	contextsToUse, err := getContextsToUse(logger)
-	if err != nil {
-		return fmt.Errorf("failed to determine contexts: %w", err)
-	}
-
-	logger.Info("starting Navigator services",
-		"kubeconfig", kubeconfig,
-		"contexts", contextsToUse,
-		"manager_port", managerPort,
-		"manager_host", managerHost)
-
-	// Setup context for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Start manager service
-	managerSvc, err := startManagerService(ctx, logger)
-	if err != nil {
-		return fmt.Errorf("failed to start manager service: %w", err)
-	}
-	defer func() {
-		logger.Info("stopping manager service")
-		if err := managerSvc.Stop(); err != nil {
-			logger.Error("error stopping manager service", "error", err)
-		}
-	}()
-
-	// Wait a moment for manager to start
-	time.Sleep(2 * time.Second)
-
-	// Start edge services for each context
-	var edgeServices []*edgeService.EdgeService
-	for _, contextName := range contextsToUse {
-		logger.Info("starting edge service for context", "context", contextName)
-		edgeSvc, err := startEdgeServiceForContext(ctx, contextName, logger)
-		if err != nil {
-			return fmt.Errorf("failed to start edge service for context '%s': %w", contextName, err)
-		}
-		edgeServices = append(edgeServices, edgeSvc)
-	}
-
-	// Setup cleanup for all edge services
-	defer func() {
-		logger.Info("stopping edge services", "count", len(edgeServices))
-		for i, edgeSvc := range edgeServices {
-			if err := edgeSvc.Stop(); err != nil {
-				logger.Error("error stopping edge service", "service_index", i, "error", err)
-			}
-		}
-	}()
-
-	// Start UI server unless disabled
-	var uiSvc *ui.Server
-	if !disableUI {
-		uiSvc, err = startUIServer(ctx, logger)
-		if err != nil {
-			return fmt.Errorf("failed to start UI server: %w", err)
-		}
-		defer func() {
-			logger.Info("stopping UI server")
-			if err := uiSvc.Stop(); err != nil {
-				logger.Error("error stopping UI server", "error", err)
-			}
-		}()
-	}
-
-	// Setup signal handling for graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	logger.Info("Navigator services started successfully")
-	logger.Info("manager gRPC server listening", "port", managerPort)
-	logger.Info("manager HTTP gateway listening", "port", managerPort+1)
-	logger.Info("edge services running", "contexts", contextsToUse, "count", len(edgeServices))
-
-	if !disableUI {
-		logger.Info("UI server listening", "port", uiPort)
-		if !noBrowser {
-			// Open browser after a short delay
-			go func() {
-				time.Sleep(1 * time.Second)
-				url := fmt.Sprintf("http://localhost:%d", uiPort)
-				logger.Info("opening browser", "url", url)
-				if err := openBrowser(url); err != nil {
-					logger.Warn("failed to open browser", "error", err, "url", url)
-				}
-			}()
-		}
-	}
-
-	logger.Info("press Ctrl+C to stop")
-
-	// Wait for shutdown signal
-	select {
-	case <-ctx.Done():
-		logger.Info("context canceled")
-	case sig := <-sigChan:
-		logger.Info("received shutdown signal", "signal", sig.String())
-		cancel()
-	}
-
-	logger.Info("shutting down Navigator services")
-	return nil
-}
-
-func startManagerService(ctx context.Context, logger *slog.Logger) (*managerServer.ManagerServer, error) {
-	// Create manager config
-	cfg := &managerConfig.Config{
-		Port:           managerPort,
-		LogLevel:       logLevel,
-		LogFormat:      logFormat,
-		MaxMessageSize: maxMessageSize,
-	}
-
-	// Create connections manager
-	connectionManager := connections.NewManager(logging.For("manager"))
-
-	// Create manager server
-	managerSvc, err := managerServer.NewManagerServer(cfg, connectionManager, logging.For("manager"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create manager server: %w", err)
-	}
-
-	// Start manager server in goroutine
-	go func() {
-		if err := managerSvc.Start(); err != nil {
-			logger.Error("manager server error", "error", err)
-		}
-	}()
-
-	return managerSvc, nil
-}
-
-func startEdgeServiceForContext(ctx context.Context, contextName string, logger *slog.Logger) (*edgeService.EdgeService, error) {
-	// Extract cluster ID from kubeconfig for the specific context
-	clusterID, err := extractClusterIDFromKubeconfig(contextName)
-	if err != nil {
-		fallbackID := fmt.Sprintf("local-cluster-%s", contextName)
-		if contextName == "" {
-			fallbackID = "local-cluster"
-		}
-		logger.Warn("failed to extract cluster ID from kubeconfig, using fallback",
-			"context", contextName, "error", err, "fallback_id", fallbackID)
-		clusterID = fallbackID
-	} else {
-		logger.Info("extracted cluster ID from kubeconfig", "context", contextName, "cluster_id", clusterID)
-	}
-
-	// Create metrics configuration (enabled if endpoint provided)
-	metricsConfig := metrics.Config{
-		Enabled:       metricsEndpoint != "", // Infer enabled from presence of endpoint
-		Type:          metrics.ProviderType(metricsType),
-		Endpoint:      metricsEndpoint,
-		QueryInterval: 30, // Default query interval
-		Timeout:       metricsTimeout,
-		BearerToken:   metricsAuthBearer,
-	}
-
-	if metricsConfig.Enabled {
-		logger.Info("metrics enabled", "context", contextName, "type", metricsType, "endpoint", metricsEndpoint)
-	} else {
-		logger.Info("metrics disabled", "context", contextName, "reason", "no endpoint provided")
-	}
-
-	// Create edge config with context-specific kubeconfig overrides
-	cfg := &config.Config{
-		KubeconfigPath:  kubeconfig,
-		ManagerEndpoint: fmt.Sprintf("%s:%d", managerHost, managerPort),
-		ClusterID:       clusterID,
-		SyncInterval:    30,
-		LogLevel:        logLevel,
-		LogFormat:       logFormat,
-		MaxMessageSize:  maxMessageSize,
-		MetricsConfig:   metricsConfig,
-	}
-
+// startEdgeServiceFromRuntime starts an edge service using EdgeRuntimeConfig
+func startEdgeServiceFromRuntime(ctx context.Context, edgeConfig EdgeRuntimeConfig, logger *slog.Logger) (*edgeService.EdgeService, error) {
 	// Create Kubernetes client with specific context
-	k8sLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "k8s")
-	k8sClient, err := kubernetes.NewClientWithContext(cfg.KubeconfigPath, contextName, k8sLogger)
+	k8sLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "k8s")
+	k8sClient, err := kubernetes.NewClientWithContext(edgeConfig.KubeconfigPath, edgeConfig.ContextName, k8sLogger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client for context '%s': %w", contextName, err)
+		return nil, fmt.Errorf("failed to create kubernetes client for edge '%s': %w", edgeConfig.Name, err)
 	}
 
 	// Create admin client for proxy configuration access
 	adminClient := client.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
 
 	// Create proxy service
-	proxyLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "proxy")
+	proxyLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "proxy")
 	proxyService := proxy.NewProxyService(adminClient, proxyLogger)
 
-	// Create metrics provider directly
-	metricsLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "metrics")
+	// Create metrics provider
+	metricsLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "metrics")
 	var metricsProvider interfaces.MetricsProvider
-	metricsConfig = cfg.GetMetricsConfig()
+	metricsConfig := edgeConfig.EdgeConfig.GetMetricsConfig()
 
 	if metricsConfig.Enabled && metricsConfig.Type == metrics.ProviderTypePrometheus {
 		// Get cluster name from Istio for metrics filtering
@@ -460,30 +438,31 @@ func startEdgeServiceForContext(ctx context.Context, contextName string, logger 
 
 		metricsProvider, err = prometheus.Create(metricsConfig, metricsLogger, clusterName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create metrics provider for context '%s': %w", contextName, err)
+			return nil, fmt.Errorf("failed to create metrics provider for edge '%s': %w", edgeConfig.Name, err)
 		}
 	}
 
 	// Create edge service
-	edgeLogger := logging.For(logging.ComponentServer).With("context", contextName, "component", "edge")
-	edgeSvc, err := edgeService.NewEdgeService(cfg, k8sClient, proxyService, metricsProvider, edgeLogger)
+	edgeLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "edge")
+	edgeSvc, err := edgeService.NewEdgeService(edgeConfig.EdgeConfig, k8sClient, proxyService, metricsProvider, edgeLogger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create edge service for context '%s': %w", contextName, err)
+		return nil, fmt.Errorf("failed to create edge service for edge '%s': %w", edgeConfig.Name, err)
 	}
 
 	// Start edge service in goroutine
 	go func() {
 		if err := edgeSvc.Start(); err != nil {
-			logger.Error("edge service error", "context", contextName, "error", err)
+			logger.Error("edge service error", "edge", edgeConfig.Name, "error", err)
 		}
 	}()
 
 	return edgeSvc, nil
 }
 
-func startUIServer(ctx context.Context, logger *slog.Logger) (*ui.Server, error) {
+// startUIServerFromRuntime starts a UI server using UIConfig
+func startUIServerFromRuntime(ctx context.Context, uiConfig *UIConfig, managerPort int, logger *slog.Logger) (*ui.Server, error) {
 	// Create UI server
-	uiSvc, err := ui.NewServer(uiPort, managerPort+1) // API port is manager port + 1
+	uiSvc, err := ui.NewServer(uiConfig.Port, managerPort+1) // HTTP gateway port
 	if err != nil {
 		return nil, fmt.Errorf("failed to create UI server: %w", err)
 	}
@@ -687,36 +666,6 @@ func removeDuplicates(items []string) []string {
 
 // extractClusterIDFromKubeconfig extracts the cluster name from the specified context in kubeconfig
 // If contextName is empty, uses the current context
-func extractClusterIDFromKubeconfig(contextName string) (string, error) {
-	// Load the kubeconfig
-	config, err := clientcmd.LoadFromFile(kubeconfig)
-	if err != nil {
-		return "", fmt.Errorf("failed to load kubeconfig: %w", err)
-	}
-
-	// Determine which context to use
-	targetContext := contextName
-	if targetContext == "" {
-		targetContext = config.CurrentContext
-		if targetContext == "" {
-			return "", fmt.Errorf("no current context set in kubeconfig")
-		}
-	}
-
-	// Get the context details
-	context, exists := config.Contexts[targetContext]
-	if !exists {
-		return "", fmt.Errorf("context '%s' not found in kubeconfig", targetContext)
-	}
-
-	// Get the cluster name
-	clusterName := context.Cluster
-	if clusterName == "" {
-		return "", fmt.Errorf("no cluster set in context '%s'", targetContext)
-	}
-
-	return clusterName, nil
-}
 
 // generateHelpText creates dynamic help text with available contexts
 func generateHelpText(kubeconfigPath string) string {
@@ -793,100 +742,8 @@ func startManagerServiceWithConfig(ctx context.Context, cfg *managerConfig.Confi
 }
 
 // startEdgeServiceFromConfig starts an edge service using configuration
-func startEdgeServiceFromConfig(ctx context.Context, configManager *navctlConfig.Manager, edgeName string, logger *slog.Logger) (*edgeService.EdgeService, error) {
-	// Get edge configuration
-	edgeCfg, err := configManager.GetEdgeConfig(edgeName, logLevel, logFormat)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get edge config: %w", err)
-	}
-
-	// Get kubeconfig path and context
-	kubeconfigPath, err := configManager.GetEdgeKubeconfig(edgeName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get kubeconfig path: %w", err)
-	}
-
-	// Use default kubeconfig if not specified
-	if kubeconfigPath == "" {
-		if home := homedir.HomeDir(); home != "" {
-			kubeconfigPath = filepath.Join(home, ".kube", "config")
-		}
-	}
-
-	contextName, err := configManager.GetEdgeKubeContext(edgeName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get kube context: %w", err)
-	}
-
-	// Create Kubernetes client with specific context
-	k8sLogger := logging.For(logging.ComponentServer).With("edge", edgeName, "component", "k8s")
-	k8sClient, err := kubernetes.NewClientWithContext(kubeconfigPath, contextName, k8sLogger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client for edge '%s': %w", edgeName, err)
-	}
-
-	// Create admin client for proxy configuration access
-	adminClient := client.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
-
-	// Create proxy service
-	proxyLogger := logging.For(logging.ComponentServer).With("edge", edgeName, "component", "proxy")
-	proxyService := proxy.NewProxyService(adminClient, proxyLogger)
-
-	// Create metrics provider
-	metricsLogger := logging.For(logging.ComponentServer).With("edge", edgeName, "component", "metrics")
-	var metricsProvider interfaces.MetricsProvider
-	metricsConfig := edgeCfg.GetMetricsConfig()
-
-	if metricsConfig.Enabled && metricsConfig.Type == metrics.ProviderTypePrometheus {
-		// Get cluster name from Istio for metrics filtering
-		var clusterName string
-		if clusterName, err = k8sClient.GetClusterName(context.Background()); err != nil {
-			metricsLogger.Warn("failed to get cluster name from istiod, metrics will not be cluster-filtered", "error", err)
-			clusterName = ""
-		} else {
-			metricsLogger.Info("retrieved cluster name for metrics filtering", "cluster_name", clusterName)
-		}
-
-		metricsProvider, err = prometheus.Create(metricsConfig, metricsLogger, clusterName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create metrics provider for edge '%s': %w", edgeName, err)
-		}
-	}
-
-	// Create edge service
-	edgeLogger := logging.For(logging.ComponentServer).With("edge", edgeName, "component", "edge")
-	edgeSvc, err := edgeService.NewEdgeService(edgeCfg, k8sClient, proxyService, metricsProvider, edgeLogger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create edge service for edge '%s': %w", edgeName, err)
-	}
-
-	// Start edge service in goroutine
-	go func() {
-		if err := edgeSvc.Start(); err != nil {
-			logger.Error("edge service error", "edge", edgeName, "error", err)
-		}
-	}()
-
-	return edgeSvc, nil
-}
 
 // startUIServerWithConfig starts the UI server using configuration
-func startUIServerWithConfig(ctx context.Context, uiConfig *navctlConfig.UIConfig, managerPort int, logger *slog.Logger) (*ui.Server, error) {
-	// Create UI server
-	uiSvc, err := ui.NewServer(uiConfig.Port, managerPort+1) // API port is manager port + 1
-	if err != nil {
-		return nil, fmt.Errorf("failed to create UI server: %w", err)
-	}
-
-	// Start UI server in goroutine
-	go func() {
-		if err := uiSvc.Start(); err != nil {
-			logger.Error("UI server error", "error", err)
-		}
-	}()
-
-	return uiSvc, nil
-}
 
 func init() {
 	// Default kubeconfig path

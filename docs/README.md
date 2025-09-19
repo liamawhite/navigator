@@ -23,6 +23,7 @@ Complete API and CLI reference documentation.
 
 - [API Reference](reference/api/) - gRPC and HTTP interfaces
 - [CLI Reference](reference/cli/) - Command-line interface documentation
+- [Configuration Reference](reference/config/) - navctl configuration file format
 
 ## Quick Links
 
