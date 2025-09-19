@@ -108,14 +108,14 @@ func DefaultIstioConfig(version string) IstioInstallConfig {
 // DefaultIstioConfigWithCluster returns default configuration for Istio installation with cluster name
 func DefaultIstioConfigWithCluster(version, clusterName string) IstioInstallConfig {
 	config := DefaultIstioConfig(version)
-	
+
 	// Add cluster name to global configuration
 	config.Values["global"] = map[string]interface{}{
 		"multiCluster": map[string]interface{}{
 			"clusterName": clusterName,
 		},
 	}
-	
+
 	return config
 }
 
