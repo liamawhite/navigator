@@ -29,8 +29,8 @@ import (
 
 // cacheEntry represents an entry in the LRU cache
 type cacheEntry struct {
-	token     *TokenCache
-	lastUsed  time.Time
+	token      *TokenCache
+	lastUsed   time.Time
 	prev, next *cacheEntry
 }
 
@@ -47,12 +47,12 @@ func newLRUCache(maxSize int) *lruCache {
 	if maxSize <= 0 {
 		maxSize = 100 // Default max size
 	}
-	
+
 	head := &cacheEntry{}
 	tail := &cacheEntry{}
 	head.next = tail
 	tail.prev = head
-	
+
 	return &lruCache{
 		maxSize: maxSize,
 		entries: make(map[string]*cacheEntry),
@@ -81,17 +81,17 @@ func (c *lruCache) put(key string, token *TokenCache) {
 		c.moveToFront(entry)
 		return
 	}
-	
+
 	// Create new entry
 	entry := &cacheEntry{
 		token:    token,
 		lastUsed: time.Now(),
 	}
-	
+
 	// Add to front
 	c.addToFront(entry)
 	c.entries[key] = entry
-	
+
 	// Evict LRU entry if over capacity
 	if len(c.entries) > c.maxSize {
 		c.evictLRU()
@@ -114,11 +114,11 @@ func (c *lruCache) removeExpired() int {
 			expiredKeys = append(expiredKeys, key)
 		}
 	}
-	
+
 	for _, key := range expiredKeys {
 		c.remove(key)
 	}
-	
+
 	return len(expiredKeys)
 }
 
@@ -182,17 +182,17 @@ type TokenExecutor struct {
 func NewTokenExecutor(logger *slog.Logger) *TokenExecutor {
 	const maxCacheSize = 100
 	const cleanupInterval = 5 * time.Minute
-	
+
 	te := &TokenExecutor{
 		cache:           newLRUCache(maxCacheSize),
 		logger:          logger,
 		cleanupStopChan: make(chan struct{}),
 	}
-	
+
 	// Start periodic cleanup goroutine
 	te.cleanupTicker = time.NewTicker(cleanupInterval)
 	go te.periodicCleanup()
-	
+
 	return te
 }
 
@@ -212,11 +212,11 @@ func (te *TokenExecutor) periodicCleanup() {
 			te.mutex.Lock()
 			removed := te.cache.removeExpired()
 			te.mutex.Unlock()
-			
+
 			if removed > 0 {
 				te.logger.Debug("cleaned up expired tokens", "removed_count", removed)
 			}
-			
+
 		case <-te.cleanupStopChan:
 			return
 		}
@@ -252,7 +252,7 @@ func (te *TokenExecutor) getBearerTokenFromExec(edgeName string, execConfig *Exe
 	if cached, exists := te.cache.get(cacheKey); exists && !cached.IsExpired() {
 		te.mutex.RUnlock()
 		tokenHash := fmt.Sprintf("%x", sha256.Sum256([]byte(cached.Token)))[:8]
-	te.logger.Debug("using cached bearer token", "edge", edgeName, "token_hash", tokenHash, "token_length", len(cached.Token))
+		te.logger.Debug("using cached bearer token", "edge", edgeName, "token_hash", tokenHash, "token_length", len(cached.Token))
 		return cached.Token, nil
 	}
 	te.mutex.RUnlock()
@@ -287,7 +287,7 @@ func (te *TokenExecutor) createCacheKey(edgeName string, execConfig *ExecConfig)
 		strings.Join(execConfig.Args, " "),
 		execConfig.Timeout,
 	}
-	
+
 	// Add environment variables in deterministic order
 	if len(execConfig.Env) > 0 {
 		envPairs := make([]string, 0, len(execConfig.Env))
@@ -297,7 +297,7 @@ func (te *TokenExecutor) createCacheKey(edgeName string, execConfig *ExecConfig)
 		sort.Strings(envPairs) // Ensure deterministic ordering
 		parts = append(parts, strings.Join(envPairs, ","))
 	}
-	
+
 	// Create hash of all components for a stable, collision-resistant key
 	keyData := strings.Join(parts, "|")
 	hash := sha256.Sum256([]byte(keyData))
@@ -388,7 +388,7 @@ func (te *TokenExecutor) GetCacheStats() map[string]any {
 
 	total := te.cache.size()
 	expired := 0
-	
+
 	// Count expired entries without modifying cache
 	for _, entry := range te.cache.entries {
 		if entry.token.IsExpired() {
