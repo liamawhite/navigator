@@ -60,6 +60,23 @@ interface SortState {
     direction: SortDirection;
 }
 
+// Constants for better maintainability
+const SORT_ICON_SIZE = 'w-3 h-3';
+const TRANSITION_DURATION = 'duration-200';
+const OPACITY_VALUES = {
+    INACTIVE: 'opacity-40',
+    HOVER: 'opacity-70',
+    ACTIVE: 'opacity-100'
+} as const;
+
+const MIN_REQUEST_RATE = 0.01;
+const SUCCESS_RATE_EXCELLENT = 99;
+const SUCCESS_RATE_GOOD = 95;
+
+const STORAGE_KEY = 'serviceConnections.sort';
+const DEFAULT_SORT_FIELD = 'requestRate';
+const DEFAULT_SORT_DIRECTION = 'desc';
+
 export const ServiceConnectionsTable: React.FC<
     ServiceConnectionsTableProps
 > = ({ inbound, outbound }) => {
@@ -68,7 +85,7 @@ export const ServiceConnectionsTable: React.FC<
     // Load sort preferences from localStorage with fallback to default
     const loadSortState = (): SortState => {
         try {
-            const saved = localStorage.getItem('serviceConnections.sort');
+            const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
                 // Validate the loaded state
@@ -79,7 +96,7 @@ export const ServiceConnectionsTable: React.FC<
         } catch (error) {
             console.warn('Failed to load sort preferences:', error);
         }
-        return { field: 'requestRate', direction: 'desc' };
+        return { field: DEFAULT_SORT_FIELD, direction: DEFAULT_SORT_DIRECTION };
     };
 
     const [sortState, setSortState] = useState<SortState>(() =>
@@ -89,10 +106,7 @@ export const ServiceConnectionsTable: React.FC<
     // Save sort preferences to localStorage
     useEffect(() => {
         try {
-            localStorage.setItem(
-                'serviceConnections.sort',
-                JSON.stringify(sortState)
-            );
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sortState));
         } catch (error) {
             console.warn('Failed to save sort preference:', error);
         }
@@ -155,10 +169,6 @@ export const ServiceConnectionsTable: React.FC<
         return 'text-red-600';
     };
 
-    // Configuration constants
-    const MIN_REQUEST_RATE = 0.01;
-    const SUCCESS_RATE_EXCELLENT = 99;
-    const SUCCESS_RATE_GOOD = 95;
 
     const processConnections = useCallback(
         (
@@ -282,18 +292,18 @@ export const ServiceConnectionsTable: React.FC<
     );
 
     const getSortIcon = (field: SortField, sortState: SortState) => {
-        const baseClasses = 'w-3 h-3 transition-all duration-200';
+        const baseClasses = `${SORT_ICON_SIZE} transition-all ${TRANSITION_DURATION}`;
 
         if (sortState.field !== field) {
-            return <ArrowUpDown className={`${baseClasses} opacity-40`} />;
+            return <ArrowUpDown className={`${baseClasses} ${OPACITY_VALUES.INACTIVE}`} />;
         }
 
         if (sortState.direction === 'asc') {
-            return <ArrowUp className={`${baseClasses} opacity-100`} />;
+            return <ArrowUp className={`${baseClasses} ${OPACITY_VALUES.ACTIVE}`} />;
         } else if (sortState.direction === 'desc') {
-            return <ArrowDown className={`${baseClasses} opacity-100`} />;
+            return <ArrowDown className={`${baseClasses} ${OPACITY_VALUES.ACTIVE}`} />;
         } else {
-            return <ArrowUpDown className={`${baseClasses} opacity-40`} />;
+            return <ArrowUpDown className={`${baseClasses} ${OPACITY_VALUES.INACTIVE}`} />;
         }
     };
 
@@ -354,8 +364,8 @@ export const ServiceConnectionsTable: React.FC<
                                 <div
                                     className={`transition-all duration-150 ${
                                         isActive
-                                            ? 'opacity-100'
-                                            : 'opacity-40 group-hover:opacity-70'
+                                            ? OPACITY_VALUES.ACTIVE
+                                            : `${OPACITY_VALUES.INACTIVE} group-hover:${OPACITY_VALUES.HOVER}`
                                     }`}
                                 >
                                     {getSortIcon(field, sortState)}
