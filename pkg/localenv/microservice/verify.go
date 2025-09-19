@@ -24,9 +24,14 @@ import (
 	"github.com/liamawhite/navigator/pkg/localenv/kind"
 )
 
-// VerifyMicroserviceChain tests the full request chain through the microservices
+// VerifyMicroserviceChain tests the full request chain through the microservices using default port
 func (k *KustomizeManager) VerifyMicroserviceChain(ctx context.Context) error {
-	k.logger.Info("Verifying microservice chain connectivity")
+	return k.VerifyMicroserviceChainWithPort(ctx, kind.HTTPNodePort)
+}
+
+// VerifyMicroserviceChainWithPort tests the full request chain through the microservices using a custom port
+func (k *KustomizeManager) VerifyMicroserviceChainWithPort(ctx context.Context, httpPort int) error {
+	k.logger.Info("Verifying microservice chain connectivity", "http_port", httpPort)
 
 	// Wait for all deployments to be ready with extended timeout for verification
 	if err := k.WaitForMicroservicesReady(ctx, 5*time.Minute); err != nil {
@@ -34,7 +39,7 @@ func (k *KustomizeManager) VerifyMicroserviceChain(ctx context.Context) error {
 	}
 
 	// Test the actual HTTP request chain: Gateway -> Frontend -> Backend -> Database
-	if err := k.testRequestChain(ctx); err != nil {
+	if err := k.testRequestChainWithPort(ctx, httpPort); err != nil {
 		return fmt.Errorf("request chain test failed: %w", err)
 	}
 
@@ -84,12 +89,17 @@ func (k *KustomizeManager) waitForDeploymentReady(ctx context.Context, deploymen
 	return nil
 }
 
-// testRequestChain performs an actual HTTP request to test the full microservice chain
+// testRequestChain performs an actual HTTP request to test the full microservice chain using default port
 func (k *KustomizeManager) testRequestChain(ctx context.Context) error {
-	k.logger.Info("Testing HTTP request: Gateway -> Frontend via Istio service mesh")
+	return k.testRequestChainWithPort(ctx, kind.HTTPNodePort)
+}
+
+// testRequestChainWithPort performs an actual HTTP request to test the full microservice chain using a custom port
+func (k *KustomizeManager) testRequestChainWithPort(ctx context.Context, httpPort int) error {
+	k.logger.Info("Testing HTTP request: Gateway -> Frontend via Istio service mesh", "http_port", httpPort)
 
 	// Get the gateway URL for testing
-	gatewayURL, err := k.getGatewayURL(ctx)
+	gatewayURL, err := k.getGatewayURLWithPort(ctx, httpPort)
 	if err != nil {
 		k.logger.Error("Failed to determine gateway URL", "error", err)
 		return fmt.Errorf("failed to get gateway URL: %w", err)
@@ -146,14 +156,19 @@ func (k *KustomizeManager) testRequestChain(ctx context.Context) error {
 	return nil
 }
 
-// getGatewayURL determines the gateway URL for the Kind cluster using fixed NodePort
+// getGatewayURL determines the gateway URL for the Kind cluster using default fixed NodePort
 func (k *KustomizeManager) getGatewayURL(ctx context.Context) (string, error) {
-	k.logger.Info("Getting gateway URL for Kind cluster with NodePort access")
+	return k.getGatewayURLWithPort(ctx, kind.HTTPNodePort)
+}
 
-	// Use the fixed NodePort configured in Kind cluster configuration
+// getGatewayURLWithPort determines the gateway URL for the Kind cluster using a custom port
+func (k *KustomizeManager) getGatewayURLWithPort(ctx context.Context, httpPort int) (string, error) {
+	k.logger.Info("Getting gateway URL for Kind cluster with NodePort access", "http_port", httpPort)
+
+	// Use the specified NodePort configured in Kind cluster configuration
 	// This avoids dynamic port detection and ensures consistent access
-	gatewayURL := fmt.Sprintf("http://localhost:%d", kind.HTTPNodePort)
-	k.logger.Info("Gateway URL determined via fixed NodePort", "url", gatewayURL, "node_port", kind.HTTPNodePort)
+	gatewayURL := fmt.Sprintf("http://localhost:%d", httpPort)
+	k.logger.Info("Gateway URL determined via fixed NodePort", "url", gatewayURL, "node_port", httpPort)
 
 	return gatewayURL, nil
 }
