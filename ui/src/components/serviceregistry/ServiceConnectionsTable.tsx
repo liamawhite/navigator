@@ -66,7 +66,7 @@ const TRANSITION_DURATION = 'duration-200';
 const OPACITY_VALUES = {
     INACTIVE: 'opacity-40',
     HOVER: 'opacity-70',
-    ACTIVE: 'opacity-100'
+    ACTIVE: 'opacity-100',
 } as const;
 
 const MIN_REQUEST_RATE = 0.01;
@@ -168,7 +168,6 @@ export const ServiceConnectionsTable: React.FC<
         if (rate >= SUCCESS_RATE_GOOD) return 'text-amber-600';
         return 'text-red-600';
     };
-
 
     const processConnections = useCallback(
         (
@@ -295,15 +294,31 @@ export const ServiceConnectionsTable: React.FC<
         const baseClasses = `${SORT_ICON_SIZE} transition-all ${TRANSITION_DURATION}`;
 
         if (sortState.field !== field) {
-            return <ArrowUpDown className={`${baseClasses} ${OPACITY_VALUES.INACTIVE}`} />;
+            return (
+                <ArrowUpDown
+                    className={`${baseClasses} ${OPACITY_VALUES.INACTIVE}`}
+                />
+            );
         }
 
         if (sortState.direction === 'asc') {
-            return <ArrowUp className={`${baseClasses} ${OPACITY_VALUES.ACTIVE}`} />;
+            return (
+                <ArrowUp
+                    className={`${baseClasses} ${OPACITY_VALUES.ACTIVE}`}
+                />
+            );
         } else if (sortState.direction === 'desc') {
-            return <ArrowDown className={`${baseClasses} ${OPACITY_VALUES.ACTIVE}`} />;
+            return (
+                <ArrowDown
+                    className={`${baseClasses} ${OPACITY_VALUES.ACTIVE}`}
+                />
+            );
         } else {
-            return <ArrowUpDown className={`${baseClasses} ${OPACITY_VALUES.INACTIVE}`} />;
+            return (
+                <ArrowUpDown
+                    className={`${baseClasses} ${OPACITY_VALUES.INACTIVE}`}
+                />
+            );
         }
     };
 
