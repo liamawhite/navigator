@@ -17,8 +17,7 @@ navctl demo stop [flags]
 ### Options
 
 ```
-  -h, --help          help for stop
-      --name string   Name of the demo cluster(s) (default "navigator-demo")
+  -h, --help   help for stop
 ```
 
 ### Options inherited from parent commands

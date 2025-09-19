@@ -42,19 +42,21 @@ navctl local [flags]
 ### Options
 
 ```
-      --contexts strings             Comma-separated list of kubeconfig contexts to use (uses current context if not specified)
-      --disable-ui                   Disable UI server
+  -c, --config string                Path to navctl configuration file (YAML or JSON)
+      --contexts strings             Comma-separated list of kubeconfig contexts to use (CLI mode only)
+      --demo                         Use embedded demo configuration for navigator-demo clusters
+      --disable-ui                   Disable UI server (CLI mode only)
   -h, --help                         help for local
-  -k, --kube-config string           Path to kubeconfig file (default "~/.kube/config")
-      --manager-host string          Host for manager service (default "localhost")
-      --manager-port int             Port for manager service (default 8080)
-      --max-message-size int         Maximum gRPC message size in MB (default 10)
-      --metrics-auth-bearer string   Bearer token for metrics provider authentication
-      --metrics-endpoint string      Metrics provider endpoint accessible from this machine (e.g., http://prometheus:9090). Enables metrics if provided.
-      --metrics-timeout int          Metrics query timeout in seconds (default 10)
-      --metrics-type string          Metrics provider type (prometheus) (default "prometheus")
-      --no-browser                   Don't open browser automatically
-      --ui-port int                  Port for UI server (default 8082)
+  -k, --kube-config string           Path to kubeconfig file (CLI mode only) (default "~/.kube/config")
+      --manager-host string          Host for manager service (CLI mode only) (default "localhost")
+      --manager-port int             Port for manager service (CLI mode only) (default 8080)
+      --max-message-size int         Maximum gRPC message size in MB (CLI mode only) (default 10)
+      --metrics-auth-bearer string   Bearer token for metrics provider authentication (CLI mode only)
+      --metrics-endpoint string      Metrics provider endpoint (CLI mode only)
+      --metrics-timeout int          Metrics query timeout in seconds (CLI mode only) (default 10)
+      --metrics-type string          Metrics provider type (CLI mode only) (default "prometheus")
+      --no-browser                   Don't open browser automatically (CLI mode only)
+      --ui-port int                  Port for UI server (CLI mode only) (default 8082)
 ```
 
 ### Options inherited from parent commands
