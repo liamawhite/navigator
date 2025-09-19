@@ -195,6 +195,35 @@ func DemoKindConfig(name string) KindClusterConfig {
 	}
 }
 
+// DemoKindConfigWithPorts returns a Kind configuration with unique port mappings for parallel clusters
+func DemoKindConfigWithPorts(name string, clusterIndex int) KindClusterConfig {
+	// Calculate port offset based on cluster index (1000 per cluster)
+	portOffset := clusterIndex * 1000
+
+	// Generate unique ports for each cluster
+	httpPort := HTTPNodePort + portOffset
+	httpsPort := HTTPSNodePort + portOffset
+	statusPort := StatusNodePort + portOffset
+	prometheusPort := PrometheusNodePort + portOffset
+
+	portMaps := []string{
+		fmt.Sprintf("%d:%d", httpPort, HTTPNodePort),             // Map unique host port to standard container NodePort
+		fmt.Sprintf("%d:%d", httpsPort, HTTPSNodePort),           // HTTPS
+		fmt.Sprintf("%d:%d", statusPort, StatusNodePort),         // Status
+		fmt.Sprintf("%d:%d", prometheusPort, PrometheusNodePort), // Prometheus
+	}
+
+	return KindClusterConfig{
+		Name:            name,
+		Image:           "",
+		KubeVersion:     "",
+		ConfigPath:      "",
+		ExtraMounts:     []string{},
+		ExtraPortMaps:   portMaps,
+		DisableDefaults: false,
+	}
+}
+
 func (k *KindManager) createKindConfigFile(config KindClusterConfig) (string, error) {
 	configYAML := `kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4

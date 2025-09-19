@@ -26,5 +26,5 @@ Navigator's service discovery and proxy analysis features.
 
 * [navctl](navctl.md)	 - Navigator control plane CLI
 * [navctl demo start](navctl_demo_start.md)	 - Start a demo Kind cluster with Istio service mesh and microservices
-* [navctl demo stop](navctl_demo_stop.md)	 - Stop a demo Kind cluster
+* [navctl demo stop](navctl_demo_stop.md)	 - Stop demo Kind clusters
 

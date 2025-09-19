@@ -1,12 +1,14 @@
 ## navctl demo stop
 
-Stop a demo Kind cluster
+Stop demo Kind clusters
 
 ### Synopsis
 
-Stop (delete) a demo Kind cluster.
+Stop (delete) demo Kind clusters.
 
-This command deletes the specified Kind cluster and cleans up associated resources.
+This command deletes the specified Kind cluster(s) and cleans up associated resources.
+If --count is specified, it will stop multiple clusters with numbered suffixes.
+Otherwise, it will stop the single cluster with the specified name.
 
 ```
 navctl demo stop [flags]
@@ -16,7 +18,7 @@ navctl demo stop [flags]
 
 ```
   -h, --help          help for stop
-      --name string   Name of the demo cluster (default "navigator-demo")
+      --name string   Name of the demo cluster(s) (default "navigator-demo")
 ```
 
 ### Options inherited from parent commands

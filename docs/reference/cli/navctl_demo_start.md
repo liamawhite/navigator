@@ -17,10 +17,10 @@ navctl demo start [flags]
 ### Options
 
 ```
-      --cleanup                Delete existing cluster if it exists
+      --cleanup                Delete existing clusters if they exist
   -h, --help                   help for start
       --istio-version string   Istio version to install (default "1.25.4")
-      --name string            Name of the demo cluster (default "navigator-demo")
+      --name string            Name of the demo cluster(s) (default "navigator-demo")
 ```
 
 ### Options inherited from parent commands
