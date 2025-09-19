@@ -339,11 +339,11 @@ export const ServiceConnectionsTable: React.FC<
                 asc: { current: 'ascending', next: 'descending' },
                 desc: { current: 'descending', next: 'default' },
             };
-            
+
             if (!isActive) {
                 return `Click to sort by ${children} (ascending first)`;
             }
-            
+
             const state = sortStates[sortState.direction];
             return `Currently sorted ${state.current}. Click to sort ${state.next}.`;
         };
@@ -410,20 +410,17 @@ export const ServiceConnectionsTable: React.FC<
         return `${service}.${namespace}`;
     };
 
-    const inboundConnections = useMemo(
-        () =>
-            sortConnections(processConnections(inbound, 'inbound'), sortState),
-        [inbound, sortState, processConnections, sortConnections]
-    );
+    const sortedData = useMemo(() => {
+        const inboundProcessed = processConnections(inbound, 'inbound');
+        const outboundProcessed = processConnections(outbound, 'outbound');
+        return {
+            inbound: sortConnections(inboundProcessed, sortState),
+            outbound: sortConnections(outboundProcessed, sortState),
+        };
+    }, [inbound, outbound, sortState, processConnections, sortConnections]);
 
-    const outboundConnections = useMemo(
-        () =>
-            sortConnections(
-                processConnections(outbound, 'outbound'),
-                sortState
-            ),
-        [outbound, sortState, processConnections, sortConnections]
-    );
+    const { inbound: inboundConnections, outbound: outboundConnections } =
+        sortedData;
 
     if (inboundConnections.length === 0 && outboundConnections.length === 0) {
         return (
