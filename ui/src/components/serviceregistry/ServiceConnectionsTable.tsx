@@ -160,46 +160,49 @@ export const ServiceConnectionsTable: React.FC<
     const SUCCESS_RATE_EXCELLENT = 99;
     const SUCCESS_RATE_GOOD = 95;
 
-    const processConnections = useCallback((
-        connections: v1alpha1ServicePairMetrics[],
-        type: 'inbound' | 'outbound'
-    ): ConnectionRowData[] => {
-        return connections
-            .filter((conn) => (conn.requestRate || 0) >= MIN_REQUEST_RATE)
-            .map((conn) => {
-                const service =
-                    type === 'inbound'
-                        ? conn.sourceService || 'unknown'
-                        : conn.destinationService || 'unknown';
-                const ns =
-                    type === 'inbound'
-                        ? conn.sourceNamespace || 'unknown'
-                        : conn.destinationNamespace || 'unknown';
-                const cluster =
-                    type === 'inbound'
-                        ? conn.sourceCluster || 'unknown'
-                        : conn.destinationCluster || 'unknown';
+    const processConnections = useCallback(
+        (
+            connections: v1alpha1ServicePairMetrics[],
+            type: 'inbound' | 'outbound'
+        ): ConnectionRowData[] => {
+            return connections
+                .filter((conn) => (conn.requestRate || 0) >= MIN_REQUEST_RATE)
+                .map((conn) => {
+                    const service =
+                        type === 'inbound'
+                            ? conn.sourceService || 'unknown'
+                            : conn.destinationService || 'unknown';
+                    const ns =
+                        type === 'inbound'
+                            ? conn.sourceNamespace || 'unknown'
+                            : conn.destinationNamespace || 'unknown';
+                    const cluster =
+                        type === 'inbound'
+                            ? conn.sourceCluster || 'unknown'
+                            : conn.destinationCluster || 'unknown';
 
-                const requestRate = conn.requestRate || 0;
-                const errorRate = conn.errorRate || 0;
-                const latencyP99 = conn.latencyP99;
-                const successRate =
-                    requestRate > 0
-                        ? ((requestRate - errorRate) / requestRate) * 100
-                        : 100;
+                    const requestRate = conn.requestRate || 0;
+                    const errorRate = conn.errorRate || 0;
+                    const latencyP99 = conn.latencyP99;
+                    const successRate =
+                        requestRate > 0
+                            ? ((requestRate - errorRate) / requestRate) * 100
+                            : 100;
 
-                return {
-                    service,
-                    namespace: ns,
-                    cluster,
-                    requestRate,
-                    successRate,
-                    latencyP99,
-                    latencyP99Ms: parseDurationToMs(latencyP99),
-                    isClickable: service !== 'unknown' && ns !== 'unknown',
-                };
-            });
-    }, []);
+                    return {
+                        service,
+                        namespace: ns,
+                        cluster,
+                        requestRate,
+                        successRate,
+                        latencyP99,
+                        latencyP99Ms: parseDurationToMs(latencyP99),
+                        isClickable: service !== 'unknown' && ns !== 'unknown',
+                    };
+                });
+        },
+        []
+    );
 
     const handleSort = (field: SortField) => {
         let newDirection: SortDirection;
@@ -221,59 +224,62 @@ export const ServiceConnectionsTable: React.FC<
         });
     };
 
-    const sortConnections = useCallback((
-        connections: ConnectionRowData[],
-        sortState: SortState
-    ): ConnectionRowData[] => {
-        if (!sortState.field || !sortState.direction) {
-            // Default sort: RPS descending (highest traffic first)
+    const sortConnections = useCallback(
+        (
+            connections: ConnectionRowData[],
+            sortState: SortState
+        ): ConnectionRowData[] => {
+            if (!sortState.field || !sortState.direction) {
+                // Default sort: RPS descending (highest traffic first)
+                return [...connections].sort((a, b) => {
+                    const rpsComparison = b.requestRate - a.requestRate;
+                    // If RPS is equal, sort by service name for stability
+                    if (rpsComparison === 0) {
+                        return a.service.localeCompare(b.service);
+                    }
+                    return rpsComparison;
+                });
+            }
+
             return [...connections].sort((a, b) => {
-                const rpsComparison = b.requestRate - a.requestRate;
-                // If RPS is equal, sort by service name for stability
-                if (rpsComparison === 0) {
+                const multiplier = sortState.direction === 'asc' ? 1 : -1;
+                let primaryComparison = 0;
+
+                switch (sortState.field) {
+                    case 'service':
+                        primaryComparison =
+                            a.service.localeCompare(b.service) * multiplier;
+                        break;
+                    case 'cluster':
+                        primaryComparison =
+                            a.cluster.localeCompare(b.cluster) * multiplier;
+                        break;
+                    case 'requestRate':
+                        primaryComparison =
+                            (a.requestRate - b.requestRate) * multiplier;
+                        break;
+                    case 'successRate':
+                        primaryComparison =
+                            (a.successRate - b.successRate) * multiplier;
+                        break;
+                    case 'latencyP99':
+                        primaryComparison =
+                            (a.latencyP99Ms - b.latencyP99Ms) * multiplier;
+                        break;
+                    default:
+                        primaryComparison = 0;
+                }
+
+                // If primary comparison is equal, use secondary sort by service name for stability
+                if (primaryComparison === 0) {
                     return a.service.localeCompare(b.service);
                 }
-                return rpsComparison;
+
+                return primaryComparison;
             });
-        }
-
-        return [...connections].sort((a, b) => {
-            const multiplier = sortState.direction === 'asc' ? 1 : -1;
-            let primaryComparison = 0;
-
-            switch (sortState.field) {
-                case 'service':
-                    primaryComparison =
-                        a.service.localeCompare(b.service) * multiplier;
-                    break;
-                case 'cluster':
-                    primaryComparison =
-                        a.cluster.localeCompare(b.cluster) * multiplier;
-                    break;
-                case 'requestRate':
-                    primaryComparison =
-                        (a.requestRate - b.requestRate) * multiplier;
-                    break;
-                case 'successRate':
-                    primaryComparison =
-                        (a.successRate - b.successRate) * multiplier;
-                    break;
-                case 'latencyP99':
-                    primaryComparison =
-                        (a.latencyP99Ms - b.latencyP99Ms) * multiplier;
-                    break;
-                default:
-                    primaryComparison = 0;
-            }
-
-            // If primary comparison is equal, use secondary sort by service name for stability
-            if (primaryComparison === 0) {
-                return a.service.localeCompare(b.service);
-            }
-
-            return primaryComparison;
-        });
-    }, []);
+        },
+        []
+    );
 
     const getSortIcon = (field: SortField, sortState: SortState) => {
         const baseClasses = 'w-3 h-3 transition-all duration-200';
@@ -379,12 +385,17 @@ export const ServiceConnectionsTable: React.FC<
     };
 
     const inboundConnections = useMemo(
-        () => sortConnections(processConnections(inbound, 'inbound'), sortState),
+        () =>
+            sortConnections(processConnections(inbound, 'inbound'), sortState),
         [inbound, sortState, processConnections, sortConnections]
     );
-    
+
     const outboundConnections = useMemo(
-        () => sortConnections(processConnections(outbound, 'outbound'), sortState),
+        () =>
+            sortConnections(
+                processConnections(outbound, 'outbound'),
+                sortState
+            ),
         [outbound, sortState, processConnections, sortConnections]
     );
 
