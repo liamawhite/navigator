@@ -89,11 +89,6 @@ func (k *KustomizeManager) waitForDeploymentReady(ctx context.Context, deploymen
 	return nil
 }
 
-// testRequestChain performs an actual HTTP request to test the full microservice chain using default port
-func (k *KustomizeManager) testRequestChain(ctx context.Context) error {
-	return k.testRequestChainWithPort(ctx, kind.HTTPNodePort)
-}
-
 // testRequestChainWithPort performs an actual HTTP request to test the full microservice chain using a custom port
 func (k *KustomizeManager) testRequestChainWithPort(ctx context.Context, httpPort int) error {
 	k.logger.Info("Testing HTTP request: Gateway -> Frontend via Istio service mesh", "http_port", httpPort)
@@ -154,11 +149,6 @@ func (k *KustomizeManager) testRequestChainWithPort(ctx context.Context, httpPor
 		"chain", "Gateway -> Frontend -> Backend -> Database (via Istio service mesh)")
 
 	return nil
-}
-
-// getGatewayURL determines the gateway URL for the Kind cluster using default fixed NodePort
-func (k *KustomizeManager) getGatewayURL(ctx context.Context) (string, error) {
-	return k.getGatewayURLWithPort(ctx, kind.HTTPNodePort)
 }
 
 // getGatewayURLWithPort determines the gateway URL for the Kind cluster using a custom port

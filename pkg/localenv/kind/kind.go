@@ -207,9 +207,9 @@ func DemoKindConfigWithPorts(name string, clusterIndex int) KindClusterConfig {
 	prometheusPort := PrometheusNodePort + portOffset
 
 	portMaps := []string{
-		fmt.Sprintf("%d:%d", httpPort, HTTPNodePort),         // Map unique host port to standard container NodePort
-		fmt.Sprintf("%d:%d", httpsPort, HTTPSNodePort),       // HTTPS
-		fmt.Sprintf("%d:%d", statusPort, StatusNodePort),     // Status
+		fmt.Sprintf("%d:%d", httpPort, HTTPNodePort),             // Map unique host port to standard container NodePort
+		fmt.Sprintf("%d:%d", httpsPort, HTTPSNodePort),           // HTTPS
+		fmt.Sprintf("%d:%d", statusPort, StatusNodePort),         // Status
 		fmt.Sprintf("%d:%d", prometheusPort, PrometheusNodePort), // Prometheus
 	}
 
