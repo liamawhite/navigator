@@ -251,7 +251,7 @@ func TestApplyDefaultsAndValidate(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				
+
 				// Check defaults were applied
 				assert.Equal(t, "navigator.io/v1alpha1", tt.config.APIVersion)
 				assert.Equal(t, "NavctlConfig", tt.config.Kind)
@@ -259,12 +259,12 @@ func TestApplyDefaultsAndValidate(t *testing.T) {
 				assert.Equal(t, 8080, tt.config.Manager.Port)
 				assert.Equal(t, 10, tt.config.Manager.MaxMessageSize)
 				assert.Equal(t, 8082, tt.config.UI.Port)
-				
+
 				for _, edge := range tt.config.Edges {
 					assert.Equal(t, 30, edge.SyncInterval)
 					assert.Equal(t, "info", edge.LogLevel)
 					assert.Equal(t, "text", edge.LogFormat)
-					
+
 					if edge.Metrics != nil {
 						assert.Equal(t, "prometheus", edge.Metrics.Type)
 						assert.Equal(t, 30, edge.Metrics.QueryInterval)
@@ -286,7 +286,7 @@ func TestLoadConfig_WithFile(t *testing.T) {
 	// Create temporary config file
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "test-config.yaml")
-	
+
 	yamlContent := `
 apiVersion: navigator.io/v1alpha1
 kind: NavctlConfig
@@ -298,7 +298,7 @@ edges:
     clusterId: test-cluster
 `
 
-	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	err := os.WriteFile(configFile, []byte(yamlContent), 0600)
 	require.NoError(t, err)
 
 	config, err := LoadConfig(configFile)
@@ -314,7 +314,11 @@ func TestLoadConfig_EmptyPath_ReturnsDefault(t *testing.T) {
 	// Save current directory
 	originalWd, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalWd)
+	defer func() {
+		if err := os.Chdir(originalWd); err != nil {
+			t.Logf("failed to restore working directory: %v", err)
+		}
+	}()
 
 	// Create temporary directory without config files
 	tmpDir := t.TempDir()
@@ -333,8 +337,14 @@ func TestLoadConfig_EmptyPath_ReturnsDefault(t *testing.T) {
 
 func TestExpandEnvVars(t *testing.T) {
 	// Set test environment variable
-	os.Setenv("TEST_HOST", "envhost")
-	defer os.Unsetenv("TEST_HOST")
+	if err := os.Setenv("TEST_HOST", "envhost"); err != nil {
+		t.Fatalf("failed to set environment variable: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("TEST_HOST"); err != nil {
+			t.Logf("failed to unset environment variable: %v", err)
+		}
+	}()
 
 	config := &Config{
 		Manager: &ManagerConfig{

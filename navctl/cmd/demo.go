@@ -268,13 +268,13 @@ func createSingleDemoCluster(ctx context.Context, clusterName string, clusterInd
 		}
 
 		logger.Info("Deleting existing cluster", "cluster", clusterName)
-		
+
 		// Serialize cluster deletion to prevent kubeconfig locking conflicts
 		// when multiple clusters are being deleted in parallel
 		kubeconfigMutex.Lock()
 		err := kindMgr.DeleteCluster(ctx, clusterName)
 		kubeconfigMutex.Unlock()
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to delete existing cluster: %w", err)
 		}
@@ -287,7 +287,7 @@ func createSingleDemoCluster(ctx context.Context, clusterName string, clusterInd
 	kubeconfigMutex.Lock()
 	err = kindMgr.CreateCluster(ctx, config)
 	kubeconfigMutex.Unlock()
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to create demo cluster: %w", err)
 	}

@@ -28,7 +28,7 @@ func TestNewManager(t *testing.T) {
 	// Create temporary config file
 	tmpDir := t.TempDir()
 	configFile := filepath.Join(tmpDir, "test-config.yaml")
-	
+
 	yamlContent := `
 apiVersion: navigator.io/v1alpha1
 kind: NavctlConfig
@@ -43,7 +43,7 @@ edges:
       endpoint: http://prometheus:9090
 `
 
-	err := os.WriteFile(configFile, []byte(yamlContent), 0644)
+	err := os.WriteFile(configFile, []byte(yamlContent), 0600)
 	require.NoError(t, err)
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -74,7 +74,7 @@ func TestManager_GetManagerConfig(t *testing.T) {
 	managerCfg := manager.GetManagerConfig()
 	assert.Equal(t, 9090, managerCfg.Port)
 	assert.Equal(t, 20, managerCfg.MaxMessageSize)
-	assert.Equal(t, "info", managerCfg.LogLevel) // Default value
+	assert.Equal(t, "info", managerCfg.LogLevel)  // Default value
 	assert.Equal(t, "text", managerCfg.LogFormat) // Default value
 }
 

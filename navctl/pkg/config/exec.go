@@ -109,8 +109,9 @@ func (te *TokenExecutor) executeCommand(execConfig *ExecConfig) (string, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Create command
-	cmd := exec.CommandContext(ctx, execConfig.Command, execConfig.Args...)
+	// Create command - Note: This executes user-provided commands for token generation
+	// This is the intended behavior for Kubernetes-style exec authentication
+	cmd := exec.CommandContext(ctx, execConfig.Command, execConfig.Args...) // #nosec G204
 
 	// Set environment variables
 	cmd.Env = os.Environ() // Start with current environment
@@ -193,4 +194,3 @@ func (te *TokenExecutor) GetCacheStats() map[string]any {
 		"active_tokens":  total - expired,
 	}
 }
-

@@ -58,8 +58,9 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("cannot access config file: %w", err)
 	}
 
-	// Read file contents
-	data, err := os.ReadFile(filePath)
+	// Read file contents - Note: This reads user-provided config files
+	// File path is validated to exist before reading
+	data, err := os.ReadFile(filePath) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", filePath, err)
 	}
@@ -295,4 +296,3 @@ func (c *Config) expandEnvVars() {
 func (c *Config) PostLoad() {
 	c.expandEnvVars()
 }
-

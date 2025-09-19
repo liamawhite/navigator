@@ -53,7 +53,7 @@ var (
 	configFile string
 	// Demo mode flag
 	demoMode bool
-	
+
 	// Traditional CLI flags (used when no config file is specified)
 	kubeconfig     string
 	contexts       []string
@@ -805,7 +805,7 @@ func startEdgeServiceFromConfig(ctx context.Context, configManager *navctlConfig
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kubeconfig path: %w", err)
 	}
-	
+
 	// Use default kubeconfig if not specified
 	if kubeconfigPath == "" {
 		if home := homedir.HomeDir(); home != "" {

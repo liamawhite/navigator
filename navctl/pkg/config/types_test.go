@@ -57,7 +57,7 @@ func TestTokenCache_IsExpired(t *testing.T) {
 
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
-	
+
 	assert.Equal(t, "navigator.io/v1alpha1", config.APIVersion)
 	assert.Equal(t, "NavctlConfig", config.Kind)
 	assert.Equal(t, "localhost", config.Manager.Host)
@@ -70,7 +70,7 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestDefaultEdgeConfig(t *testing.T) {
 	edge := DefaultEdgeConfig()
-	
+
 	assert.Equal(t, 30, edge.SyncInterval)
 	assert.Equal(t, "info", edge.LogLevel)
 	assert.Equal(t, "text", edge.LogFormat)
@@ -78,7 +78,7 @@ func TestDefaultEdgeConfig(t *testing.T) {
 
 func TestDefaultMetricsConfig(t *testing.T) {
 	metrics := DefaultMetricsConfig()
-	
+
 	assert.Equal(t, "prometheus", metrics.Type)
 	assert.Equal(t, 30, metrics.QueryInterval)
 	assert.Equal(t, 10, metrics.Timeout)
