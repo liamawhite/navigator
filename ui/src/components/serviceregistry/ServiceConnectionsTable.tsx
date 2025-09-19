@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
-import { ArrowRight } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
 
 interface ServiceConnectionsTableProps {
@@ -33,10 +34,46 @@ interface ConnectionRowData {
     isClickable: boolean;
 }
 
+type SortField = 'service' | 'cluster' | 'requestRate' | 'successRate' | 'latencyP99';
+type SortDirection = 'asc' | 'desc' | null;
+
+interface SortState {
+    field: SortField | null;
+    direction: SortDirection;
+}
+
 export const ServiceConnectionsTable: React.FC<
     ServiceConnectionsTableProps
 > = ({ inbound, outbound }) => {
     const navigate = useNavigate();
+    
+    // Load sort preferences from localStorage with fallback to default
+    const loadSortState = (): SortState => {
+        try {
+            const saved = localStorage.getItem('serviceConnections.sort');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Validate the loaded state
+                if (parsed.field && parsed.direction) {
+                    return parsed;
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to load sort preferences:', error);
+        }
+        return { field: 'requestRate', direction: 'desc' };
+    };
+    
+    const [sortState, setSortState] = useState<SortState>(() => loadSortState());
+    
+    // Save sort preferences to localStorage
+    useEffect(() => {
+        try {
+            localStorage.setItem('serviceConnections.sort', JSON.stringify(sortState));
+        } catch (error) {
+            console.warn('Failed to save sort preference:', error);
+        }
+    }, [sortState]);
 
     const formatRequestRate = (rate: number): string => {
         if (rate >= 100) {
@@ -137,14 +174,132 @@ export const ServiceConnectionsTable: React.FC<
                     latencyP99,
                     isClickable: service !== 'unknown' && ns !== 'unknown',
                 };
-            })
-            .sort((a, b) => {
-                // Sort by namespace first, then by service name
+            });
+    };
+
+    const handleSort = (field: SortField) => {
+        let newDirection: SortDirection;
+        if (sortState.field === field) {
+            if (sortState.direction === 'asc') {
+                newDirection = 'desc';
+            } else if (sortState.direction === 'desc') {
+                newDirection = null;
+            } else {
+                newDirection = 'asc';
+            }
+        } else {
+            newDirection = 'asc';
+        }
+
+        setSortState({ field: newDirection ? field : null, direction: newDirection });
+    };
+
+    const sortConnections = (connections: ConnectionRowData[], sortState: SortState): ConnectionRowData[] => {
+        if (!sortState.field || !sortState.direction) {
+            // Default sort: namespace first, then service name
+            return [...connections].sort((a, b) => {
                 if (a.namespace !== b.namespace) {
                     return a.namespace.localeCompare(b.namespace);
                 }
                 return a.service.localeCompare(b.service);
             });
+        }
+
+        return [...connections].sort((a, b) => {
+            const multiplier = sortState.direction === 'asc' ? 1 : -1;
+            
+            switch (sortState.field) {
+                case 'service':
+                    return a.service.localeCompare(b.service) * multiplier;
+                case 'cluster':
+                    return a.cluster.localeCompare(b.cluster) * multiplier;
+                case 'requestRate':
+                    return (a.requestRate - b.requestRate) * multiplier;
+                case 'successRate':
+                    return (a.successRate - b.successRate) * multiplier;
+                case 'latencyP99':
+                    return (parseDurationToMs(a.latencyP99) - parseDurationToMs(b.latencyP99)) * multiplier;
+                default:
+                    return 0;
+            }
+        });
+    };
+
+    const getSortIcon = (field: SortField, sortState: SortState) => {
+        const baseClasses = "w-3 h-3 transition-all duration-200";
+        
+        if (sortState.field !== field) {
+            return <ArrowUpDown className={`${baseClasses} opacity-40`} />;
+        }
+        
+        if (sortState.direction === 'asc') {
+            return <ArrowUp className={`${baseClasses} opacity-100`} />;
+        } else if (sortState.direction === 'desc') {
+            return <ArrowDown className={`${baseClasses} opacity-100`} />;
+        } else {
+            return <ArrowUpDown className={`${baseClasses} opacity-40`} />;
+        }
+    };
+
+    const SortableHeader = ({ 
+        field, 
+        children, 
+        className = ""
+    }: { 
+        field: SortField; 
+        children: React.ReactNode; 
+        className?: string; 
+    }) => {
+        const isActive = sortState.field === field && sortState.direction !== null;
+        
+        const getTooltipText = () => {
+            if (isActive) {
+                const nextAction = sortState.direction === 'asc' ? 'descending' : sortState.direction === 'desc' ? 'default' : 'ascending';
+                return `Currently sorted ${sortState.direction}ending. Click to sort ${nextAction}.`;
+            }
+            return `Click to sort by ${children} (ascending first)`;
+        };
+        
+        // Determine alignment based on className
+        const isRightAligned = className.includes('text-right');
+        const isLeftAligned = className.includes('text-left');
+        const flexClass = isRightAligned ? 'justify-end' : 'justify-start';
+        
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <TableHead 
+                            className={`group cursor-pointer hover:bg-muted/50 select-none text-xs text-gray-500 dark:text-gray-500 font-medium py-2 transition-colors ${className}`}
+                            onClick={() => handleSort(field)}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleSort(field);
+                                }
+                            }}
+                            role="button"
+                            aria-label={`Sort by ${field} ${
+                                isActive ? `(currently ${sortState.direction}ending)` : ''
+                            }`}
+                        >
+                            <div className={`flex items-center gap-1 ${flexClass}`}>
+                                <span>{children}</span>
+                                <div className={`transition-all duration-150 ${
+                                    isActive ? 'opacity-100' : 'opacity-40 group-hover:opacity-70'
+                                }`}>
+                                    {getSortIcon(field, sortState)}
+                                </div>
+                            </div>
+                        </TableHead>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p className="text-xs">{getTooltipText()}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
     };
 
     const handleServiceClick = (service: string, namespace: string) => {
@@ -160,8 +315,8 @@ export const ServiceConnectionsTable: React.FC<
         return `${service}.${namespace}`;
     };
 
-    const inboundConnections = processConnections(inbound, 'inbound');
-    const outboundConnections = processConnections(outbound, 'outbound');
+    const inboundConnections = sortConnections(processConnections(inbound, 'inbound'), sortState);
+    const outboundConnections = sortConnections(processConnections(outbound, 'outbound'), sortState);
 
     if (inboundConnections.length === 0 && outboundConnections.length === 0) {
         return (
@@ -200,6 +355,15 @@ export const ServiceConnectionsTable: React.FC<
                 <div>
                     {inboundConnections.length > 0 ? (
                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <SortableHeader field="service">Service</SortableHeader>
+                                    <SortableHeader field="cluster">Cluster</SortableHeader>
+                                    <SortableHeader field="latencyP99" className="text-right">P99</SortableHeader>
+                                    <SortableHeader field="requestRate" className="text-right">Throughput</SortableHeader>
+                                    <SortableHeader field="successRate" className="text-right">Success</SortableHeader>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                                 {inboundConnections.map((conn, index) => (
                                     <TableRow key={index}>
@@ -282,23 +446,6 @@ export const ServiceConnectionsTable: React.FC<
                                         </TableRow>
                                     )
                                 )}
-                                <TableRow>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2">
-                                        Service
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2">
-                                        Cluster
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
-                                        P99
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
-                                        Throughput
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
-                                        Success
-                                    </TableCell>
-                                </TableRow>
                             </TableBody>
                         </Table>
                     ) : (
@@ -311,6 +458,15 @@ export const ServiceConnectionsTable: React.FC<
                 <div>
                     {outboundConnections.length > 0 ? (
                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <SortableHeader field="successRate" className="text-left">Success</SortableHeader>
+                                    <SortableHeader field="requestRate" className="text-left">Throughput</SortableHeader>
+                                    <SortableHeader field="latencyP99" className="text-left">P99</SortableHeader>
+                                    <SortableHeader field="cluster" className="text-right">Cluster</SortableHeader>
+                                    <SortableHeader field="service" className="text-right">Service</SortableHeader>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                                 {outboundConnections.map((conn, index) => (
                                     <TableRow key={index}>
@@ -393,23 +549,6 @@ export const ServiceConnectionsTable: React.FC<
                                         </TableRow>
                                     )
                                 )}
-                                <TableRow>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-left">
-                                        Success
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-left">
-                                        Throughput
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-left">
-                                        P99
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
-                                        Cluster
-                                    </TableCell>
-                                    <TableCell className="text-xs text-gray-500 dark:text-gray-500 font-medium py-2 text-right">
-                                        Service
-                                    </TableCell>
-                                </TableRow>
                             </TableBody>
                         </Table>
                     ) : (
