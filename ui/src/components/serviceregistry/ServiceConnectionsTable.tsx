@@ -335,16 +335,17 @@ export const ServiceConnectionsTable: React.FC<
             sortState.field === field && sortState.direction !== null;
 
         const getTooltipText = () => {
-            if (isActive) {
-                const nextAction =
-                    sortState.direction === 'asc'
-                        ? 'descending'
-                        : sortState.direction === 'desc'
-                          ? 'default'
-                          : 'ascending';
-                return `Currently sorted ${sortState.direction}ending. Click to sort ${nextAction}.`;
+            const sortStates = {
+                asc: { current: 'ascending', next: 'descending' },
+                desc: { current: 'descending', next: 'default' },
+            };
+            
+            if (!isActive) {
+                return `Click to sort by ${children} (ascending first)`;
             }
-            return `Click to sort by ${children} (ascending first)`;
+            
+            const state = sortStates[sortState.direction];
+            return `Currently sorted ${state.current}. Click to sort ${state.next}.`;
         };
 
         // Determine alignment based on className
