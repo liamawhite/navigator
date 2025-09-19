@@ -412,6 +412,7 @@ The Navigator UI is a React application built with TypeScript and Vite, providin
 - **ESLint + Prettier** for code quality
 - **4-space indentation** for consistency
 - **OpenAPI code generation** for type-safe API clients
+- **Exact version pinning**: Always use exact versions in package.json (no ^ or ~ prefixes) for reproducible builds
 
 ### shadcn/ui Components
 - **NEVER edit shadcn/ui components directly** in `ui/src/components/ui/`
