@@ -28,6 +28,7 @@ import (
 func TestTokenExecutor_GetBearerToken_StaticToken(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerToken: "static-token",
@@ -41,6 +42,7 @@ func TestTokenExecutor_GetBearerToken_StaticToken(t *testing.T) {
 func TestTokenExecutor_GetBearerToken_NoAuth(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	token, err := executor.GetBearerToken("test-edge", nil)
 	require.NoError(t, err)
@@ -50,6 +52,7 @@ func TestTokenExecutor_GetBearerToken_NoAuth(t *testing.T) {
 func TestTokenExecutor_GetBearerToken_ExecCommand(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -66,6 +69,7 @@ func TestTokenExecutor_GetBearerToken_ExecCommand(t *testing.T) {
 func TestTokenExecutor_GetBearerToken_ExecCommand_WithTrimming(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -82,6 +86,7 @@ func TestTokenExecutor_GetBearerToken_ExecCommand_WithTrimming(t *testing.T) {
 func TestTokenExecutor_GetBearerToken_ExecCommand_WithTimeout(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -99,6 +104,7 @@ func TestTokenExecutor_GetBearerToken_ExecCommand_WithTimeout(t *testing.T) {
 func TestTokenExecutor_GetBearerToken_ExecCommand_InvalidTimeout(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -116,6 +122,7 @@ func TestTokenExecutor_GetBearerToken_ExecCommand_InvalidTimeout(t *testing.T) {
 func TestTokenExecutor_GetBearerToken_ExecCommand_NonExistentCommand(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -130,6 +137,7 @@ func TestTokenExecutor_GetBearerToken_ExecCommand_NonExistentCommand(t *testing.
 func TestTokenExecutor_GetBearerToken_ExecCommand_EmptyOutput(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -146,6 +154,7 @@ func TestTokenExecutor_GetBearerToken_ExecCommand_EmptyOutput(t *testing.T) {
 func TestTokenExecutor_GetBearerToken_ExecCommand_WithEnv(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -165,6 +174,7 @@ func TestTokenExecutor_GetBearerToken_ExecCommand_WithEnv(t *testing.T) {
 func TestTokenExecutor_Caching(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -193,6 +203,7 @@ func TestTokenExecutor_Caching(t *testing.T) {
 func TestTokenExecutor_RefreshToken(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -218,6 +229,7 @@ func TestTokenExecutor_RefreshToken(t *testing.T) {
 func TestTokenExecutor_RefreshToken_StaticToken(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerToken: "static-token",
@@ -231,6 +243,7 @@ func TestTokenExecutor_RefreshToken_StaticToken(t *testing.T) {
 func TestTokenExecutor_ClearCache(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	auth := &MetricsAuth{
 		BearerTokenExec: &ExecConfig{
@@ -258,6 +271,7 @@ func TestTokenExecutor_ClearCache(t *testing.T) {
 func TestTokenExecutor_ClearExpiredTokens(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 	executor := NewTokenExecutor(logger)
+	defer executor.Close()
 
 	// Manually add an expired token to cache
 	executor.cache["expired-key"] = &TokenCache{

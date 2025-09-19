@@ -16,6 +16,7 @@ package prometheus
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -96,7 +97,8 @@ func NewClient(endpoint string, logger *slog.Logger, opts ...ClientOption) (*Cli
 		config.RoundTripper = &BearerTokenRoundTripper{
 			Token: cfg.bearerToken,
 		}
-		logger.Debug("configured bearer token authentication for Prometheus client")
+		tokenHash := fmt.Sprintf("%x", sha256.Sum256([]byte(cfg.bearerToken)))[:8]
+		logger.Debug("configured bearer token authentication for Prometheus client", "token_hash", tokenHash, "token_length", len(cfg.bearerToken))
 	}
 
 	// Create Prometheus API client

@@ -209,3 +209,10 @@ func (m *Manager) HasEdges() bool {
 func (m *Manager) IsMultiEdge() bool {
 	return len(m.config.Edges) > 1
 }
+
+// Close cleans up resources used by the manager
+func (m *Manager) Close() {
+	if m.tokenExecutor != nil {
+		m.tokenExecutor.Close()
+	}
+}
