@@ -61,37 +61,32 @@ sum by (
   rate(istio_requests_total{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}", response_code=~"0|4..|5.."{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 
-	inboundLatencyP99QueryTemplate = template.Must(template.New("inboundLatencyP99").Parse(`
-histogram_quantile(0.99,
-  sum by (
-    source_cluster, source_workload_namespace, source_canonical_service,
-    destination_cluster, destination_service_namespace, destination_canonical_service, le
-  )(
-    rate(istio_request_duration_milliseconds_bucket{reporter="destination", destination_canonical_service="{{.ServiceName}}", destination_service_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
-  )
-)`))
-
-	outboundLatencyP99QueryTemplate = template.Must(template.New("outboundLatencyP99").Parse(`
-histogram_quantile(0.99,
-  sum by (
-    source_cluster, source_workload_namespace, source_canonical_service,
-    destination_cluster, destination_service_namespace, destination_canonical_service, le
-  )(
-    rate(istio_request_duration_milliseconds_bucket{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
-  )
-)`))
-
 	// Gateway-specific downstream metrics templates
 	gatewayDownstreamRequestRateQueryTemplate = template.Must(template.New("gatewayDownstreamRequestRate").Parse(`
 sum by (pod, namespace)(
   rate(envoy_http_downstream_rq_total{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 
-	gatewayDownstreamLatencyQueryTemplate = template.Must(template.New("gatewayDownstreamLatency").Parse(`
-histogram_quantile(0.99,
-  sum by (pod, namespace, le)(
-    rate(envoy_http_downstream_rq_time_bucket{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
-  )
+	// Raw histogram distribution templates (without histogram_quantile calculation)
+	inboundLatencyDistributionQueryTemplate = template.Must(template.New("inboundLatencyDistribution").Parse(`
+sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service, le
+)(
+  rate(istio_request_duration_milliseconds_bucket{reporter="destination", destination_canonical_service="{{.ServiceName}}", destination_service_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+)`))
+
+	outboundLatencyDistributionQueryTemplate = template.Must(template.New("outboundLatencyDistribution").Parse(`
+sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service, le
+)(
+  rate(istio_request_duration_milliseconds_bucket{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+)`))
+
+	gatewayDownstreamLatencyDistributionQueryTemplate = template.Must(template.New("gatewayDownstreamLatencyDistribution").Parse(`
+sum by (pod, namespace, le)(
+  rate(envoy_http_downstream_rq_time_bucket{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 )
 
@@ -128,9 +123,10 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	}
 
 	// Adjust channel size based on whether we have gateway metrics
+	// Base queries: 4 (request/error rates) + 2 (latency distributions) = 6
 	channelSize := 6
 	if isGateway {
-		channelSize = 8 // Add 2 for downstream metrics
+		channelSize = 8 // Add 2 for downstream metrics (request rate, latency distribution)
 	}
 	results := make(chan connectionQueryResult, channelSize)
 	var wg sync.WaitGroup
@@ -139,35 +135,37 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	queryCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Inbound request rate query
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	// Inbound request rate query (skip for gateways - they use downstream metrics)
+	if !isGateway {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		// Check for cancellation before starting work
-		select {
-		case <-queryCtx.Done():
-			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_request_rate"}
-			return
-		default:
-		}
+			// Check for cancellation before starting work
+			select {
+			case <-queryCtx.Done():
+				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_request_rate"}
+				return
+			default:
+			}
 
-		query, err := p.buildServiceConnectionQuery(inboundRequestRateQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
-		if err != nil {
-			results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound request rate query: %w", err), QueryType: "inbound_request_rate"}
-			return
-		}
+			query, err := p.buildServiceConnectionQuery(inboundRequestRateQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+			if err != nil {
+				results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound request rate query: %w", err), QueryType: "inbound_request_rate"}
+				return
+			}
 
-		p.logger.Debug("executing inbound request rate query", "query", query, "service", serviceName, "namespace", serviceNamespace)
-		resp, err := p.client.query(queryCtx, query)
-		if err != nil {
-			results <- connectionQueryResult{Error: err, QueryType: "inbound_request_rate"}
-			return
-		}
+			p.logger.Debug("executing inbound request rate query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+			resp, err := p.client.query(queryCtx, query)
+			if err != nil {
+				results <- connectionQueryResult{Error: err, QueryType: "inbound_request_rate"}
+				return
+			}
 
-		processedMetrics := p.processRequestRateResponse(resp, timestamp)
-		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "inbound_request_rate"}
-	}()
+			processedMetrics := p.processRequestRateResponse(resp, timestamp)
+			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "inbound_request_rate"}
+		}()
+	}
 
 	// Outbound request rate query
 	wg.Add(1)
@@ -259,7 +257,39 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_error_rate"}
 	}()
 
-	// Inbound latency P99 query
+	// Inbound latency distribution query (skip for gateways - they use downstream metrics)
+	if !isGateway {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Check for cancellation before starting work
+			select {
+			case <-queryCtx.Done():
+				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_latency_distribution"}
+				return
+			default:
+			}
+
+			query, err := p.buildServiceConnectionQuery(inboundLatencyDistributionQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+			if err != nil {
+				results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound latency distribution query: %w", err), QueryType: "inbound_latency_distribution"}
+				return
+			}
+
+			p.logger.Debug("executing inbound latency distribution query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+			resp, err := p.client.query(queryCtx, query)
+			if err != nil {
+				results <- connectionQueryResult{Error: err, QueryType: "inbound_latency_distribution"}
+				return
+			}
+
+			processedMetrics := p.processLatencyDistributionResponse(resp, timestamp)
+			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "inbound_latency_distribution"}
+		}()
+	}
+
+	// Outbound latency distribution query
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -267,56 +297,26 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		// Check for cancellation before starting work
 		select {
 		case <-queryCtx.Done():
-			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_latency_p99"}
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "outbound_latency_distribution"}
 			return
 		default:
 		}
 
-		query, err := p.buildServiceConnectionQuery(inboundLatencyP99QueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+		query, err := p.buildServiceConnectionQuery(outboundLatencyDistributionQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
 		if err != nil {
-			results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound latency P99 query: %w", err), QueryType: "inbound_latency_p99"}
+			results <- connectionQueryResult{Error: fmt.Errorf("failed to build outbound latency distribution query: %w", err), QueryType: "outbound_latency_distribution"}
 			return
 		}
 
-		p.logger.Debug("executing inbound latency P99 query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+		p.logger.Debug("executing outbound latency distribution query", "query", query, "service", serviceName, "namespace", serviceNamespace)
 		resp, err := p.client.query(queryCtx, query)
 		if err != nil {
-			results <- connectionQueryResult{Error: err, QueryType: "inbound_latency_p99"}
+			results <- connectionQueryResult{Error: err, QueryType: "outbound_latency_distribution"}
 			return
 		}
 
-		processedMetrics := p.processLatencyResponse(resp, timestamp)
-		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "inbound_latency_p99"}
-	}()
-
-	// Outbound latency P99 query
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		// Check for cancellation before starting work
-		select {
-		case <-queryCtx.Done():
-			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "outbound_latency_p99"}
-			return
-		default:
-		}
-
-		query, err := p.buildServiceConnectionQuery(outboundLatencyP99QueryTemplate, serviceName, serviceNamespace, filters, timeRange)
-		if err != nil {
-			results <- connectionQueryResult{Error: fmt.Errorf("failed to build outbound latency P99 query: %w", err), QueryType: "outbound_latency_p99"}
-			return
-		}
-
-		p.logger.Debug("executing outbound latency P99 query", "query", query, "service", serviceName, "namespace", serviceNamespace)
-		resp, err := p.client.query(queryCtx, query)
-		if err != nil {
-			results <- connectionQueryResult{Error: err, QueryType: "outbound_latency_p99"}
-			return
-		}
-
-		processedMetrics := p.processLatencyResponse(resp, timestamp)
-		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_latency_p99"}
+		processedMetrics := p.processLatencyDistributionResponse(resp, timestamp)
+		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_latency_distribution"}
 	}()
 
 	// Add downstream metrics queries for gateway services only
@@ -351,7 +351,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "gateway_downstream_request_rate"}
 		}()
 
-		// Gateway downstream latency query
+		// Gateway downstream latency distribution query
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -359,26 +359,26 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 			// Check for cancellation before starting work
 			select {
 			case <-queryCtx.Done():
-				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "gateway_downstream_latency"}
+				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "gateway_downstream_latency_distribution"}
 				return
 			default:
 			}
 
-			query, err := p.buildServiceConnectionQuery(gatewayDownstreamLatencyQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+			query, err := p.buildServiceConnectionQuery(gatewayDownstreamLatencyDistributionQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
 			if err != nil {
-				results <- connectionQueryResult{Error: fmt.Errorf("failed to build gateway downstream latency query: %w", err), QueryType: "gateway_downstream_latency"}
+				results <- connectionQueryResult{Error: fmt.Errorf("failed to build gateway downstream latency distribution query: %w", err), QueryType: "gateway_downstream_latency_distribution"}
 				return
 			}
 
-			p.logger.Debug("executing gateway downstream latency query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+			p.logger.Debug("executing gateway downstream latency distribution query", "query", query, "service", serviceName, "namespace", serviceNamespace)
 			resp, err := p.client.query(queryCtx, query)
 			if err != nil {
-				results <- connectionQueryResult{Error: err, QueryType: "gateway_downstream_latency"}
+				results <- connectionQueryResult{Error: err, QueryType: "gateway_downstream_latency_distribution"}
 				return
 			}
 
-			processedMetrics := p.processDownstreamLatencyResponse(resp, timestamp, serviceName)
-			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "gateway_downstream_latency"}
+			processedMetrics := p.processDownstreamLatencyDistributionResponse(resp, timestamp, serviceName)
+			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "gateway_downstream_latency_distribution"}
 		}()
 	}
 
@@ -389,7 +389,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	// Collect and merge results
 	allRequestPairs := make(map[string]*metrics.ServicePairMetrics)
 	allErrorPairs := make(map[string]*metrics.ServicePairMetrics)
-	allLatencyPairs := make(map[string]*metrics.ServicePairMetrics)
+	allDistributionPairs := make(map[string]*metrics.ServicePairMetrics)
 
 	for result := range results {
 		if result.Error != nil {
@@ -402,35 +402,35 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 			continue
 		}
 
-		// Merge the processed metrics based on type
-		switch result.ProcessedMetrics.MetricType {
-		case "request_rate":
+		// Merge the processed metrics based on query type
+		switch result.QueryType {
+		case "inbound_request_rate", "outbound_request_rate":
 			for key, pair := range result.ProcessedMetrics.PairData {
 				allRequestPairs[key] = pair
 			}
-		case "error_rate":
+		case "inbound_error_rate", "outbound_error_rate":
 			for key, pair := range result.ProcessedMetrics.PairData {
 				allErrorPairs[key] = pair
 			}
-		case "latency_p99":
+		case "inbound_latency_distribution", "outbound_latency_distribution":
 			for key, pair := range result.ProcessedMetrics.PairData {
-				allLatencyPairs[key] = pair
+				allDistributionPairs[key] = pair
 			}
 		case "gateway_downstream_request_rate":
 			// Merge downstream request rate into the request pairs
 			for key, pair := range result.ProcessedMetrics.PairData {
 				allRequestPairs[key] = pair
 			}
-		case "gateway_downstream_latency":
-			// Merge downstream latency into the latency pairs
+		case "gateway_downstream_latency_distribution":
+			// Merge downstream latency distribution into the distribution pairs
 			for key, pair := range result.ProcessedMetrics.PairData {
-				allLatencyPairs[key] = pair
+				allDistributionPairs[key] = pair
 			}
 		}
 	}
 
-	// Merge request, error, and latency data
-	mergedPairs := p.mergePairMaps(allRequestPairs, allErrorPairs, allLatencyPairs)
+	// Merge request, error, and distribution data
+	mergedPairs := p.mergePairMapsWithDistributions(allRequestPairs, allErrorPairs, allDistributionPairs)
 
 	// Convert to slice
 	var pairs []metrics.ServicePairMetrics
@@ -444,7 +444,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 		"total_pairs", len(pairs),
 		"request_pairs", len(allRequestPairs),
 		"error_pairs", len(allErrorPairs),
-		"latency_pairs", len(allLatencyPairs))
+		"distribution_pairs", len(allDistributionPairs))
 
 	return &metrics.ServiceGraphMetrics{
 		Pairs: pairs,
