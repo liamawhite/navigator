@@ -194,8 +194,6 @@ Istio disables most Envoy stats by default for performance reasons. To see inbou
 ```yaml
 podAnnotations:
   sidecar.istio.io/statsInclusionRegexps: ".*downstream_rq_(total|4xx|5xx|time).*"
-  # Allow downstream histogram buckets for P99 calculation, exclude other buckets
-  sidecar.istio.io/statsExclusionRegexps: ".*_bucket(?!.*downstream_rq_time_bucket).*"
 ```
 
 This enables comprehensive gateway inbound metrics including:

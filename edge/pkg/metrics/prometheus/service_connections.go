@@ -88,6 +88,28 @@ sum by (
 sum by (pod, namespace, le)(
   rate(envoy_http_downstream_rq_time_bucket{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
 )`))
+
+	// Sum metric query templates for accurate sum calculation
+	inboundLatencySumQueryTemplate = template.Must(template.New("inboundLatencySum").Parse(`
+sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service
+)(
+  rate(istio_request_duration_milliseconds_sum{reporter="destination", destination_canonical_service="{{.ServiceName}}", destination_service_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+)`))
+
+	outboundLatencySumQueryTemplate = template.Must(template.New("outboundLatencySum").Parse(`
+sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service
+)(
+  rate(istio_request_duration_milliseconds_sum{reporter="source", source_canonical_service="{{.ServiceName}}", source_workload_namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+)`))
+
+	gatewayDownstreamLatencySumQueryTemplate = template.Must(template.New("gatewayDownstreamLatencySum").Parse(`
+sum by (pod, namespace)(
+  rate(envoy_http_downstream_rq_time_sum{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
+)`))
 )
 
 // serviceConnectionsQueryTemplateData holds the data for service-specific query templates
@@ -287,6 +309,35 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 			processedMetrics := p.processLatencyDistributionResponse(resp, timestamp)
 			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "inbound_latency_distribution"}
 		}()
+		// Inbound latency sum query (skip for gateways - they use downstream metrics)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Check for cancellation before starting work
+			select {
+			case <-queryCtx.Done():
+				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "inbound_latency_sum"}
+				return
+			default:
+			}
+
+			query, err := p.buildServiceConnectionQuery(inboundLatencySumQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+			if err != nil {
+				results <- connectionQueryResult{Error: fmt.Errorf("failed to build inbound latency sum query: %w", err), QueryType: "inbound_latency_sum"}
+				return
+			}
+
+			p.logger.Debug("executing inbound latency sum query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+			resp, err := p.client.query(queryCtx, query)
+			if err != nil {
+				results <- connectionQueryResult{Error: err, QueryType: "inbound_latency_sum"}
+				return
+			}
+
+			processedMetrics := p.processLatencySumResponse(resp, timestamp)
+			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "inbound_latency_sum"}
+		}()
 	}
 
 	// Outbound latency distribution query
@@ -317,6 +368,36 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 
 		processedMetrics := p.processLatencyDistributionResponse(resp, timestamp)
 		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_latency_distribution"}
+	}()
+
+	// Outbound latency sum query
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// Check for cancellation before starting work
+		select {
+		case <-queryCtx.Done():
+			results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "outbound_latency_sum"}
+			return
+		default:
+		}
+
+		query, err := p.buildServiceConnectionQuery(outboundLatencySumQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+		if err != nil {
+			results <- connectionQueryResult{Error: fmt.Errorf("failed to build outbound latency sum query: %w", err), QueryType: "outbound_latency_sum"}
+			return
+		}
+
+		p.logger.Debug("executing outbound latency sum query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+		resp, err := p.client.query(queryCtx, query)
+		if err != nil {
+			results <- connectionQueryResult{Error: err, QueryType: "outbound_latency_sum"}
+			return
+		}
+
+		processedMetrics := p.processLatencySumResponse(resp, timestamp)
+		results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "outbound_latency_sum"}
 	}()
 
 	// Add downstream metrics queries for gateway services only
@@ -380,6 +461,36 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 			processedMetrics := p.processDownstreamLatencyDistributionResponse(resp, timestamp, serviceName)
 			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "gateway_downstream_latency_distribution"}
 		}()
+
+		// Gateway downstream latency sum query
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Check for cancellation before starting work
+			select {
+			case <-queryCtx.Done():
+				results <- connectionQueryResult{Error: queryCtx.Err(), QueryType: "gateway_downstream_latency_sum"}
+				return
+			default:
+			}
+
+			query, err := p.buildServiceConnectionQuery(gatewayDownstreamLatencySumQueryTemplate, serviceName, serviceNamespace, filters, timeRange)
+			if err != nil {
+				results <- connectionQueryResult{Error: fmt.Errorf("failed to build gateway downstream latency sum query: %w", err), QueryType: "gateway_downstream_latency_sum"}
+				return
+			}
+
+			p.logger.Debug("executing gateway downstream latency sum query", "query", query, "service", serviceName, "namespace", serviceNamespace)
+			resp, err := p.client.query(queryCtx, query)
+			if err != nil {
+				results <- connectionQueryResult{Error: err, QueryType: "gateway_downstream_latency_sum"}
+				return
+			}
+
+			processedMetrics := p.processDownstreamLatencySumResponse(resp, timestamp, serviceName)
+			results <- connectionQueryResult{ProcessedMetrics: processedMetrics, QueryType: "gateway_downstream_latency_sum"}
+		}()
 	}
 
 	// Wait for all goroutines to complete
@@ -390,6 +501,7 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 	allRequestPairs := make(map[string]*metrics.ServicePairMetrics)
 	allErrorPairs := make(map[string]*metrics.ServicePairMetrics)
 	allDistributionPairs := make(map[string]*metrics.ServicePairMetrics)
+	allSumPairs := make(map[string]*metrics.ServicePairMetrics)
 
 	for result := range results {
 		if result.Error != nil {
@@ -426,11 +538,16 @@ func (p *Provider) getServiceConnectionsInternal(ctx context.Context, serviceNam
 			for key, pair := range result.ProcessedMetrics.PairData {
 				allDistributionPairs[key] = pair
 			}
+		case "inbound_latency_sum", "outbound_latency_sum", "gateway_downstream_latency_sum":
+			// Merge latency sum data for improved histogram accuracy
+			for key, pair := range result.ProcessedMetrics.PairData {
+				allSumPairs[key] = pair
+			}
 		}
 	}
 
-	// Merge request, error, and distribution data
-	mergedPairs := p.mergePairMapsWithDistributions(allRequestPairs, allErrorPairs, allDistributionPairs)
+	// Merge request, error, distribution, and sum data
+	mergedPairs := p.mergePairMapsWithDistributionsAndSums(allRequestPairs, allErrorPairs, allDistributionPairs, allSumPairs)
 
 	// Convert to slice
 	var pairs []metrics.ServicePairMetrics

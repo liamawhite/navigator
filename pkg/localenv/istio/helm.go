@@ -456,8 +456,6 @@ func (h *HelmManager) mergeGatewayValues(userValues map[string]interface{}) map[
 		},
 		"podAnnotations": map[string]interface{}{
 			"sidecar.istio.io/statsInclusionRegexps": ".*downstream_rq_(total|4xx|5xx|time).*",
-			// Allow downstream histogram buckets for P99 calculation, exclude other buckets
-			"sidecar.istio.io/statsExclusionRegexps": ".*_bucket(?!.*downstream_rq_time_bucket).*",
 		},
 	}
 
