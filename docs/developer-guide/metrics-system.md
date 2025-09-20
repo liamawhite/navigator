@@ -135,6 +135,69 @@ sum(rate(istio_requests_total{reporter="source",response_code=~"[45].."}[5m])) b
 )
 ```
 
+#### Latency Distribution Queries
+```promql
+# Raw histogram buckets for latency distribution
+sum by (
+  source_cluster, source_workload_namespace, source_canonical_service,
+  destination_cluster, destination_service_namespace, destination_canonical_service, le
+)(
+  rate(istio_request_duration_milliseconds_bucket{/*filters*/}[5m])
+)
+```
+
+### P99 Latency Calculation Strategy
+
+Navigator implements a sophisticated approach to P99 latency calculation that balances accuracy, performance, and flexibility:
+
+#### Raw Histogram Collection
+- **Intentional Design**: Collects raw histogram bucket data from Prometheus rather than using `histogram_quantile()` directly
+- **Query Efficiency**: Reduces the number of queries to Prometheus by fetching raw distributions once
+- **Aggregation Flexibility**: Enables histogram merging at various levels (pod, service, cluster) before percentile calculation
+
+#### Distributed P99 Computation
+- **Edge-Side Calculation**: P99 values calculated at the edge when possible to distribute computational load
+- **Manager-Side Aggregation**: Raw histograms preserved for cross-cluster merging when needed
+- **Prometheus Algorithm**: Uses Prometheus's proven `promql.BucketQuantile()` algorithm for consistent results
+
+#### Implementation Details
+```go
+// Edge calculates P99 from collected histogram data
+func (p *Provider) processLatencyDistributionResponse(response model.Value) processedMetrics {
+    // ... collect raw bucket data from Prometheus ...
+    
+    // Create histogram distribution
+    distribution := &typesv1alpha1.LatencyDistribution{
+        Buckets:    histogramBuckets,
+        TotalCount: totalCount,
+        Sum:        sum,
+    }
+    
+    // Calculate P99 using Prometheus algorithm
+    var p99Ms float64
+    if calculated, err := sharedmetrics.CalculateP99(distribution); err == nil {
+        p99Ms = calculated
+    }
+    
+    // Store both P99 and raw distribution
+    sourcePair.LatencyP99 = p99Ms
+    sourcePair.LatencyDistribution = distribution
+}
+```
+
+#### Multi-Level Aggregation Support
+1. **Pod Level**: Individual pod histograms collected from Prometheus
+2. **Service Level**: Pod histograms aggregated per service pair  
+3. **Cluster Level**: Service histograms aggregated per cluster
+4. **Cross-Cluster**: Cluster histograms merged at manager for global view
+
+#### Benefits of This Approach
+- **Accuracy**: Preserves histogram fidelity for precise percentile calculation
+- **Performance**: Distributes computation load across edges
+- **Scalability**: Reduces Prometheus query load by fetching raw data once
+- **Flexibility**: Supports future percentile calculations (P50, P95) without additional queries
+- **Consistency**: Uses Prometheus's standard quantile interpolation algorithm
+
 ### Query Optimization
 
 - **Batch Queries**: Multiple metrics retrieved in single API call

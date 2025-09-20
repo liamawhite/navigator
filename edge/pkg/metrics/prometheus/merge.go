@@ -154,7 +154,14 @@ func (p *Provider) processLatencyResponse(response model.Value, timestamp time.T
 	return processedMetrics{PairData: pairMap, MetricType: "latency_p99"}
 }
 
-// processLatencyDistributionResponse processes raw histogram distribution response data
+// processLatencyDistributionResponse processes raw histogram distribution response data.
+//
+// Key design decisions:
+// 1. Collects raw histogram buckets from Prometheus instead of using histogram_quantile()
+// 2. Reduces Prometheus query load by fetching raw distributions once
+// 3. Enables histogram aggregation at multiple levels before percentile calculation
+// 4. Calculates P99 at edge to distribute computational load
+// 5. Preserves raw histogram data for potential manager-side cross-cluster aggregation
 func (p *Provider) processLatencyDistributionResponse(response model.Value, timestamp time.Time) processedMetrics {
 	pairMap := make(map[string]*metrics.ServicePairMetrics)
 
@@ -198,7 +205,7 @@ func (p *Provider) processLatencyDistributionResponse(response model.Value, time
 
 		le, err := strconv.ParseFloat(leStr, 64)
 		if err != nil {
-			p.logger.Debug("failed to parse le value", "le", leStr, "error", err)
+			p.logger.Warn("failed to parse le value", "le", leStr, "error", err)
 			continue
 		}
 
@@ -272,12 +279,17 @@ func (p *Provider) processLatencyDistributionResponse(response model.Value, time
 			Sum:        sum,
 		}
 
-		// Calculate P99 from distribution
+		// Calculate P99 from distribution using Prometheus's quantile algorithm.
+		// This is done at the edge to distribute computational load while preserving
+		// the raw histogram for potential cross-cluster aggregation at the manager.
 		var p99Ms float64
 		if calculated, err := sharedmetrics.CalculateP99(distribution); err == nil {
 			p99Ms = calculated
 		}
 
+		// Store both calculated P99 and raw distribution for flexibility:
+		// - P99 for immediate use and API responses
+		// - Raw distribution for manager-side histogram merging across clusters
 		sourcePair.LatencyP99 = p99Ms
 		sourcePair.LatencyDistribution = distribution
 
@@ -328,7 +340,7 @@ func (p *Provider) processDownstreamLatencyDistributionResponse(response model.V
 
 		le, err := strconv.ParseFloat(leStr, 64)
 		if err != nil {
-			p.logger.Debug("failed to parse le value", "le", leStr, "error", err)
+			p.logger.Warn("failed to parse le value", "le", leStr, "error", err)
 			continue
 		}
 

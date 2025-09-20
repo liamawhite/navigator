@@ -25,7 +25,12 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-// CalculateQuantile calculates a quantile from a histogram distribution using Prometheus's algorithm
+// CalculateQuantile calculates a quantile from a histogram distribution using Prometheus's algorithm.
+//
+// Design rationale: Navigator uses Prometheus's proven quantile calculation to ensure consistent
+// results across the system. This approach enables histogram aggregation at multiple levels
+// (pod, service, cluster) before percentile calculation, providing flexibility for cross-cluster
+// metrics while maintaining accuracy.
 func CalculateQuantile(q float64, dist *typesv1alpha1.LatencyDistribution) (float64, error) {
 	if dist == nil || len(dist.Buckets) == 0 {
 		return math.NaN(), fmt.Errorf("empty distribution")
@@ -129,7 +134,11 @@ func convertToPrometheusBuckets(dist *typesv1alpha1.LatencyDistribution) (promql
 	return buckets, nil
 }
 
-// CalculateP99 is a convenience function to calculate the 99th percentile
+// CalculateP99 is a convenience function to calculate the 99th percentile.
+//
+// This function is called at the edge after collecting raw histogram data from Prometheus,
+// enabling distributed P99 calculation to reduce manager computational load while preserving
+// raw histogram data for potential cross-cluster aggregation.
 func CalculateP99(dist *typesv1alpha1.LatencyDistribution) (float64, error) {
 	return CalculateQuantile(0.99, dist)
 }

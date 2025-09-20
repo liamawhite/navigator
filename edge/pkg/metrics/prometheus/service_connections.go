@@ -67,7 +67,15 @@ sum by (pod, namespace)(
   rate(envoy_http_downstream_rq_total{service_istio_io_canonical_name="{{.ServiceName}}", namespace="{{.ServiceNamespace}}"{{.FilterClause}}}[{{.TimeRange}}])
 )`))
 
-	// Raw histogram distribution templates (without histogram_quantile calculation)
+	// Raw histogram distribution templates (without histogram_quantile calculation).
+	//
+	// Design rationale: Navigator intentionally fetches raw histogram bucket data instead of
+	// using Prometheus's histogram_quantile() function for several key reasons:
+	// 1. Query efficiency: Reduces queries to Prometheus by fetching raw data once
+	// 2. Aggregation flexibility: Enables histogram merging at pod/service/cluster levels
+	// 3. Distributed computation: Allows P99 calculation at edges to reduce manager load
+	// 4. Cross-cluster support: Preserves raw histograms for manager-side aggregation
+	// 5. Algorithm consistency: Uses Prometheus's quantile algorithm for accurate results
 	inboundLatencyDistributionQueryTemplate = template.Must(template.New("inboundLatencyDistribution").Parse(`
 sum by (
   source_cluster, source_workload_namespace, source_canonical_service,
