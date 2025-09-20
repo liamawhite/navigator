@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { v1alpha1LatencyDistribution } from './v1alpha1LatencyDistribution';
 /**
  * ServicePairMetrics represents metrics between a source and destination service.
  */
@@ -42,5 +43,10 @@ export type v1alpha1ServicePairMetrics = {
      * latency_p99 is the 99th percentile latency.
      */
     latencyP99?: string;
+    /**
+     * latency_distribution contains the raw histogram distribution for latency.
+     * This enables aggregation and percentile calculation at different levels.
+     */
+    latencyDistribution?: v1alpha1LatencyDistribution;
 };
 

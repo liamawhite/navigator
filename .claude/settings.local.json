@@ -61,7 +61,8 @@
       "Bash(npm run test:coverage:*)",
       "Bash(npm test:*)",
       "WebFetch(domain:pkg.go.dev)",
-      "mcp__playwright__browser_resize"
+      "mcp__playwright__browser_resize",
+      "Bash(bin/navctl local:*)"
     ],
     "deny": []
   },

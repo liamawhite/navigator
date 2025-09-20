@@ -125,8 +125,14 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 
 			if serviceConnectionsMetrics != nil && len(serviceConnectionsMetrics.Pairs) > 0 {
 				// Convert from metrics.ServiceGraphMetrics to []*typesv1alpha1.ServicePairMetrics
+				// P99 is now calculated by the edge service, so we just pass it through
 				var pairs []*typesv1alpha1.ServicePairMetrics
 				for _, pair := range serviceConnectionsMetrics.Pairs {
+					var distBuckets int
+					if pair.LatencyDistribution != nil {
+						distBuckets = len(pair.LatencyDistribution.Buckets)
+					}
+					m.logger.Debug("manager received pair from edge", "cluster", cID, "source", pair.SourceService, "dest", pair.DestinationService, "has_distribution", pair.LatencyDistribution != nil, "dist_buckets", distBuckets, "p99", pair.LatencyP99)
 					pairs = append(pairs, &typesv1alpha1.ServicePairMetrics{
 						SourceCluster:        pair.SourceCluster,
 						SourceNamespace:      pair.SourceNamespace,
@@ -136,7 +142,8 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 						DestinationService:   pair.DestinationService,
 						ErrorRate:            pair.ErrorRate,
 						RequestRate:          pair.RequestRate,
-						LatencyP99:           pair.LatencyP99,
+						LatencyP99:           pair.LatencyP99, // Calculated by edge
+						LatencyDistribution:  pair.LatencyDistribution,
 					})
 				}
 				results <- clusterResult{clusterID: cID, pairs: pairs}

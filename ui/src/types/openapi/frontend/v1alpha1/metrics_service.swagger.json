@@ -134,6 +134,46 @@
       },
       "description": "GetServiceConnectionsResponse contains inbound and outbound service connections."
     },
+    "v1alpha1HistogramBucket": {
+      "type": "object",
+      "properties": {
+        "le": {
+          "type": "number",
+          "format": "double",
+          "description": "le is the upper bound of the bucket (less-than-or-equal-to)."
+        },
+        "count": {
+          "type": "number",
+          "format": "double",
+          "description": "count is the cumulative count of observations in this bucket."
+        }
+      },
+      "description": "HistogramBucket represents a single bucket in a histogram distribution."
+    },
+    "v1alpha1LatencyDistribution": {
+      "type": "object",
+      "properties": {
+        "buckets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1HistogramBucket"
+          },
+          "description": "buckets contains the histogram buckets sorted by upper bound."
+        },
+        "totalCount": {
+          "type": "number",
+          "format": "double",
+          "description": "total_count is the total number of observations across all buckets."
+        },
+        "sum": {
+          "type": "number",
+          "format": "double",
+          "description": "sum is the sum of all observed values."
+        }
+      },
+      "description": "LatencyDistribution represents a histogram distribution of latency measurements."
+    },
     "v1alpha1ServicePairMetrics": {
       "type": "object",
       "properties": {
@@ -174,6 +214,10 @@
         "latencyP99": {
           "type": "string",
           "description": "latency_p99 is the 99th percentile latency."
+        },
+        "latencyDistribution": {
+          "$ref": "#/definitions/v1alpha1LatencyDistribution",
+          "description": "latency_distribution contains the raw histogram distribution for latency.\nThis enables aggregation and percentile calculation at different levels."
         }
       },
       "description": "ServicePairMetrics represents metrics between a source and destination service."
