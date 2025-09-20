@@ -16,6 +16,8 @@ package metrics
 
 import (
 	"time"
+
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 )
 
 // MeshMetricsFilters represents filters for service mesh metrics queries
@@ -32,16 +34,17 @@ type MeshMetricsQuery struct {
 
 // ServicePairMetrics represents metrics between a source and destination service
 type ServicePairMetrics struct {
-	SourceCluster        string    `json:"source_cluster"`
-	SourceNamespace      string    `json:"source_namespace"`
-	SourceService        string    `json:"source_service"`
-	DestinationCluster   string    `json:"destination_cluster"`
-	DestinationNamespace string    `json:"destination_namespace"`
-	DestinationService   string    `json:"destination_service"`
-	ErrorRate            float64   `json:"error_rate"`   // requests per second
-	RequestRate          float64   `json:"request_rate"` // requests per second
-	LatencyP99           float64   `json:"latency_p99"`  // 99th percentile latency in milliseconds
-	Timestamp            time.Time `json:"timestamp"`
+	SourceCluster        string                             `json:"source_cluster"`
+	SourceNamespace      string                             `json:"source_namespace"`
+	SourceService        string                             `json:"source_service"`
+	DestinationCluster   string                             `json:"destination_cluster"`
+	DestinationNamespace string                             `json:"destination_namespace"`
+	DestinationService   string                             `json:"destination_service"`
+	ErrorRate            float64                            `json:"error_rate"`           // requests per second
+	RequestRate          float64                            `json:"request_rate"`         // requests per second
+	LatencyP99           float64                            `json:"latency_p99"`          // 99th percentile latency in milliseconds (deprecated - calculated by manager)
+	LatencyDistribution  *typesv1alpha1.LatencyDistribution `json:"latency_distribution"` // Raw histogram distribution for manager-side calculation
+	Timestamp            time.Time                          `json:"timestamp"`
 }
 
 // ServiceGraphMetrics contains service graph metrics for a cluster

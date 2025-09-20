@@ -120,6 +120,7 @@ func (p *Provider) GetServiceConnections(ctx context.Context, serviceName, names
 			RequestRate:          pair.RequestRate,
 			ErrorRate:            pair.ErrorRate,
 			LatencyP99:           durationpb.New(time.Duration(pair.LatencyP99 * float64(time.Millisecond))),
+			LatencyDistribution:  pair.LatencyDistribution,
 		})
 	}
 

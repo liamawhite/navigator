@@ -10,6 +10,8 @@ export type { OpenAPIConfig } from './core/OpenAPI';
 export type { protobufAny } from './models/protobufAny';
 export type { rpcStatus } from './models/rpcStatus';
 export type { v1alpha1GetServiceConnectionsResponse } from './models/v1alpha1GetServiceConnectionsResponse';
+export type { v1alpha1HistogramBucket } from './models/v1alpha1HistogramBucket';
+export type { v1alpha1LatencyDistribution } from './models/v1alpha1LatencyDistribution';
 export type { v1alpha1ServicePairMetrics } from './models/v1alpha1ServicePairMetrics';
 
 export { MetricsServiceService } from './services/MetricsServiceService';

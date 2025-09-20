@@ -20,6 +20,27 @@ import "google/protobuf/duration.proto";
 
 option go_package = "github.com/liamawhite/navigator/pkg/api/types/v1alpha1";
 
+// HistogramBucket represents a single bucket in a histogram distribution.
+message HistogramBucket {
+  // le is the upper bound of the bucket (less-than-or-equal-to).
+  double le = 1;
+  
+  // count is the cumulative count of observations in this bucket.
+  double count = 2;
+}
+
+// LatencyDistribution represents a histogram distribution of latency measurements.
+message LatencyDistribution {
+  // buckets contains the histogram buckets sorted by upper bound.
+  repeated HistogramBucket buckets = 1;
+  
+  // total_count is the total number of observations across all buckets.
+  double total_count = 2;
+  
+  // sum is the sum of all observed values.
+  double sum = 3;
+}
+
 // ServicePairMetrics represents metrics between a source and destination service.
 message ServicePairMetrics {
   // source_cluster is the cluster name of the source service.
@@ -48,6 +69,10 @@ message ServicePairMetrics {
   
   // latency_p99 is the 99th percentile latency.
   google.protobuf.Duration latency_p99 = 9;
+  
+  // latency_distribution contains the raw histogram distribution for latency.
+  // This enables aggregation and percentile calculation at different levels.
+  LatencyDistribution latency_distribution = 10;
 }
 
 // GraphMetricsFilters specify filters for service graph metrics queries.

@@ -16,9 +16,14 @@ package prometheus
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/liamawhite/navigator/edge/pkg/metrics"
+	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	sharedmetrics "github.com/liamawhite/navigator/pkg/metrics"
 	"github.com/prometheus/common/model"
 )
 
@@ -149,6 +154,371 @@ func (p *Provider) processLatencyResponse(response model.Value, timestamp time.T
 	return processedMetrics{PairData: pairMap, MetricType: "latency_p99"}
 }
 
+// processLatencyDistributionResponse processes raw histogram distribution response data
+func (p *Provider) processLatencyDistributionResponse(response model.Value, timestamp time.Time) processedMetrics {
+	pairMap := make(map[string]*metrics.ServicePairMetrics)
+
+	if response == nil {
+		return processedMetrics{PairData: pairMap, MetricType: "latency_distribution"}
+	}
+
+	distributionVector, ok := response.(model.Vector)
+	if !ok {
+		return processedMetrics{
+			Error:      fmt.Errorf("expected Vector result for latency distribution, got %T", response),
+			MetricType: "latency_distribution",
+		}
+	}
+
+	// Build lookup map for O(1) source pair metadata access
+	sampleLookup := make(map[string]*model.Sample)
+	for _, sample := range distributionVector {
+		key := p.createPairKey(sample.Metric)
+		if key != "" && sampleLookup[key] == nil {
+			sampleLookup[key] = sample
+		}
+	}
+
+	// Group buckets by service pair
+	pairBuckets := make(map[string]map[float64]float64) // pairKey -> (le -> count)
+	pairTotalCount := make(map[string]float64)          // pairKey -> total count
+
+	for _, sample := range distributionVector {
+		key := p.createPairKey(sample.Metric)
+		if key == "" {
+			continue
+		}
+
+		// Get le (less-than-or-equal) value from the bucket
+		leStr := p.getStringValue(sample.Metric, "le")
+		if leStr == "" || leStr == "+Inf" {
+			// Skip +Inf bucket for now, we'll calculate total count separately
+			continue
+		}
+
+		le, err := strconv.ParseFloat(leStr, 64)
+		if err != nil {
+			p.logger.Warn("failed to parse histogram bucket le value - possible data corruption", "le", leStr, "error", err)
+			continue
+		}
+
+		if pairBuckets[key] == nil {
+			pairBuckets[key] = make(map[float64]float64)
+		}
+
+		count := float64(sample.Value)
+		pairBuckets[key][le] = count
+
+		// Keep track of highest bucket count as total count approximation
+		if count > pairTotalCount[key] {
+			pairTotalCount[key] = count
+		}
+	}
+
+	// Convert to ServicePairMetrics with distributions
+	for pairKey, buckets := range pairBuckets {
+		// Create sorted buckets
+		var histogramBuckets []*typesv1alpha1.HistogramBucket
+		var les []float64
+		for le := range buckets {
+			les = append(les, le)
+		}
+		sort.Float64s(les)
+
+		for _, le := range les {
+			histogramBuckets = append(histogramBuckets, &typesv1alpha1.HistogramBucket{
+				Le:    le,
+				Count: buckets[le],
+			})
+		}
+
+		// Extract service pair info using O(1) lookup
+		sourceSample := sampleLookup[pairKey]
+		if sourceSample == nil {
+			continue
+		}
+
+		sourcePair := &metrics.ServicePairMetrics{
+			SourceCluster:        p.getStringValue(sourceSample.Metric, "source_cluster"),
+			SourceNamespace:      p.getStringValue(sourceSample.Metric, "source_workload_namespace"),
+			SourceService:        p.getStringValue(sourceSample.Metric, "source_canonical_service"),
+			DestinationCluster:   p.getStringValue(sourceSample.Metric, "destination_cluster"),
+			DestinationNamespace: p.getStringValue(sourceSample.Metric, "destination_service_namespace"),
+			DestinationService:   p.getStringValue(sourceSample.Metric, "destination_canonical_service"),
+		}
+
+		// Calculate sum as approximation (we don't have exact sum from rate queries)
+		// This is an approximation based on bucket midpoints
+		var sum float64
+		for i, bucket := range histogramBuckets {
+			var lowerBound float64
+			if i > 0 {
+				lowerBound = histogramBuckets[i-1].Le
+			}
+			midpoint := (lowerBound + bucket.Le) / 2
+			if i == 0 {
+				sum += midpoint * bucket.Count
+			} else {
+				// Calculate count for this bucket (difference from cumulative)
+				bucketCount := bucket.Count - histogramBuckets[i-1].Count
+				sum += midpoint * bucketCount
+			}
+		}
+
+		// Create the distribution
+		distribution := &typesv1alpha1.LatencyDistribution{
+			Buckets:    histogramBuckets,
+			TotalCount: pairTotalCount[pairKey],
+			Sum:        sum,
+		}
+
+		// Calculate P99 from distribution
+		var p99Ms float64
+		if calculated, err := sharedmetrics.CalculateP99(distribution); err == nil {
+			p99Ms = calculated
+		}
+
+		sourcePair.LatencyP99 = p99Ms
+		sourcePair.LatencyDistribution = distribution
+
+		pairMap[pairKey] = sourcePair
+	}
+
+	return processedMetrics{PairData: pairMap, MetricType: "latency_distribution"}
+}
+
+// processDownstreamLatencyDistributionResponse processes downstream latency distribution for gateways
+func (p *Provider) processDownstreamLatencyDistributionResponse(response model.Value, timestamp time.Time, serviceName string) processedMetrics {
+	pairMap := make(map[string]*metrics.ServicePairMetrics)
+
+	if response == nil {
+		p.logger.Debug("downstream latency distribution response is nil", "service_name", serviceName)
+		return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency_distribution"}
+	}
+
+	distributionVector, ok := response.(model.Vector)
+	if !ok {
+		p.logger.Debug("downstream latency distribution response wrong type", "service_name", serviceName, "type", fmt.Sprintf("%T", response))
+		return processedMetrics{
+			Error:      fmt.Errorf("expected Vector result for downstream latency distribution, got %T", response),
+			MetricType: "gateway_downstream_latency_distribution",
+		}
+	}
+
+	p.logger.Debug("processing downstream latency distribution", "service_name", serviceName, "samples_count", len(distributionVector))
+
+	// Group buckets by pod/namespace combination
+	podBuckets := make(map[string]map[float64]float64) // podKey -> (le -> count)
+	podTotalCount := make(map[string]float64)          // podKey -> total count
+
+	for _, sample := range distributionVector {
+		pod := p.getStringValue(sample.Metric, "pod")
+		namespace := p.getStringValue(sample.Metric, "namespace")
+
+		if pod == "" || namespace == "" {
+			continue
+		}
+
+		// Get le (less-than-or-equal) value from the bucket
+		leStr := p.getStringValue(sample.Metric, "le")
+		if leStr == "" || leStr == "+Inf" {
+			// Skip +Inf bucket for now
+			continue
+		}
+
+		le, err := strconv.ParseFloat(leStr, 64)
+		if err != nil {
+			p.logger.Warn("failed to parse histogram bucket le value - possible data corruption", "le", leStr, "error", err)
+			continue
+		}
+
+		podKey := fmt.Sprintf("%s:%s", namespace, pod)
+		if podBuckets[podKey] == nil {
+			podBuckets[podKey] = make(map[float64]float64)
+		}
+
+		count := float64(sample.Value)
+		podBuckets[podKey][le] = count
+
+		// Keep track of highest bucket count as total count approximation
+		if count > podTotalCount[podKey] {
+			podTotalCount[podKey] = count
+		}
+	}
+
+	// Convert to ServicePairMetrics with distributions
+	for podKey, buckets := range podBuckets {
+		// Create sorted buckets
+		var histogramBuckets []*typesv1alpha1.HistogramBucket
+		var les []float64
+		for le := range buckets {
+			les = append(les, le)
+		}
+		sort.Float64s(les)
+
+		for _, le := range les {
+			histogramBuckets = append(histogramBuckets, &typesv1alpha1.HistogramBucket{
+				Le:    le,
+				Count: buckets[le],
+			})
+		}
+
+		// Calculate sum as approximation
+		var sum float64
+		for i, bucket := range histogramBuckets {
+			var lowerBound float64
+			if i > 0 {
+				lowerBound = histogramBuckets[i-1].Le
+			}
+			midpoint := (lowerBound + bucket.Le) / 2
+			if i == 0 {
+				sum += midpoint * bucket.Count
+			} else {
+				bucketCount := bucket.Count - histogramBuckets[i-1].Count
+				sum += midpoint * bucketCount
+			}
+		}
+
+		// Create the distribution
+		distribution := &typesv1alpha1.LatencyDistribution{
+			Buckets:    histogramBuckets,
+			TotalCount: podTotalCount[podKey],
+			Sum:        sum,
+		}
+
+		// Calculate P99 from distribution
+		var p99Ms float64
+		if calculated, err := sharedmetrics.CalculateP99(distribution); err == nil {
+			p99Ms = calculated
+		}
+
+		// Create a special pair for gateway downstream metrics
+		// Use same key format as downstream request rate for proper merging
+		namespace := podKey[:strings.Index(podKey, ":")]
+		pairKey := fmt.Sprintf("unknown:->%s:%s:%s", p.clusterName, namespace, serviceName)
+
+		pair := &metrics.ServicePairMetrics{
+			SourceCluster:        "unknown",
+			SourceNamespace:      "unknown",
+			SourceService:        "unknown",
+			DestinationCluster:   p.clusterName,
+			DestinationNamespace: namespace,
+			DestinationService:   serviceName,
+			LatencyP99:           p99Ms, // Calculated from distribution
+			LatencyDistribution:  distribution,
+		}
+
+		pairMap[pairKey] = pair
+	}
+
+	p.logger.Debug("completed downstream latency distribution processing", "service_name", serviceName, "pairs_created", len(pairMap))
+	return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency_distribution"}
+}
+
+// processLatencySumResponse processes latency sum response data to improve histogram accuracy
+func (p *Provider) processLatencySumResponse(response model.Value, timestamp time.Time) processedMetrics {
+	pairMap := make(map[string]*metrics.ServicePairMetrics)
+
+	if response == nil {
+		return processedMetrics{PairData: pairMap, MetricType: "latency_sum"}
+	}
+
+	sumVector, ok := response.(model.Vector)
+	if !ok {
+		return processedMetrics{
+			Error:      fmt.Errorf("expected Vector result for latency sum, got %T", response),
+			MetricType: "latency_sum",
+		}
+	}
+
+	// Extract sum values for each service pair
+	for _, sample := range sumVector {
+		key := p.createPairKey(sample.Metric)
+		if key == "" {
+			continue
+		}
+
+		sum := float64(sample.Value)
+		if sum <= 0 {
+			continue // Skip invalid sum values
+		}
+
+		sourcePair := &metrics.ServicePairMetrics{
+			SourceCluster:        p.getStringValue(sample.Metric, "source_cluster"),
+			SourceNamespace:      p.getStringValue(sample.Metric, "source_workload_namespace"),
+			SourceService:        p.getStringValue(sample.Metric, "source_canonical_service"),
+			DestinationCluster:   p.getStringValue(sample.Metric, "destination_cluster"),
+			DestinationNamespace: p.getStringValue(sample.Metric, "destination_service_namespace"),
+			DestinationService:   p.getStringValue(sample.Metric, "destination_canonical_service"),
+		}
+
+		// Store the accurate sum for later use in improving histogram accuracy
+		// We'll use this to replace the midpoint approximation when merging
+		sourcePair.LatencyDistribution = &typesv1alpha1.LatencyDistribution{
+			Sum: sum, // Store the accurate sum from _sum metric
+		}
+
+		pairMap[key] = sourcePair
+	}
+
+	return processedMetrics{PairData: pairMap, MetricType: "latency_sum"}
+}
+
+// processDownstreamLatencySumResponse processes downstream latency sum for gateways to improve histogram accuracy
+func (p *Provider) processDownstreamLatencySumResponse(response model.Value, timestamp time.Time, serviceName string) processedMetrics {
+	pairMap := make(map[string]*metrics.ServicePairMetrics)
+
+	if response == nil {
+		p.logger.Debug("downstream latency sum response is nil", "service_name", serviceName)
+		return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency_sum"}
+	}
+
+	sumVector, ok := response.(model.Vector)
+	if !ok {
+		p.logger.Debug("downstream latency sum response wrong type", "service_name", serviceName, "type", fmt.Sprintf("%T", response))
+		return processedMetrics{
+			Error:      fmt.Errorf("expected Vector result for downstream latency sum, got %T", response),
+			MetricType: "gateway_downstream_latency_sum",
+		}
+	}
+
+	p.logger.Debug("processing downstream latency sum", "service_name", serviceName, "samples_count", len(sumVector))
+
+	// Extract sum values for gateway downstream pairs
+	for _, sample := range sumVector {
+		// Generate consistent pair key for gateway downstream
+		namespace := p.getStringValue(sample.Metric, "namespace")
+		pod := p.getStringValue(sample.Metric, "pod")
+
+		pairKey := fmt.Sprintf("%s-%s-%s-gateway", p.clusterName, namespace, serviceName)
+		p.logger.Debug("creating downstream latency sum pair", "service_name", serviceName, "pair_key", pairKey, "namespace", namespace, "pod", pod)
+
+		sum := float64(sample.Value)
+		if sum <= 0 {
+			continue // Skip invalid sum values
+		}
+
+		pair := &metrics.ServicePairMetrics{
+			SourceCluster:        "unknown",
+			SourceNamespace:      "unknown",
+			SourceService:        "unknown",
+			DestinationCluster:   p.clusterName,
+			DestinationNamespace: namespace,
+			DestinationService:   serviceName,
+		}
+
+		// Store the accurate sum for later use in improving histogram accuracy
+		pair.LatencyDistribution = &typesv1alpha1.LatencyDistribution{
+			Sum: sum, // Store the accurate sum from _sum metric
+		}
+
+		pairMap[pairKey] = pair
+	}
+
+	p.logger.Debug("completed downstream latency sum processing", "service_name", serviceName, "pairs_created", len(pairMap))
+	return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency_sum"}
+}
+
 // mergePairMaps merges request rate, error rate, and latency data
 func (p *Provider) mergePairMaps(requestPairs, errorPairs, latencyPairs map[string]*metrics.ServicePairMetrics) map[string]*metrics.ServicePairMetrics {
 	merged := make(map[string]*metrics.ServicePairMetrics)
@@ -192,6 +562,7 @@ func (p *Provider) mergePairMaps(requestPairs, errorPairs, latencyPairs map[stri
 	for key, latencyPair := range latencyPairs {
 		if existing, exists := merged[key]; exists {
 			existing.LatencyP99 = latencyPair.LatencyP99
+			existing.LatencyDistribution = latencyPair.LatencyDistribution
 		} else {
 			// Create new pair with just latency
 			merged[key] = &metrics.ServicePairMetrics{
@@ -204,6 +575,7 @@ func (p *Provider) mergePairMaps(requestPairs, errorPairs, latencyPairs map[stri
 				RequestRate:          0.0, // Default to 0
 				ErrorRate:            0.0, // Default to 0
 				LatencyP99:           latencyPair.LatencyP99,
+				LatencyDistribution:  latencyPair.LatencyDistribution,
 			}
 		}
 	}
@@ -271,53 +643,90 @@ func (p *Provider) processDownstreamRequestRateResponse(response model.Value, ti
 	return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_request_rate"}
 }
 
-// processDownstreamLatencyResponse processes downstream latency for gateways
-func (p *Provider) processDownstreamLatencyResponse(response model.Value, timestamp time.Time, serviceName string) processedMetrics {
-	pairMap := make(map[string]*metrics.ServicePairMetrics)
+// mergePairMapsWithDistributionsAndSums merges request rate, error rate, latency distribution, and sum data for improved accuracy
+func (p *Provider) mergePairMapsWithDistributionsAndSums(requestPairs, errorPairs, distributionPairs, sumPairs map[string]*metrics.ServicePairMetrics) map[string]*metrics.ServicePairMetrics {
+	merged := make(map[string]*metrics.ServicePairMetrics)
 
-	if response == nil {
-		return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency"}
-	}
-
-	latencyVector, ok := response.(model.Vector)
-	if !ok {
-		return processedMetrics{
-			Error:      fmt.Errorf("expected Vector result for downstream latency, got %T", response),
-			MetricType: "gateway_downstream_latency",
+	// Start with request rate data
+	for key, pair := range requestPairs {
+		merged[key] = &metrics.ServicePairMetrics{
+			SourceCluster:        pair.SourceCluster,
+			SourceNamespace:      pair.SourceNamespace,
+			SourceService:        pair.SourceService,
+			DestinationCluster:   pair.DestinationCluster,
+			DestinationNamespace: pair.DestinationNamespace,
+			DestinationService:   pair.DestinationService,
+			RequestRate:          pair.RequestRate,
+			ErrorRate:            0.0,
+			LatencyP99:           0.0,
+			LatencyDistribution:  nil,
+			Timestamp:            pair.Timestamp,
 		}
 	}
 
-	for _, sample := range latencyVector {
-		pod := p.getStringValue(sample.Metric, "pod")
-		namespace := p.getStringValue(sample.Metric, "namespace")
-
-		if pod == "" || namespace == "" {
-			continue
+	// Merge error rate data
+	for key, errorPair := range errorPairs {
+		if existing, exists := merged[key]; exists {
+			existing.ErrorRate = errorPair.ErrorRate
+		} else {
+			merged[key] = &metrics.ServicePairMetrics{
+				SourceCluster:        errorPair.SourceCluster,
+				SourceNamespace:      errorPair.SourceNamespace,
+				SourceService:        errorPair.SourceService,
+				DestinationCluster:   errorPair.DestinationCluster,
+				DestinationNamespace: errorPair.DestinationNamespace,
+				DestinationService:   errorPair.DestinationService,
+				RequestRate:          0.0,
+				ErrorRate:            errorPair.ErrorRate,
+				LatencyP99:           0.0,
+				LatencyDistribution:  nil,
+				Timestamp:            errorPair.Timestamp,
+			}
 		}
-
-		// Handle NaN values
-		latencyMs := float64(sample.Value)
-		if latencyMs != latencyMs { // Check for NaN
-			latencyMs = 0.0
-		}
-
-		// Create a special pair for gateway downstream metrics
-		key := fmt.Sprintf("unknown:->%s:%s:%s", p.clusterName, namespace, serviceName)
-
-		pair := &metrics.ServicePairMetrics{
-			SourceCluster:        "unknown",
-			SourceNamespace:      "unknown",
-			SourceService:        "unknown",
-			DestinationCluster:   p.clusterName,
-			DestinationNamespace: namespace,
-			DestinationService:   serviceName, // Use service name instead of pod name
-			LatencyP99:           latencyMs,
-		}
-
-		pairMap[key] = pair
 	}
 
-	return processedMetrics{PairData: pairMap, MetricType: "gateway_downstream_latency"}
+	// Merge distribution data with sum accuracy improvement
+	for key, distributionPair := range distributionPairs {
+		// Check if we have accurate sum data for this pair
+		sumPair := sumPairs[key]
+
+		// Create or update the distribution with improved accuracy
+		distribution := distributionPair.LatencyDistribution
+		if distribution != nil && sumPair != nil && sumPair.LatencyDistribution != nil {
+			// Use accurate sum from _sum metric instead of approximation
+			distribution.Sum = sumPair.LatencyDistribution.Sum
+			p.logger.Debug("improved histogram accuracy with _sum metric", "pair_key", key, "accurate_sum", distribution.Sum)
+		}
+
+		// Calculate P99 using the (potentially improved) distribution
+		var p99Ms float64
+		if distribution != nil {
+			if p99, err := sharedmetrics.CalculateP99(distribution); err == nil {
+				p99Ms = p99
+			}
+		}
+
+		if existing, exists := merged[key]; exists {
+			existing.LatencyP99 = p99Ms
+			existing.LatencyDistribution = distribution
+		} else {
+			merged[key] = &metrics.ServicePairMetrics{
+				SourceCluster:        distributionPair.SourceCluster,
+				SourceNamespace:      distributionPair.SourceNamespace,
+				SourceService:        distributionPair.SourceService,
+				DestinationCluster:   distributionPair.DestinationCluster,
+				DestinationNamespace: distributionPair.DestinationNamespace,
+				DestinationService:   distributionPair.DestinationService,
+				RequestRate:          0.0,
+				ErrorRate:            0.0,
+				LatencyP99:           p99Ms,
+				LatencyDistribution:  distribution,
+				Timestamp:            distributionPair.Timestamp,
+			}
+		}
+	}
+
+	return merged
 }
 
 // getStringValue safely extracts string values from Prometheus metric labels

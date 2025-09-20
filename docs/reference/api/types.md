@@ -27,6 +27,8 @@
   
 - [types/v1alpha1/metrics_types.proto](#types_v1alpha1_metrics_types-proto)
     - [GraphMetricsFilters](#navigator-types-v1alpha1-GraphMetricsFilters)
+    - [HistogramBucket](#navigator-types-v1alpha1-HistogramBucket)
+    - [LatencyDistribution](#navigator-types-v1alpha1-LatencyDistribution)
     - [ServiceGraphMetrics](#navigator-types-v1alpha1-ServiceGraphMetrics)
     - [ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics)
   
@@ -445,6 +447,39 @@ GraphMetricsFilters specify filters for service graph metrics queries.
 
 
 
+<a name="navigator-types-v1alpha1-HistogramBucket"></a>
+
+### HistogramBucket
+HistogramBucket represents a single bucket in a histogram distribution.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| le | [double](#double) |  | le is the upper bound of the bucket (less-than-or-equal-to). |
+| count | [double](#double) |  | count is the cumulative count of observations in this bucket. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-LatencyDistribution"></a>
+
+### LatencyDistribution
+LatencyDistribution represents a histogram distribution of latency measurements.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| buckets | [HistogramBucket](#navigator-types-v1alpha1-HistogramBucket) | repeated | buckets contains the histogram buckets sorted by upper bound. |
+| total_count | [double](#double) |  | total_count is the total number of observations across all buckets. |
+| sum | [double](#double) |  | sum is the sum of all observed values. |
+
+
+
+
+
+
 <a name="navigator-types-v1alpha1-ServiceGraphMetrics"></a>
 
 ### ServiceGraphMetrics
@@ -479,6 +514,7 @@ ServicePairMetrics represents metrics between a source and destination service.
 | error_rate | [double](#double) |  | error_rate is the error rate in requests per second. |
 | request_rate | [double](#double) |  | request_rate is the request rate in requests per second. |
 | latency_p99 | [google.protobuf.Duration](#google-protobuf-Duration) |  | latency_p99 is the 99th percentile latency. |
+| latency_distribution | [LatencyDistribution](#navigator-types-v1alpha1-LatencyDistribution) |  | latency_distribution contains the raw histogram distribution for latency. This enables aggregation and percentile calculation at different levels. |
 
 
 
