@@ -227,7 +227,11 @@ export const ServiceConnectionsTable: React.FC<
                     const latencyP99 = conn.latencyP99;
                     const successRate =
                         requestRate > 0
-                            ? Math.max(0, ((requestRate - errorRate) / requestRate) * 100)
+                            ? Math.max(
+                                  0,
+                                  ((requestRate - errorRate) / requestRate) *
+                                      100
+                              )
                             : 100;
 
                     return {

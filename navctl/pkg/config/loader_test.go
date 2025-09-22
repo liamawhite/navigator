@@ -31,9 +31,7 @@ manager:
   host: testhost
   port: 9090
 edges:
-  - name: test-edge
-    clusterId: test-cluster
-    context: test-context
+  - context: test-context
     metrics:
       type: prometheus
       endpoint: http://prometheus:9090
@@ -49,8 +47,7 @@ edges:
 	assert.Equal(t, "testhost", config.Manager.Host)
 	assert.Equal(t, 9090, config.Manager.Port)
 	assert.Len(t, config.Edges, 1)
-	assert.Equal(t, "test-edge", config.Edges[0].Name)
-	assert.Equal(t, "test-cluster", config.Edges[0].ClusterID)
+	// Name and ClusterID fields removed - auto-discovery from Istio
 	assert.Equal(t, "test-context", config.Edges[0].Context)
 	assert.Equal(t, "prometheus", config.Edges[0].Metrics.Type)
 	assert.Equal(t, "http://prometheus:9090", config.Edges[0].Metrics.Endpoint)
@@ -89,7 +86,7 @@ func TestParseConfig_JSON(t *testing.T) {
 	assert.Equal(t, "testhost", config.Manager.Host)
 	assert.Equal(t, 9090, config.Manager.Port)
 	assert.Len(t, config.Edges, 1)
-	assert.Equal(t, "test-edge", config.Edges[0].Name)
+	// Name field removed - auto-discovery from Istio
 }
 
 func TestApplyDefaultsAndValidate(t *testing.T) {
@@ -104,62 +101,30 @@ func TestApplyDefaultsAndValidate(t *testing.T) {
 			config: &Config{
 				Edges: []EdgeConfig{
 					{
-						Name:      "test-edge",
-						ClusterID: "test-cluster",
+						// Name and ClusterID removed - auto-discovery from Istio
 					},
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "missing edge name",
+			name: "edge with no fields (valid - auto-discovery)",
 			config: &Config{
 				Edges: []EdgeConfig{
 					{
-						ClusterID: "test-cluster",
+						// Name and ClusterID auto-discovered from Istio
 					},
 				},
 			},
-			wantErr:     true,
-			errContains: "name is required",
-		},
-		{
-			name: "missing cluster ID",
-			config: &Config{
-				Edges: []EdgeConfig{
-					{
-						Name: "test-edge",
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "clusterId is required",
-		},
-		{
-			name: "duplicate edge names",
-			config: &Config{
-				Edges: []EdgeConfig{
-					{
-						Name:      "duplicate",
-						ClusterID: "cluster1",
-					},
-					{
-						Name:      "duplicate",
-						ClusterID: "cluster2",
-					},
-				},
-			},
-			wantErr:     true,
-			errContains: "duplicate edge name",
+			wantErr: false,
 		},
 		{
 			name: "invalid log level",
 			config: &Config{
 				Edges: []EdgeConfig{
 					{
-						Name:      "test-edge",
-						ClusterID: "test-cluster",
-						LogLevel:  "invalid",
+						// Name and ClusterID removed - auto-discovery from Istio
+						LogLevel: "invalid",
 					},
 				},
 			},
@@ -171,8 +136,7 @@ func TestApplyDefaultsAndValidate(t *testing.T) {
 			config: &Config{
 				Edges: []EdgeConfig{
 					{
-						Name:      "test-edge",
-						ClusterID: "test-cluster",
+						// Name and ClusterID removed - auto-discovery from Istio
 						LogFormat: "invalid",
 					},
 				},
@@ -185,8 +149,7 @@ func TestApplyDefaultsAndValidate(t *testing.T) {
 			config: &Config{
 				Edges: []EdgeConfig{
 					{
-						Name:      "test-edge",
-						ClusterID: "test-cluster",
+						// Name and ClusterID removed - auto-discovery from Istio
 						Metrics: &MetricsConfig{
 							Type: "prometheus",
 						},
@@ -201,8 +164,7 @@ func TestApplyDefaultsAndValidate(t *testing.T) {
 			config: &Config{
 				Edges: []EdgeConfig{
 					{
-						Name:      "test-edge",
-						ClusterID: "test-cluster",
+						// Name and ClusterID removed - auto-discovery from Istio
 						Metrics: &MetricsConfig{
 							Type:     "prometheus",
 							Endpoint: "http://prometheus:9090",
@@ -224,8 +186,7 @@ func TestApplyDefaultsAndValidate(t *testing.T) {
 			config: &Config{
 				Edges: []EdgeConfig{
 					{
-						Name:      "test-edge",
-						ClusterID: "test-cluster",
+						// Name and ClusterID removed - auto-discovery from Istio
 						Metrics: &MetricsConfig{
 							Type:     "prometheus",
 							Endpoint: "http://prometheus:9090",
@@ -307,7 +268,7 @@ edges:
 	assert.Equal(t, "testhost", config.Manager.Host)
 	assert.Equal(t, 9090, config.Manager.Port)
 	assert.Len(t, config.Edges, 1)
-	assert.Equal(t, "test-edge", config.Edges[0].Name)
+	// Name field removed - auto-discovery from Istio
 }
 
 func TestLoadConfig_EmptyPath_ReturnsDefault(t *testing.T) {
@@ -352,7 +313,7 @@ func TestExpandEnvVars(t *testing.T) {
 		},
 		Edges: []EdgeConfig{
 			{
-				ClusterID: "$TEST_HOST-cluster",
+				// ClusterID removed - auto-discovery from Istio
 				Metrics: &MetricsConfig{
 					Endpoint: "http://${TEST_HOST}:9090",
 					Auth: &MetricsAuth{
@@ -366,7 +327,7 @@ func TestExpandEnvVars(t *testing.T) {
 	config.expandEnvVars()
 
 	assert.Equal(t, "envhost", config.Manager.Host)
-	assert.Equal(t, "envhost-cluster", config.Edges[0].ClusterID)
+	// ClusterID field removed - auto-discovery from Istio
 	assert.Equal(t, "http://envhost:9090", config.Edges[0].Metrics.Endpoint)
 	assert.Equal(t, "envhost-token", config.Edges[0].Metrics.Auth.BearerToken)
 }

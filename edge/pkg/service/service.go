@@ -99,7 +99,7 @@ func (e *EdgeService) Start() error {
 		return fmt.Errorf("failed to auto-discover cluster name from Istio control plane: %w", err)
 	}
 	e.clusterName = clusterName
-	
+
 	e.logger.Info("starting edge service", "cluster_name", e.clusterName, "manager_endpoint", e.config.GetManagerEndpoint())
 
 	// Connect to manager

@@ -415,7 +415,7 @@ func startEdgeServiceFromRuntime(ctx context.Context, edgeConfig EdgeRuntimeConf
 	if err != nil {
 		return nil, fmt.Errorf("failed to auto-discover cluster name from Istio control plane: %w", err)
 	}
-	
+
 	logger.Info("discovered cluster name from Istio", "cluster_name", clusterName, "context", edgeConfig.ContextName)
 
 	// Create admin client for proxy configuration access

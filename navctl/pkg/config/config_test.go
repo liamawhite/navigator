@@ -36,8 +36,7 @@ manager:
   host: testhost
   port: 9090
 edges:
-  - name: test-edge
-    clusterId: test-cluster
+  - context: test-context
     metrics:
       type: prometheus
       endpoint: http://prometheus:9090
@@ -86,8 +85,6 @@ func TestManager_GetEdgeConfig(t *testing.T) {
 		},
 		Edges: []EdgeConfig{
 			{
-				Name:         "test-edge",
-				ClusterID:    "test-cluster",
 				Context:      "test-context",
 				SyncInterval: 45,
 				LogLevel:     "debug",
@@ -112,10 +109,10 @@ func TestManager_GetEdgeConfig(t *testing.T) {
 		logger:        logger,
 	}
 
-	edgeCfg, err := manager.GetEdgeConfig("test-edge", "", "")
+	edgeCfg, err := manager.GetEdgeConfig(0, "", "")
 	require.NoError(t, err)
 
-	assert.Equal(t, "test-cluster", edgeCfg.ClusterID)
+	// ClusterID is now auto-discovered from Istio
 	assert.Equal(t, "localhost:8080", edgeCfg.ManagerEndpoint)
 	assert.Equal(t, 45, edgeCfg.SyncInterval)
 	assert.Equal(t, "debug", edgeCfg.LogLevel)
@@ -134,8 +131,7 @@ func TestManager_GetEdgeConfig_GlobalOverrides(t *testing.T) {
 		},
 		Edges: []EdgeConfig{
 			{
-				Name:      "test-edge",
-				ClusterID: "test-cluster",
+				Context:   "test-context",
 				LogLevel:  "info",
 				LogFormat: "text",
 			},
@@ -149,7 +145,7 @@ func TestManager_GetEdgeConfig_GlobalOverrides(t *testing.T) {
 		logger:        logger,
 	}
 
-	edgeCfg, err := manager.GetEdgeConfig("test-edge", "debug", "json")
+	edgeCfg, err := manager.GetEdgeConfig(0, "debug", "json")
 	require.NoError(t, err)
 
 	// Global overrides should take precedence
@@ -161,8 +157,7 @@ func TestManager_GetEdgeConfig_NotFound(t *testing.T) {
 	config := &Config{
 		Edges: []EdgeConfig{
 			{
-				Name:      "existing-edge",
-				ClusterID: "test-cluster",
+				Context: "existing-context",
 			},
 		},
 	}
@@ -174,17 +169,17 @@ func TestManager_GetEdgeConfig_NotFound(t *testing.T) {
 		logger:        logger,
 	}
 
-	_, err := manager.GetEdgeConfig("non-existent-edge", "", "")
+	_, err := manager.GetEdgeConfig(99, "", "")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "edge configuration not found")
+	assert.Contains(t, err.Error(), "edge index out of range")
 }
 
-func TestManager_GetEdgeNames(t *testing.T) {
+func TestManager_GetEdgeCount(t *testing.T) {
 	config := &Config{
 		Edges: []EdgeConfig{
-			{Name: "edge1", ClusterID: "cluster1"},
-			{Name: "edge2", ClusterID: "cluster2"},
-			{Name: "edge3", ClusterID: "cluster3"},
+			{Context: "context1"},
+			{Context: "context2"},
+			{Context: "context3"},
 		},
 	}
 
@@ -195,15 +190,15 @@ func TestManager_GetEdgeNames(t *testing.T) {
 		logger:        logger,
 	}
 
-	names := manager.GetEdgeNames()
-	assert.Equal(t, []string{"edge1", "edge2", "edge3"}, names)
+	count := manager.GetEdgeCount()
+	assert.Equal(t, 3, count)
 }
 
 func TestManager_GetEdgeKubeContext(t *testing.T) {
 	config := &Config{
 		Edges: []EdgeConfig{
-			{Name: "edge1", ClusterID: "cluster1", Context: "context1"},
-			{Name: "edge2", ClusterID: "cluster2", Context: "context2"},
+			{Context: "context1"},
+			{Context: "context2"},
 		},
 	}
 
@@ -214,20 +209,20 @@ func TestManager_GetEdgeKubeContext(t *testing.T) {
 		logger:        logger,
 	}
 
-	context, err := manager.GetEdgeKubeContext("edge1")
+	context, err := manager.GetEdgeKubeContext(0)
 	require.NoError(t, err)
 	assert.Equal(t, "context1", context)
 
-	_, err = manager.GetEdgeKubeContext("non-existent")
+	_, err = manager.GetEdgeKubeContext(99)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "edge not found")
+	assert.Contains(t, err.Error(), "edge index out of range")
 }
 
 func TestManager_GetEdgeKubeconfig(t *testing.T) {
 	config := &Config{
 		Edges: []EdgeConfig{
-			{Name: "edge1", ClusterID: "cluster1", Kubeconfig: "/path/to/config1"},
-			{Name: "edge2", ClusterID: "cluster2", Kubeconfig: "/path/to/config2"},
+			{Context: "context1", Kubeconfig: "/path/to/config1"},
+			{Context: "context2", Kubeconfig: "/path/to/config2"},
 		},
 	}
 
@@ -238,13 +233,13 @@ func TestManager_GetEdgeKubeconfig(t *testing.T) {
 		logger:        logger,
 	}
 
-	kubeconfig, err := manager.GetEdgeKubeconfig("edge1")
+	kubeconfig, err := manager.GetEdgeKubeconfig(0)
 	require.NoError(t, err)
 	assert.Equal(t, "/path/to/config1", kubeconfig)
 
-	_, err = manager.GetEdgeKubeconfig("non-existent")
+	_, err = manager.GetEdgeKubeconfig(99)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "edge not found")
+	assert.Contains(t, err.Error(), "edge index out of range")
 }
 
 func TestManager_ValidateEdges(t *testing.T) {
@@ -258,8 +253,8 @@ func TestManager_ValidateEdges(t *testing.T) {
 			name: "valid edges",
 			config: &Config{
 				Edges: []EdgeConfig{
-					{Name: "edge1", ClusterID: "cluster1"},
-					{Name: "edge2", ClusterID: "cluster2"},
+					{Context: "context1"},
+					{Context: "context2"},
 				},
 			},
 			wantErr: false,
@@ -271,17 +266,6 @@ func TestManager_ValidateEdges(t *testing.T) {
 			},
 			wantErr:     true,
 			errContains: "no edges configured",
-		},
-		{
-			name: "duplicate cluster IDs",
-			config: &Config{
-				Edges: []EdgeConfig{
-					{Name: "edge1", ClusterID: "duplicate"},
-					{Name: "edge2", ClusterID: "duplicate"},
-				},
-			},
-			wantErr:     true,
-			errContains: "duplicate cluster ID",
 		},
 	}
 
@@ -313,7 +297,7 @@ func TestManager_HasEdges(t *testing.T) {
 	// Config with edges
 	configWithEdges := &Config{
 		Edges: []EdgeConfig{
-			{Name: "edge1", ClusterID: "cluster1"},
+			{Context: "context1"},
 		},
 	}
 	manager := &Manager{
@@ -341,8 +325,8 @@ func TestManager_IsMultiEdge(t *testing.T) {
 	// Config with multiple edges
 	configMultiEdge := &Config{
 		Edges: []EdgeConfig{
-			{Name: "edge1", ClusterID: "cluster1"},
-			{Name: "edge2", ClusterID: "cluster2"},
+			{Context: "context1"},
+			{Context: "context2"},
 		},
 	}
 	manager := &Manager{
@@ -355,7 +339,7 @@ func TestManager_IsMultiEdge(t *testing.T) {
 	// Config with single edge
 	configSingleEdge := &Config{
 		Edges: []EdgeConfig{
-			{Name: "edge1", ClusterID: "cluster1"},
+			{Context: "context1"},
 		},
 	}
 	manager = &Manager{
