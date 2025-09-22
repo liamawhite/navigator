@@ -28,17 +28,12 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { formatLastUpdated } from '@/lib/utils';
-import type {
-    v1alpha1ServicePairMetrics,
-    v1alpha1AggregatedServicePairMetrics,
-} from '../../types/generated/openapi-metrics_service';
+import type { v1alpha1AggregatedServicePairMetrics } from '../../types/generated/openapi-metrics_service';
 
 // Type definitions for service connections response
 type ServiceConnectionsResponse = {
-    aggregatedInbound: v1alpha1AggregatedServicePairMetrics[];
-    aggregatedOutbound: v1alpha1AggregatedServicePairMetrics[];
-    detailedInbound: v1alpha1ServicePairMetrics[];
-    detailedOutbound: v1alpha1ServicePairMetrics[];
+    inbound: v1alpha1AggregatedServicePairMetrics[];
+    outbound: v1alpha1AggregatedServicePairMetrics[];
     timestamp: string;
     clustersQueried: string[];
 };
@@ -51,8 +46,8 @@ function isServiceConnectionsResponse(
         typeof response === 'object' &&
         response !== null &&
         !('code' in response) &&
-        'aggregatedInbound' in response &&
-        'aggregatedOutbound' in response
+        'inbound' in response &&
+        'outbound' in response
     );
 }
 
@@ -213,24 +208,31 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                             </p>
                         </div>
                     ) : isServiceConnectionsResponse(connections) ? (
-                        connections.detailedInbound?.length ||
-                        connections.detailedOutbound?.length ? (
-                            <ServiceConnectionsTable
-                                inbound={connections.detailedInbound || []}
-                                outbound={connections.detailedOutbound || []}
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                                <Network className="w-16 h-16 mb-4" />
-                                <p className="text-center">
-                                    No service connections found
-                                </p>
-                                <p className="text-sm text-center mt-2">
-                                    This service has no inbound or outbound
-                                    traffic in the selected time range
-                                </p>
-                            </div>
-                        )
+                        (() => {
+                            // Use the aggregated data (which contains nested detailed breakdown for collapsible functionality)
+                            const inboundAggregated = connections.inbound || [];
+                            const outboundAggregated =
+                                connections.outbound || [];
+
+                            return inboundAggregated.length ||
+                                outboundAggregated.length ? (
+                                <ServiceConnectionsTable
+                                    inbound={inboundAggregated}
+                                    outbound={outboundAggregated}
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                                    <Network className="w-16 h-16 mb-4" />
+                                    <p className="text-center">
+                                        No service connections found
+                                    </p>
+                                    <p className="text-sm text-center mt-2">
+                                        This service has no inbound or outbound
+                                        traffic in the selected time range
+                                    </p>
+                                </div>
+                            );
+                        })()
                     ) : null}
                 </CardContent>
             )}

@@ -37,7 +37,10 @@ import {
     ChevronLeft,
     ChevronDown,
 } from 'lucide-react';
-import type { v1alpha1AggregatedServicePairMetrics } from '../../types/generated/openapi-metrics_service';
+import type {
+    v1alpha1AggregatedServicePairMetrics,
+    v1alpha1ServicePairMetrics,
+} from '../../types/generated/openapi-metrics_service';
 
 interface ServiceConnectionsTableProps {
     inbound: v1alpha1AggregatedServicePairMetrics[];
@@ -242,23 +245,17 @@ export const ServiceConnectionsTable: React.FC<
 
     const processServiceAggregations = useCallback(
         (
-            connections: v1alpha1ServicePairMetrics[],
+            connections: v1alpha1AggregatedServicePairMetrics[],
             type: 'inbound' | 'outbound'
         ): ServiceRowData[] => {
             const filteredConnections = connections.filter(
                 (conn) => (conn.requestRate || 0) >= MIN_REQUEST_RATE
             );
 
-            // Use the aggregation functions from utils
-            const aggregated =
-                type === 'inbound'
-                    ? aggregateInboundByService(filteredConnections)
-                    : aggregateOutboundByService(filteredConnections);
-
-            // Convert to ServiceRowData format
-            return aggregated.map((agg) => {
-                const totalRequestRate = agg.requestRate;
-                const totalErrorRate = agg.errorRate;
+            // Data is already aggregated, just convert to ServiceRowData format
+            return filteredConnections.map((agg) => {
+                const totalRequestRate = agg.requestRate || 0;
+                const totalErrorRate = agg.errorRate || 0;
                 const successRate =
                     totalRequestRate > 0
                         ? ((totalRequestRate - totalErrorRate) /
@@ -266,18 +263,30 @@ export const ServiceConnectionsTable: React.FC<
                           100
                         : 100;
 
-                // Process the individual service pairs for this service
-                const servicePairs = processConnections(agg.servicePairs, type);
+                // Get the service name and namespace based on inbound/outbound direction
+                const serviceName =
+                    type === 'inbound'
+                        ? agg.sourceService
+                        : agg.destinationService;
+                const namespace =
+                    type === 'inbound'
+                        ? agg.sourceNamespace
+                        : agg.destinationNamespace;
+
+                // Process the detailed breakdown for drill-down
+                const servicePairs = agg.detailedBreakdown
+                    ? processConnections(agg.detailedBreakdown, type)
+                    : [];
 
                 return {
-                    serviceName: agg.serviceName,
-                    namespace: agg.namespace,
+                    serviceName: serviceName || 'unknown',
+                    namespace: namespace || 'unknown',
                     requestRate: totalRequestRate,
                     successRate,
-                    latencyP99: agg.latencyP99,
-                    latencyP99Ms: agg.latencyP99Ms,
-                    clusterPairCount: agg.clusterPairCount,
-                    servicePairs,
+                    latencyP99: agg.latencyP99 || '0s',
+                    latencyP99Ms: parseDurationToMs(agg.latencyP99 || '0s'),
+                    clusterPairCount: servicePairs.length,
+                    servicePairs: servicePairs,
                 };
             });
         },
@@ -303,63 +312,6 @@ export const ServiceConnectionsTable: React.FC<
             direction: newDirection,
         });
     };
-
-    const sortConnections = useCallback(
-        (
-            connections: ConnectionRowData[],
-            sortState: SortState
-        ): ConnectionRowData[] => {
-            if (!sortState.field || !sortState.direction) {
-                // Default sort: RPS descending (highest traffic first)
-                return [...connections].sort((a, b) => {
-                    const rpsComparison = b.requestRate - a.requestRate;
-                    // If RPS is equal, sort by service name for stability
-                    if (rpsComparison === 0) {
-                        return a.service.localeCompare(b.service);
-                    }
-                    return rpsComparison;
-                });
-            }
-
-            return [...connections].sort((a, b) => {
-                const multiplier = sortState.direction === 'asc' ? 1 : -1;
-                let primaryComparison = 0;
-
-                switch (sortState.field) {
-                    case 'service':
-                        primaryComparison =
-                            a.service.localeCompare(b.service) * multiplier;
-                        break;
-                    case 'cluster':
-                        primaryComparison =
-                            a.cluster.localeCompare(b.cluster) * multiplier;
-                        break;
-                    case 'requestRate':
-                        primaryComparison =
-                            (a.requestRate - b.requestRate) * multiplier;
-                        break;
-                    case 'successRate':
-                        primaryComparison =
-                            (a.successRate - b.successRate) * multiplier;
-                        break;
-                    case 'latencyP99':
-                        primaryComparison =
-                            (a.latencyP99Ms - b.latencyP99Ms) * multiplier;
-                        break;
-                    default:
-                        primaryComparison = 0;
-                }
-
-                // If primary comparison is equal, use secondary sort by service name for stability
-                if (primaryComparison === 0) {
-                    return a.service.localeCompare(b.service);
-                }
-
-                return primaryComparison;
-            });
-        },
-        []
-    );
 
     const sortServiceAggregations = useCallback(
         (
@@ -541,13 +493,6 @@ export const ServiceConnectionsTable: React.FC<
         if (service !== 'unknown' && namespace !== 'unknown') {
             navigate(`/services/${namespace}:${service}`);
         }
-    };
-
-    const formatServiceName = (service: string, namespace: string): string => {
-        if (service === 'unknown' && namespace === 'unknown') {
-            return 'unknown';
-        }
-        return `${service}.${namespace}`;
     };
 
     const sortedData = useMemo(() => {

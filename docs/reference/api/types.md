@@ -449,6 +449,7 @@ AggregatedServicePairMetrics represents properly aggregated metrics across clust
 | request_rate | [double](#double) |  | request_rate is the aggregated request rate across all clusters. |
 | latency_p99 | [google.protobuf.Duration](#google-protobuf-Duration) |  | latency_p99 is the properly calculated P99 from aggregated histogram. |
 | cluster_pairs | [ClusterPairInfo](#navigator-types-v1alpha1-ClusterPairInfo) | repeated | cluster_pairs contains cluster relationship information. |
+| detailed_breakdown | [ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics) | repeated | detailed_breakdown contains per-cluster breakdown for drill-down analysis. |
 
 
 

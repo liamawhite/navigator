@@ -121,6 +121,9 @@ message AggregatedServicePairMetrics {
   
   // cluster_pairs contains cluster relationship information.
   repeated ClusterPairInfo cluster_pairs = 8;
+  
+  // detailed_breakdown contains per-cluster breakdown for drill-down analysis.
+  repeated ServicePairMetrics detailed_breakdown = 9;
 }
 
 // ServiceGraphMetrics contains service-to-service metrics for a cluster.

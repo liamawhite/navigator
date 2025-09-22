@@ -57,22 +57,16 @@ message GetServiceConnectionsRequest {
 
 // GetServiceConnectionsResponse contains inbound and outbound service connections.
 message GetServiceConnectionsResponse {
-  // aggregated_inbound contains properly aggregated metrics for services calling this service.
-  repeated navigator.types.v1alpha1.AggregatedServicePairMetrics aggregated_inbound = 1;
+  // inbound contains aggregated metrics with detailed breakdown for services calling this service.
+  repeated navigator.types.v1alpha1.AggregatedServicePairMetrics inbound = 1;
   
-  // aggregated_outbound contains properly aggregated metrics for services this service calls.
-  repeated navigator.types.v1alpha1.AggregatedServicePairMetrics aggregated_outbound = 2;
-  
-  // detailed_inbound contains per-cluster breakdown for drill-down analysis.
-  repeated navigator.types.v1alpha1.ServicePairMetrics detailed_inbound = 3;
-  
-  // detailed_outbound contains per-cluster breakdown for drill-down analysis.
-  repeated navigator.types.v1alpha1.ServicePairMetrics detailed_outbound = 4;
+  // outbound contains aggregated metrics with detailed breakdown for services this service calls.
+  repeated navigator.types.v1alpha1.AggregatedServicePairMetrics outbound = 2;
   
   // timestamp is when these metrics were collected (RFC3339 format).
-  string timestamp = 5;
+  string timestamp = 3;
   
   // clusters_queried lists the clusters that were queried for these metrics.
-  repeated string clusters_queried = 6;
+  repeated string clusters_queried = 4;
 }
 

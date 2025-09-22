@@ -165,10 +165,8 @@ GetServiceConnectionsResponse contains inbound and outbound service connections.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| aggregated_inbound | [navigator.types.v1alpha1.AggregatedServicePairMetrics](#navigator-types-v1alpha1-AggregatedServicePairMetrics) | repeated | aggregated_inbound contains properly aggregated metrics for services calling this service. |
-| aggregated_outbound | [navigator.types.v1alpha1.AggregatedServicePairMetrics](#navigator-types-v1alpha1-AggregatedServicePairMetrics) | repeated | aggregated_outbound contains properly aggregated metrics for services this service calls. |
-| detailed_inbound | [navigator.types.v1alpha1.ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics) | repeated | detailed_inbound contains per-cluster breakdown for drill-down analysis. |
-| detailed_outbound | [navigator.types.v1alpha1.ServicePairMetrics](#navigator-types-v1alpha1-ServicePairMetrics) | repeated | detailed_outbound contains per-cluster breakdown for drill-down analysis. |
+| inbound | [navigator.types.v1alpha1.AggregatedServicePairMetrics](#navigator-types-v1alpha1-AggregatedServicePairMetrics) | repeated | inbound contains aggregated metrics with detailed breakdown for services calling this service. |
+| outbound | [navigator.types.v1alpha1.AggregatedServicePairMetrics](#navigator-types-v1alpha1-AggregatedServicePairMetrics) | repeated | outbound contains aggregated metrics with detailed breakdown for services this service calls. |
 | timestamp | [string](#string) |  | timestamp is when these metrics were collected (RFC3339 format). |
 | clusters_queried | [string](#string) | repeated | clusters_queried lists the clusters that were queried for these metrics. |
 

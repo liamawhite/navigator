@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/liamawhite/navigator/manager/pkg/providers"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"github.com/prometheus/prometheus/promql"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -64,12 +66,10 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 	if !serviceExists {
 		m.logger.Debug("service not found", "service_name", req.ServiceName, "namespace", req.Namespace, "service_id", serviceID)
 		return &frontendv1alpha1.GetServiceConnectionsResponse{
-			AggregatedInbound:  []*typesv1alpha1.AggregatedServicePairMetrics{},
-			AggregatedOutbound: []*typesv1alpha1.AggregatedServicePairMetrics{},
-			DetailedInbound:    []*typesv1alpha1.ServicePairMetrics{},
-			DetailedOutbound:   []*typesv1alpha1.ServicePairMetrics{},
-			Timestamp:          time.Now().Format("2006-01-02T15:04:05Z07:00"),
-			ClustersQueried:    []string{},
+			Inbound:         []*typesv1alpha1.AggregatedServicePairMetrics{},
+			Outbound:        []*typesv1alpha1.AggregatedServicePairMetrics{},
+			Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
+			ClustersQueried: []string{},
 		}, nil
 	}
 
@@ -200,12 +200,10 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 	aggregatedOutbound := m.aggregateServicePairs(outbound)
 
 	return &frontendv1alpha1.GetServiceConnectionsResponse{
-		AggregatedInbound:  aggregatedInbound,
-		AggregatedOutbound: aggregatedOutbound,
-		DetailedInbound:    inbound,
-		DetailedOutbound:   outbound,
-		Timestamp:          time.Now().Format("2006-01-02T15:04:05Z07:00"),
-		ClustersQueried:    clustersQueried,
+		Inbound:         aggregatedInbound,
+		Outbound:        aggregatedOutbound,
+		Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		ClustersQueried: clustersQueried,
 	}, nil
 }
 
@@ -280,10 +278,11 @@ func (m *MetricsService) aggregateGroup(pairs []*typesv1alpha1.ServicePairMetric
 		RequestRate:          totalRequestRate,
 		LatencyP99:           aggregatedP99,
 		ClusterPairs:         clusterPairs,
+		DetailedBreakdown:    pairs,
 	}
 }
 
-// aggregateHistogramsAndCalculateP99 performs proper histogram aggregation and P99 calculation
+// aggregateHistogramsAndCalculateP99 performs proper histogram aggregation and P99 calculation using Prometheus histogram_quantile
 func (m *MetricsService) aggregateHistogramsAndCalculateP99(distributions []*typesv1alpha1.LatencyDistribution) *durationpb.Duration {
 	if len(distributions) == 0 {
 		return durationpb.New(0)
@@ -306,93 +305,78 @@ func (m *MetricsService) aggregateHistogramsAndCalculateP99(distributions []*typ
 	}
 	sort.Float64s(boundaries)
 
-	// Convert cumulative counts to individual bucket counts for each distribution
-	type individualBucket struct {
-		le    float64
-		count float64
+	if len(boundaries) == 0 {
+		return durationpb.New(0)
 	}
 
-	var convertedDistributions [][]individualBucket
+	// Aggregate cumulative counts directly (since they're already cumulative from Prometheus)
+	aggregatedBuckets := make(map[float64]float64)
 
+	// Initialize all boundaries to 0
+	for _, boundary := range boundaries {
+		aggregatedBuckets[boundary] = 0
+	}
+
+	// Sum up cumulative counts from all distributions
 	for _, dist := range distributions {
 		if dist == nil || dist.Buckets == nil {
 			continue
 		}
 
-		// Sort buckets by le (upper bound)
-		sortedBuckets := make([]*typesv1alpha1.HistogramBucket, len(dist.Buckets))
-		copy(sortedBuckets, dist.Buckets)
-		sort.Slice(sortedBuckets, func(i, j int) bool {
-			return sortedBuckets[i].Le < sortedBuckets[j].Le
-		})
-
-		// Convert cumulative to individual counts
-		var individualBuckets []individualBucket
-		var previousCumulativeCount float64
-
-		for _, bucket := range sortedBuckets {
-			cumulativeCount := bucket.Count
-			individualCount := cumulativeCount - previousCumulativeCount
-			individualBuckets = append(individualBuckets, individualBucket{
-				le:    bucket.Le,
-				count: individualCount,
-			})
-			previousCumulativeCount = cumulativeCount
+		// Create a map for this distribution's buckets
+		distBuckets := make(map[float64]float64)
+		for _, bucket := range dist.Buckets {
+			distBuckets[bucket.Le] = bucket.Count
 		}
 
-		convertedDistributions = append(convertedDistributions, individualBuckets)
-	}
-
-	// Aggregate individual counts for each boundary
-	aggregatedIndividualBuckets := make(map[float64]float64)
-	for _, boundary := range boundaries {
-		var totalIndividualCount float64
-
-		for _, dist := range convertedDistributions {
-			for _, bucket := range dist {
-				if bucket.le == boundary {
-					totalIndividualCount += bucket.count
-					break
-				}
+		// For each boundary, add the cumulative count from this distribution
+		// If a boundary doesn't exist in this distribution, use the previous boundary's count
+		var previousCount float64
+		for _, boundary := range boundaries {
+			if count, exists := distBuckets[boundary]; exists {
+				aggregatedBuckets[boundary] += count
+				previousCount = count
+			} else {
+				// Use previous cumulative count if this boundary doesn't exist
+				aggregatedBuckets[boundary] += previousCount
 			}
 		}
-
-		aggregatedIndividualBuckets[boundary] = totalIndividualCount
 	}
 
-	// Convert back to cumulative counts
-	var cumulativeCount float64
-	aggregatedBuckets := make(map[float64]float64)
-
+	// Convert aggregated buckets to Prometheus Buckets format for BucketQuantile
+	var buckets promql.Buckets
 	for _, boundary := range boundaries {
-		cumulativeCount += aggregatedIndividualBuckets[boundary]
-		aggregatedBuckets[boundary] = cumulativeCount
+		count := aggregatedBuckets[boundary]
+		buckets = append(buckets, promql.Bucket{
+			UpperBound: boundary,
+			Count:      count,
+		})
 	}
 
-	// Calculate total count
-	totalCount := cumulativeCount
-	if totalCount == 0 {
+	// Ensure we have +Inf bucket (required by BucketQuantile)
+	if len(buckets) > 0 {
+		lastBucket := buckets[len(buckets)-1]
+		if !math.IsInf(lastBucket.UpperBound, 1) {
+			// Add +Inf bucket with the same count as the last bucket
+			buckets = append(buckets, promql.Bucket{
+				UpperBound: math.Inf(1),
+				Count:      lastBucket.Count,
+			})
+		}
+	}
+
+	if len(buckets) == 0 {
 		return durationpb.New(0)
 	}
 
-	// Calculate P99 from aggregated histogram
-	p99Target := totalCount * 0.99
+	// Use Prometheus BucketQuantile function for mathematically correct P99 calculation
+	quantile, _, _ := promql.BucketQuantile(0.99, buckets)
 
-	for _, boundary := range boundaries {
-		cumulativeCount := aggregatedBuckets[boundary]
-		if cumulativeCount >= p99Target {
-			// Boundary values are already in milliseconds (from Istio), convert to nanoseconds for Duration
-			latencyNanos := int64(boundary * 1000000) // ms to ns
-			return durationpb.New(time.Duration(latencyNanos))
-		}
+	// quantile is in milliseconds (from Istio), convert to nanoseconds for Duration
+	if math.IsNaN(quantile) || math.IsInf(quantile, 0) {
+		return durationpb.New(0)
 	}
 
-	// If we reach here, return the last bucket's upper bound
-	if len(boundaries) > 0 {
-		lastBoundary := boundaries[len(boundaries)-1]
-		latencyNanos := int64(lastBoundary * 1000000) // ms to ns
-		return durationpb.New(time.Duration(latencyNanos))
-	}
-
-	return durationpb.New(0)
+	latencyNanos := int64(quantile * 1000000) // ms to ns
+	return durationpb.New(time.Duration(latencyNanos))
 }

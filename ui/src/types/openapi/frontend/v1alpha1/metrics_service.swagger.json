@@ -141,6 +141,14 @@
             "$ref": "#/definitions/v1alpha1ClusterPairInfo"
           },
           "description": "cluster_pairs contains cluster relationship information."
+        },
+        "detailedBreakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+          },
+          "description": "detailed_breakdown contains per-cluster breakdown for drill-down analysis."
         }
       },
       "description": "AggregatedServicePairMetrics represents properly aggregated metrics across clusters."
@@ -167,37 +175,21 @@
     "v1alpha1GetServiceConnectionsResponse": {
       "type": "object",
       "properties": {
-        "aggregatedInbound": {
+        "inbound": {
           "type": "array",
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1alpha1AggregatedServicePairMetrics"
           },
-          "description": "aggregated_inbound contains properly aggregated metrics for services calling this service."
+          "description": "inbound contains aggregated metrics with detailed breakdown for services calling this service."
         },
-        "aggregatedOutbound": {
+        "outbound": {
           "type": "array",
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1alpha1AggregatedServicePairMetrics"
           },
-          "description": "aggregated_outbound contains properly aggregated metrics for services this service calls."
-        },
-        "detailedInbound": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
-          },
-          "description": "detailed_inbound contains per-cluster breakdown for drill-down analysis."
-        },
-        "detailedOutbound": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
-          },
-          "description": "detailed_outbound contains per-cluster breakdown for drill-down analysis."
+          "description": "outbound contains aggregated metrics with detailed breakdown for services this service calls."
         },
         "timestamp": {
           "type": "string",

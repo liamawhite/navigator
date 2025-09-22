@@ -31,4 +31,3 @@ export function formatLastUpdated(date: Date | null): string {
     const diffInHours = Math.floor(diffInMinutes / 60);
     return `${diffInHours}h ago`;
 }
-

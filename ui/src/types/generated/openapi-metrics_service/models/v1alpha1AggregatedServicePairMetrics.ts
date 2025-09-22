@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { v1alpha1ClusterPairInfo } from './v1alpha1ClusterPairInfo';
+import type { v1alpha1ServicePairMetrics } from './v1alpha1ServicePairMetrics';
 /**
  * AggregatedServicePairMetrics represents properly aggregated metrics across clusters.
  */
@@ -39,5 +40,9 @@ export type v1alpha1AggregatedServicePairMetrics = {
      * cluster_pairs contains cluster relationship information.
      */
     clusterPairs?: Array<v1alpha1ClusterPairInfo>;
+    /**
+     * detailed_breakdown contains per-cluster breakdown for drill-down analysis.
+     */
+    detailedBreakdown?: Array<v1alpha1ServicePairMetrics>;
 };
 
