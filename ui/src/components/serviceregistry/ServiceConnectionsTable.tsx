@@ -37,15 +37,11 @@ import {
     ChevronLeft,
     ChevronDown,
 } from 'lucide-react';
-import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
-import {
-    aggregateInboundByService,
-    aggregateOutboundByService,
-} from '@/lib/utils';
+import type { v1alpha1AggregatedServicePairMetrics } from '../../types/generated/openapi-metrics_service';
 
 interface ServiceConnectionsTableProps {
-    inbound: v1alpha1ServicePairMetrics[];
-    outbound: v1alpha1ServicePairMetrics[];
+    inbound: v1alpha1AggregatedServicePairMetrics[];
+    outbound: v1alpha1AggregatedServicePairMetrics[];
 }
 
 interface ConnectionRowData {
