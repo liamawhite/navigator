@@ -28,14 +28,19 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { formatLastUpdated } from '@/lib/utils';
-import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
+import type {
+    v1alpha1ServicePairMetrics,
+    v1alpha1AggregatedServicePairMetrics,
+} from '../../types/generated/openapi-metrics_service';
 
 // Type definitions for service connections response
 type ServiceConnectionsResponse = {
-    inbound: v1alpha1ServicePairMetrics[];
-    outbound: v1alpha1ServicePairMetrics[];
+    aggregatedInbound: v1alpha1AggregatedServicePairMetrics[];
+    aggregatedOutbound: v1alpha1AggregatedServicePairMetrics[];
+    detailedInbound: v1alpha1ServicePairMetrics[];
+    detailedOutbound: v1alpha1ServicePairMetrics[];
     timestamp: string;
-    clusters_queried: string[];
+    clustersQueried: string[];
 };
 
 // Type guard to check if response is valid service connections
@@ -46,8 +51,8 @@ function isServiceConnectionsResponse(
         typeof response === 'object' &&
         response !== null &&
         !('code' in response) &&
-        'inbound' in response &&
-        'outbound' in response
+        'aggregatedInbound' in response &&
+        'aggregatedOutbound' in response
     );
 }
 
@@ -208,11 +213,11 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                             </p>
                         </div>
                     ) : isServiceConnectionsResponse(connections) ? (
-                        connections.inbound?.length ||
-                        connections.outbound?.length ? (
+                        connections.detailedInbound?.length ||
+                        connections.detailedOutbound?.length ? (
                             <ServiceConnectionsTable
-                                inbound={connections.inbound || []}
-                                outbound={connections.outbound || []}
+                                inbound={connections.detailedInbound || []}
+                                outbound={connections.detailedOutbound || []}
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">

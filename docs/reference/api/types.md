@@ -26,6 +26,8 @@
     - [ServiceType](#navigator-types-v1alpha1-ServiceType)
   
 - [types/v1alpha1/metrics_types.proto](#types_v1alpha1_metrics_types-proto)
+    - [AggregatedServicePairMetrics](#navigator-types-v1alpha1-AggregatedServicePairMetrics)
+    - [ClusterPairInfo](#navigator-types-v1alpha1-ClusterPairInfo)
     - [GraphMetricsFilters](#navigator-types-v1alpha1-GraphMetricsFilters)
     - [HistogramBucket](#navigator-types-v1alpha1-HistogramBucket)
     - [LatencyDistribution](#navigator-types-v1alpha1-LatencyDistribution)
@@ -428,6 +430,45 @@ ServiceType indicates the type of Kubernetes service.
 <p align="right"><a href="#top">Top</a></p>
 
 ## types/v1alpha1/metrics_types.proto
+
+
+
+<a name="navigator-types-v1alpha1-AggregatedServicePairMetrics"></a>
+
+### AggregatedServicePairMetrics
+AggregatedServicePairMetrics represents properly aggregated metrics across clusters.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| source_namespace | [string](#string) |  | source_namespace is the namespace of the source service. |
+| source_service | [string](#string) |  | source_service is the service name of the source service. |
+| destination_namespace | [string](#string) |  | destination_namespace is the namespace of the destination service. |
+| destination_service | [string](#string) |  | destination_service is the service name of the destination service. |
+| error_rate | [double](#double) |  | error_rate is the aggregated error rate across all clusters. |
+| request_rate | [double](#double) |  | request_rate is the aggregated request rate across all clusters. |
+| latency_p99 | [google.protobuf.Duration](#google-protobuf-Duration) |  | latency_p99 is the properly calculated P99 from aggregated histogram. |
+| cluster_pairs | [ClusterPairInfo](#navigator-types-v1alpha1-ClusterPairInfo) | repeated | cluster_pairs contains cluster relationship information. |
+
+
+
+
+
+
+<a name="navigator-types-v1alpha1-ClusterPairInfo"></a>
+
+### ClusterPairInfo
+ClusterPairInfo describes a cluster-to-cluster relationship for a service pair.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| source_cluster | [string](#string) |  | source_cluster is the cluster name of the source service. |
+| destination_cluster | [string](#string) |  | destination_cluster is the cluster name of the destination service. |
+| request_rate | [double](#double) |  | request_rate is the request rate for this specific cluster pair. |
+
+
+
 
 
 

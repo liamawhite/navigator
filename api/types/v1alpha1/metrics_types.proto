@@ -24,7 +24,7 @@ option go_package = "github.com/liamawhite/navigator/pkg/api/types/v1alpha1";
 message HistogramBucket {
   // le is the upper bound of the bucket (less-than-or-equal-to).
   double le = 1;
-  
+
   // count is the cumulative count of observations in this bucket.
   double count = 2;
 }
@@ -33,10 +33,10 @@ message HistogramBucket {
 message LatencyDistribution {
   // buckets contains the histogram buckets sorted by upper bound.
   repeated HistogramBucket buckets = 1;
-  
+
   // total_count is the total number of observations across all buckets.
   double total_count = 2;
-  
+
   // sum is the sum of all observed values.
   double sum = 3;
 }
@@ -45,31 +45,31 @@ message LatencyDistribution {
 message ServicePairMetrics {
   // source_cluster is the cluster name of the source service.
   string source_cluster = 1;
-  
+
   // source_namespace is the namespace of the source service.
   string source_namespace = 2;
-  
+
   // source_service is the service name of the source service.
   string source_service = 3;
-  
+
   // destination_cluster is the cluster name of the destination service.
   string destination_cluster = 4;
-  
+
   // destination_namespace is the namespace of the destination service.
   string destination_namespace = 5;
-  
+
   // destination_service is the service name of the destination service.
   string destination_service = 6;
-  
+
   // error_rate is the error rate in requests per second.
   double error_rate = 7;
-  
+
   // request_rate is the request rate in requests per second.
   double request_rate = 8;
-  
+
   // latency_p99 is the 99th percentile latency.
   google.protobuf.Duration latency_p99 = 9;
-  
+
   // latency_distribution contains the raw histogram distribution for latency.
   // This enables aggregation and percentile calculation at different levels.
   LatencyDistribution latency_distribution = 10;
@@ -79,19 +79,58 @@ message ServicePairMetrics {
 message GraphMetricsFilters {
   // namespaces filters metrics to only include these namespaces.
   repeated string namespaces = 1;
-  
+
   // clusters filters metrics to only include these clusters.
   repeated string clusters = 2;
+}
+
+// ClusterPairInfo describes a cluster-to-cluster relationship for a service pair.
+message ClusterPairInfo {
+  // source_cluster is the cluster name of the source service.
+  string source_cluster = 1;
+
+  // destination_cluster is the cluster name of the destination service.  
+  string destination_cluster = 2;
+
+  // request_rate is the request rate for this specific cluster pair.
+  double request_rate = 3;
+}
+
+// AggregatedServicePairMetrics represents properly aggregated metrics across clusters.
+message AggregatedServicePairMetrics {
+  // source_namespace is the namespace of the source service.
+  string source_namespace = 1;
+  
+  // source_service is the service name of the source service.
+  string source_service = 2;
+  
+  // destination_namespace is the namespace of the destination service.
+  string destination_namespace = 3;
+  
+  // destination_service is the service name of the destination service.
+  string destination_service = 4;
+  
+  // error_rate is the aggregated error rate across all clusters.
+  double error_rate = 5;
+  
+  // request_rate is the aggregated request rate across all clusters.
+  double request_rate = 6;
+  
+  // latency_p99 is the properly calculated P99 from aggregated histogram.
+  google.protobuf.Duration latency_p99 = 7;
+  
+  // cluster_pairs contains cluster relationship information.
+  repeated ClusterPairInfo cluster_pairs = 8;
 }
 
 // ServiceGraphMetrics contains service-to-service metrics for a cluster.
 message ServiceGraphMetrics {
   // pairs contains the service-to-service metrics.
   repeated ServicePairMetrics pairs = 1;
-  
+
   // cluster_id is the ID of the cluster these metrics came from.
   string cluster_id = 2;
-  
+
   // timestamp is when these metrics were collected (RFC3339 format).
   string timestamp = 3;
 }

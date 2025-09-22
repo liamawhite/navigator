@@ -28,8 +28,20 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ArrowRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import {
+    ArrowRight,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    ChevronRight,
+    ChevronLeft,
+    ChevronDown,
+} from 'lucide-react';
 import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
+import {
+    aggregateInboundByService,
+    aggregateOutboundByService,
+} from '@/lib/utils';
 
 interface ServiceConnectionsTableProps {
     inbound: v1alpha1ServicePairMetrics[];
@@ -40,11 +52,24 @@ interface ConnectionRowData {
     service: string;
     namespace: string;
     cluster: string;
+    sourceCluster: string;
+    destinationCluster: string;
     requestRate: number;
     successRate: number;
     latencyP99: string | undefined;
     latencyP99Ms: number;
     isClickable: boolean;
+}
+
+interface ServiceRowData {
+    serviceName: string;
+    namespace: string;
+    requestRate: number;
+    successRate: number;
+    latencyP99: string | undefined;
+    latencyP99Ms: number;
+    clusterPairCount: number;
+    servicePairs: ConnectionRowData[];
 }
 
 type SortField =
@@ -81,6 +106,9 @@ export const ServiceConnectionsTable: React.FC<
     ServiceConnectionsTableProps
 > = ({ inbound, outbound }) => {
     const navigate = useNavigate();
+    const [expandedServices, setExpandedServices] = useState<Set<string>>(
+        new Set()
+    );
 
     // Load sort preferences from localStorage with fallback to default
     const loadSortState = (): SortState => {
@@ -113,10 +141,8 @@ export const ServiceConnectionsTable: React.FC<
     }, [sortState]);
 
     const formatRequestRate = (rate: number): string => {
-        if (rate >= 100) {
+        if (rate >= 1) {
             return rate.toFixed(0);
-        } else if (rate >= 10) {
-            return rate.toFixed(1);
         } else {
             return rate.toFixed(2);
         }
@@ -189,6 +215,9 @@ export const ServiceConnectionsTable: React.FC<
                         type === 'inbound'
                             ? conn.sourceCluster || 'unknown'
                             : conn.destinationCluster || 'unknown';
+                    const sourceCluster = conn.sourceCluster || 'unknown';
+                    const destinationCluster =
+                        conn.destinationCluster || 'unknown';
 
                     const requestRate = conn.requestRate || 0;
                     const errorRate = conn.errorRate || 0;
@@ -202,6 +231,8 @@ export const ServiceConnectionsTable: React.FC<
                         service,
                         namespace: ns,
                         cluster,
+                        sourceCluster,
+                        destinationCluster,
                         requestRate,
                         successRate,
                         latencyP99,
@@ -211,6 +242,50 @@ export const ServiceConnectionsTable: React.FC<
                 });
         },
         []
+    );
+
+    const processServiceAggregations = useCallback(
+        (
+            connections: v1alpha1ServicePairMetrics[],
+            type: 'inbound' | 'outbound'
+        ): ServiceRowData[] => {
+            const filteredConnections = connections.filter(
+                (conn) => (conn.requestRate || 0) >= MIN_REQUEST_RATE
+            );
+
+            // Use the aggregation functions from utils
+            const aggregated =
+                type === 'inbound'
+                    ? aggregateInboundByService(filteredConnections)
+                    : aggregateOutboundByService(filteredConnections);
+
+            // Convert to ServiceRowData format
+            return aggregated.map((agg) => {
+                const totalRequestRate = agg.requestRate;
+                const totalErrorRate = agg.errorRate;
+                const successRate =
+                    totalRequestRate > 0
+                        ? ((totalRequestRate - totalErrorRate) /
+                              totalRequestRate) *
+                          100
+                        : 100;
+
+                // Process the individual service pairs for this service
+                const servicePairs = processConnections(agg.servicePairs, type);
+
+                return {
+                    serviceName: agg.serviceName,
+                    namespace: agg.namespace,
+                    requestRate: totalRequestRate,
+                    successRate,
+                    latencyP99: agg.latencyP99,
+                    latencyP99Ms: agg.latencyP99Ms,
+                    clusterPairCount: agg.clusterPairCount,
+                    servicePairs,
+                };
+            });
+        },
+        [processConnections]
     );
 
     const handleSort = (field: SortField) => {
@@ -282,6 +357,65 @@ export const ServiceConnectionsTable: React.FC<
                 // If primary comparison is equal, use secondary sort by service name for stability
                 if (primaryComparison === 0) {
                     return a.service.localeCompare(b.service);
+                }
+
+                return primaryComparison;
+            });
+        },
+        []
+    );
+
+    const sortServiceAggregations = useCallback(
+        (
+            serviceData: ServiceRowData[],
+            sortState: SortState
+        ): ServiceRowData[] => {
+            if (!sortState.field || !sortState.direction) {
+                // Default sort: RPS descending (highest traffic first)
+                return [...serviceData].sort((a, b) => {
+                    const rpsComparison = b.requestRate - a.requestRate;
+                    // If RPS is equal, sort by service name for stability
+                    if (rpsComparison === 0) {
+                        return a.serviceName.localeCompare(b.serviceName);
+                    }
+                    return rpsComparison;
+                });
+            }
+
+            return [...serviceData].sort((a, b) => {
+                const multiplier = sortState.direction === 'asc' ? 1 : -1;
+                let primaryComparison = 0;
+
+                switch (sortState.field) {
+                    case 'service':
+                        primaryComparison =
+                            a.serviceName.localeCompare(b.serviceName) *
+                            multiplier;
+                        break;
+                    case 'cluster':
+                        // For service aggregations, treat "cluster" sort as namespace sort
+                        primaryComparison =
+                            a.namespace.localeCompare(b.namespace) * multiplier;
+                        break;
+                    case 'requestRate':
+                        primaryComparison =
+                            (a.requestRate - b.requestRate) * multiplier;
+                        break;
+                    case 'successRate':
+                        primaryComparison =
+                            (a.successRate - b.successRate) * multiplier;
+                        break;
+                    case 'latencyP99':
+                        primaryComparison =
+                            (a.latencyP99Ms - b.latencyP99Ms) * multiplier;
+                        break;
+                    default:
+                        primaryComparison = 0;
+                }
+
+                // If primary comparison is equal, use secondary sort by service name for stability
+                if (primaryComparison === 0) {
+                    return a.serviceName.localeCompare(b.serviceName);
                 }
 
                 return primaryComparison;
@@ -397,6 +531,16 @@ export const ServiceConnectionsTable: React.FC<
         );
     };
 
+    const toggleService = (serviceKey: string) => {
+        const newExpanded = new Set(expandedServices);
+        if (newExpanded.has(serviceKey)) {
+            newExpanded.delete(serviceKey);
+        } else {
+            newExpanded.add(serviceKey);
+        }
+        setExpandedServices(newExpanded);
+    };
+
     const handleServiceClick = (service: string, namespace: string) => {
         if (service !== 'unknown' && namespace !== 'unknown') {
             navigate(`/services/${namespace}:${service}`);
@@ -411,13 +555,25 @@ export const ServiceConnectionsTable: React.FC<
     };
 
     const sortedData = useMemo(() => {
-        const inboundProcessed = processConnections(inbound, 'inbound');
-        const outboundProcessed = processConnections(outbound, 'outbound');
+        const inboundAggregated = processServiceAggregations(
+            inbound,
+            'inbound'
+        );
+        const outboundAggregated = processServiceAggregations(
+            outbound,
+            'outbound'
+        );
         return {
-            inbound: sortConnections(inboundProcessed, sortState),
-            outbound: sortConnections(outboundProcessed, sortState),
+            inbound: sortServiceAggregations(inboundAggregated, sortState),
+            outbound: sortServiceAggregations(outboundAggregated, sortState),
         };
-    }, [inbound, outbound, sortState, processConnections, sortConnections]);
+    }, [
+        inbound,
+        outbound,
+        sortState,
+        processServiceAggregations,
+        sortServiceAggregations,
+    ]);
 
     const { inbound: inboundConnections, outbound: outboundConnections } =
         sortedData;
@@ -462,10 +618,7 @@ export const ServiceConnectionsTable: React.FC<
                             <TableHeader>
                                 <TableRow>
                                     <SortableHeader field="service">
-                                        Service
-                                    </SortableHeader>
-                                    <SortableHeader field="cluster">
-                                        Cluster
+                                        Source Service
                                     </SortableHeader>
                                     <SortableHeader
                                         field="latencyP99"
@@ -488,86 +641,183 @@ export const ServiceConnectionsTable: React.FC<
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {inboundConnections.map((conn, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>
-                                            {conn.isClickable ? (
-                                                <button
-                                                    onClick={() =>
-                                                        handleServiceClick(
-                                                            conn.service,
-                                                            conn.namespace
-                                                        )
+                                {inboundConnections.map(
+                                    (service, serviceIndex) => {
+                                        const serviceKey = `inbound-${service.serviceName}-${service.namespace}`;
+                                        const isExpanded =
+                                            expandedServices.has(serviceKey);
+                                        const hasMultipleClusters =
+                                            service.clusterPairCount > 1;
+
+                                        return (
+                                            <React.Fragment key={serviceIndex}>
+                                                {/* Service summary row */}
+                                                <TableRow
+                                                    className={`${
+                                                        hasMultipleClusters
+                                                            ? 'cursor-pointer hover:bg-muted/50'
+                                                            : ''
+                                                    } ${isExpanded ? 'bg-muted/30' : ''}`}
+                                                    onClick={
+                                                        hasMultipleClusters
+                                                            ? () =>
+                                                                  toggleService(
+                                                                      serviceKey
+                                                                  )
+                                                            : undefined
                                                     }
-                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left hover:cursor-pointer"
                                                 >
-                                                    {formatServiceName(
-                                                        conn.service,
-                                                        conn.namespace
+                                                    <TableCell className="font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            {hasMultipleClusters && (
+                                                                <div className="w-4 h-4 flex items-center justify-center">
+                                                                    {isExpanded ? (
+                                                                        <ChevronDown className="w-4 h-4" />
+                                                                    ) : (
+                                                                        <ChevronRight className="w-4 h-4" />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {service.serviceName !==
+                                                                'unknown' &&
+                                                            service.namespace !==
+                                                                'unknown' ? (
+                                                                <button
+                                                                    onClick={(
+                                                                        e
+                                                                    ) => {
+                                                                        e.stopPropagation();
+                                                                        handleServiceClick(
+                                                                            service.serviceName,
+                                                                            service.namespace
+                                                                        );
+                                                                    }}
+                                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left hover:cursor-pointer"
+                                                                >
+                                                                    {
+                                                                        service.serviceName
+                                                                    }
+                                                                    .
+                                                                    {
+                                                                        service.namespace
+                                                                    }
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-muted-foreground">
+                                                                    {
+                                                                        service.serviceName
+                                                                    }
+                                                                    .
+                                                                    {
+                                                                        service.namespace
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                            {hasMultipleClusters && (
+                                                                <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                                                    {
+                                                                        service.clusterPairCount
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">
+                                                        {formatLatency(
+                                                            service.latencyP99
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">
+                                                        {formatRequestRate(
+                                                            service.requestRate
+                                                        )}{' '}
+                                                        rps
+                                                    </TableCell>
+                                                    <TableCell
+                                                        className={`text-right font-mono text-sm ${getSuccessRateColor(service.successRate)}`}
+                                                    >
+                                                        {formatSuccessRate(
+                                                            service.successRate
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+
+                                                {/* Expanded cluster pairs */}
+                                                {hasMultipleClusters &&
+                                                    isExpanded && (
+                                                        <>
+                                                            <TableRow className="bg-muted/10 border-b">
+                                                                <TableCell
+                                                                    colSpan={4}
+                                                                >
+                                                                    <div className="flex items-center gap-4 px-2 py-1">
+                                                                        <span className="text-xs font-medium text-muted-foreground flex-1">
+                                                                            Clusters
+                                                                        </span>
+                                                                        <span className="text-xs font-medium text-muted-foreground w-16 text-right">
+                                                                            P99
+                                                                        </span>
+                                                                        <span className="text-xs font-medium text-muted-foreground w-20 text-right">
+                                                                            Throughput
+                                                                        </span>
+                                                                        <span className="text-xs font-medium text-muted-foreground w-16 text-right">
+                                                                            Success
+                                                                        </span>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                            {service.servicePairs.map(
+                                                                (
+                                                                    pair,
+                                                                    pairIndex
+                                                                ) => (
+                                                                    <TableRow
+                                                                        key={
+                                                                            pairIndex
+                                                                        }
+                                                                        className="bg-muted/25"
+                                                                    >
+                                                                        <TableCell
+                                                                            colSpan={
+                                                                                4
+                                                                            }
+                                                                        >
+                                                                            <div className="flex items-center gap-4 px-2">
+                                                                                <span className="text-muted-foreground text-sm flex-1">
+                                                                                    {pair.sourceCluster ||
+                                                                                        'unknown'}{' '}
+                                                                                    →{' '}
+                                                                                    {pair.destinationCluster ||
+                                                                                        'unknown'}
+                                                                                </span>
+                                                                                <span className="text-right font-mono text-xs w-16">
+                                                                                    {formatLatency(
+                                                                                        pair.latencyP99
+                                                                                    )}
+                                                                                </span>
+                                                                                <span className="text-right font-mono text-xs w-20">
+                                                                                    {formatRequestRate(
+                                                                                        pair.requestRate
+                                                                                    )}{' '}
+                                                                                    rps
+                                                                                </span>
+                                                                                <span
+                                                                                    className={`text-right font-mono text-xs w-16 ${getSuccessRateColor(pair.successRate)}`}
+                                                                                >
+                                                                                    {formatSuccessRate(
+                                                                                        pair.successRate
+                                                                                    )}
+                                                                                </span>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )
+                                                            )}
+                                                        </>
                                                     )}
-                                                </button>
-                                            ) : (
-                                                <span className="text-muted-foreground">
-                                                    {formatServiceName(
-                                                        conn.service,
-                                                        conn.namespace
-                                                    )}
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-xs">
-                                            {conn.cluster}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono text-sm px-1">
-                                            {formatLatency(conn.latencyP99)}
-                                        </TableCell>
-                                        <TableCell className="text-right font-mono text-sm px-1">
-                                            {formatRequestRate(
-                                                conn.requestRate
-                                            )}{' '}
-                                            rps
-                                        </TableCell>
-                                        <TableCell
-                                            className={`text-right font-mono text-sm px-1 ${getSuccessRateColor(
-                                                conn.successRate
-                                            )}`}
-                                        >
-                                            {formatSuccessRate(
-                                                conn.successRate
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {Array.from(
-                                    {
-                                        length: Math.max(
-                                            0,
-                                            outboundConnections.length -
-                                                inboundConnections.length
-                                        ),
-                                    },
-                                    (_, index) => (
-                                        <TableRow
-                                            key={`empty-${index}`}
-                                            className="border-0"
-                                        >
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                        </TableRow>
-                                    )
+                                            </React.Fragment>
+                                        );
+                                    }
                                 )}
                             </TableBody>
                         </Table>
@@ -602,100 +852,191 @@ export const ServiceConnectionsTable: React.FC<
                                         P99
                                     </SortableHeader>
                                     <SortableHeader
-                                        field="cluster"
-                                        className="text-right"
-                                    >
-                                        Cluster
-                                    </SortableHeader>
-                                    <SortableHeader
                                         field="service"
                                         className="text-right"
                                     >
-                                        Service
+                                        Destination Service
                                     </SortableHeader>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {outboundConnections.map((conn, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell
-                                            className={`font-mono text-sm px-1 ${getSuccessRateColor(
-                                                conn.successRate
-                                            )}`}
-                                        >
-                                            {formatSuccessRate(
-                                                conn.successRate
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="font-mono text-sm px-1">
-                                            {formatRequestRate(
-                                                conn.requestRate
-                                            )}{' '}
-                                            rps
-                                        </TableCell>
-                                        <TableCell className="font-mono text-sm px-1">
-                                            {formatLatency(conn.latencyP99)}
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-xs text-right">
-                                            {conn.cluster}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {conn.isClickable ? (
-                                                <button
-                                                    onClick={() =>
-                                                        handleServiceClick(
-                                                            conn.service,
-                                                            conn.namespace
-                                                        )
+                                {outboundConnections.map(
+                                    (service, serviceIndex) => {
+                                        const serviceKey = `outbound-${service.serviceName}-${service.namespace}`;
+                                        const isExpanded =
+                                            expandedServices.has(serviceKey);
+                                        const hasMultipleClusters =
+                                            service.clusterPairCount > 1;
+
+                                        return (
+                                            <React.Fragment key={serviceIndex}>
+                                                {/* Service summary row */}
+                                                <TableRow
+                                                    className={`${
+                                                        hasMultipleClusters
+                                                            ? 'cursor-pointer hover:bg-muted/50'
+                                                            : ''
+                                                    } ${isExpanded ? 'bg-muted/30' : ''}`}
+                                                    onClick={
+                                                        hasMultipleClusters
+                                                            ? () =>
+                                                                  toggleService(
+                                                                      serviceKey
+                                                                  )
+                                                            : undefined
                                                     }
-                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-right hover:cursor-pointer"
                                                 >
-                                                    {formatServiceName(
-                                                        conn.service,
-                                                        conn.namespace
+                                                    <TableCell
+                                                        className={`font-mono text-sm ${getSuccessRateColor(service.successRate)}`}
+                                                    >
+                                                        {formatSuccessRate(
+                                                            service.successRate
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-sm">
+                                                        {formatRequestRate(
+                                                            service.requestRate
+                                                        )}{' '}
+                                                        rps
+                                                    </TableCell>
+                                                    <TableCell className="font-mono text-sm">
+                                                        {formatLatency(
+                                                            service.latencyP99
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {hasMultipleClusters && (
+                                                                <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                                                    {
+                                                                        service.clusterPairCount
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                            {service.serviceName !==
+                                                                'unknown' &&
+                                                            service.namespace !==
+                                                                'unknown' ? (
+                                                                <button
+                                                                    onClick={(
+                                                                        e
+                                                                    ) => {
+                                                                        e.stopPropagation();
+                                                                        handleServiceClick(
+                                                                            service.serviceName,
+                                                                            service.namespace
+                                                                        );
+                                                                    }}
+                                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-right hover:cursor-pointer"
+                                                                >
+                                                                    {
+                                                                        service.serviceName
+                                                                    }
+                                                                    .
+                                                                    {
+                                                                        service.namespace
+                                                                    }
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-muted-foreground">
+                                                                    {
+                                                                        service.serviceName
+                                                                    }
+                                                                    .
+                                                                    {
+                                                                        service.namespace
+                                                                    }
+                                                                </span>
+                                                            )}
+                                                            {hasMultipleClusters && (
+                                                                <div className="w-4 h-4 flex items-center justify-center ml-1">
+                                                                    {isExpanded ? (
+                                                                        <ChevronDown className="w-4 h-4" />
+                                                                    ) : (
+                                                                        <ChevronLeft className="w-4 h-4" />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+
+                                                {/* Expanded cluster pairs */}
+                                                {hasMultipleClusters &&
+                                                    isExpanded && (
+                                                        <>
+                                                            <TableRow className="bg-muted/10 border-b">
+                                                                <TableCell
+                                                                    colSpan={4}
+                                                                >
+                                                                    <div className="flex items-center gap-4 px-2 py-1">
+                                                                        <span className="text-xs font-medium text-muted-foreground w-16">
+                                                                            Success
+                                                                        </span>
+                                                                        <span className="text-xs font-medium text-muted-foreground w-20">
+                                                                            Throughput
+                                                                        </span>
+                                                                        <span className="text-xs font-medium text-muted-foreground w-16">
+                                                                            P99
+                                                                        </span>
+                                                                        <span className="text-xs font-medium text-muted-foreground flex-1">
+                                                                            Clusters
+                                                                        </span>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                            {service.servicePairs.map(
+                                                                (
+                                                                    pair,
+                                                                    pairIndex
+                                                                ) => (
+                                                                    <TableRow
+                                                                        key={
+                                                                            pairIndex
+                                                                        }
+                                                                        className="bg-muted/25"
+                                                                    >
+                                                                        <TableCell
+                                                                            colSpan={
+                                                                                4
+                                                                            }
+                                                                        >
+                                                                            <div className="flex items-center gap-4 px-2">
+                                                                                <span
+                                                                                    className={`font-mono text-xs w-16 ${getSuccessRateColor(pair.successRate)}`}
+                                                                                >
+                                                                                    {formatSuccessRate(
+                                                                                        pair.successRate
+                                                                                    )}
+                                                                                </span>
+                                                                                <span className="font-mono text-xs w-20">
+                                                                                    {formatRequestRate(
+                                                                                        pair.requestRate
+                                                                                    )}{' '}
+                                                                                    rps
+                                                                                </span>
+                                                                                <span className="font-mono text-xs w-16">
+                                                                                    {formatLatency(
+                                                                                        pair.latencyP99
+                                                                                    )}
+                                                                                </span>
+                                                                                <span className="text-muted-foreground text-sm flex-1">
+                                                                                    {pair.sourceCluster ||
+                                                                                        'unknown'}{' '}
+                                                                                    →{' '}
+                                                                                    {pair.destinationCluster ||
+                                                                                        'unknown'}
+                                                                                </span>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )
+                                                            )}
+                                                        </>
                                                     )}
-                                                </button>
-                                            ) : (
-                                                <span className="text-muted-foreground">
-                                                    {formatServiceName(
-                                                        conn.service,
-                                                        conn.namespace
-                                                    )}
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {Array.from(
-                                    {
-                                        length: Math.max(
-                                            0,
-                                            inboundConnections.length -
-                                                outboundConnections.length
-                                        ),
-                                    },
-                                    (_, index) => (
-                                        <TableRow
-                                            key={`empty-${index}`}
-                                            className="border-0"
-                                        >
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                            <TableCell className="border-0">
-                                                &nbsp;
-                                            </TableCell>
-                                        </TableRow>
-                                    )
+                                            </React.Fragment>
+                                        );
+                                    }
                                 )}
                             </TableBody>
                         </Table>
