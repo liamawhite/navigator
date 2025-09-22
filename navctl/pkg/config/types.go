@@ -33,9 +33,7 @@ import (
 //	  host: localhost
 //	  port: 8080
 //	edges:
-//	  - name: production
-//	    clusterId: prod-cluster-1
-//	    context: prod-context
+//	  - context: prod-context
 //	    metrics:
 //	      type: prometheus
 //	      endpoint: https://prometheus.prod.example.com
@@ -106,12 +104,14 @@ type ManagerConfig struct {
 // cluster state (services, pods, endpoints) to the manager. It also provides
 // on-demand proxy configuration analysis via the Envoy admin API.
 //
+// The cluster name is automatically discovered from the Istio control plane's
+// CLUSTER_ID environment variable. This ensures consistency with the service mesh
+// configuration and eliminates manual configuration redundancy.
+//
 // Example configuration:
 //
 //	edges:
-//	  - name: production
-//	    clusterId: prod-cluster-1
-//	    context: prod-context
+//	  - context: prod-context
 //	    kubeconfig: /path/to/prod-kubeconfig
 //	    syncInterval: 30
 //	    logLevel: info
@@ -119,15 +119,6 @@ type ManagerConfig struct {
 //	      type: prometheus
 //	      endpoint: https://prometheus.prod.example.com
 type EdgeConfig struct {
-	// Name is a unique identifier for this edge configuration.
-	// Required. Used in logs and UI to distinguish between edges.
-	Name string `yaml:"name" json:"name"`
-
-	// ClusterID is a unique identifier for the Kubernetes cluster.
-	// Required. Used to identify the cluster in multi-cluster scenarios.
-	// Should be unique across all clusters in your Navigator deployment.
-	ClusterID string `yaml:"clusterId" json:"clusterId"`
-
 	// Context specifies the kubeconfig context to use for this edge.
 	// Optional. If omitted, uses the current context from kubeconfig.
 	// Must exist in the specified kubeconfig file.

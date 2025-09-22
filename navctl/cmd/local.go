@@ -88,7 +88,6 @@ type LocalRuntime struct {
 
 // EdgeRuntimeConfig holds configuration for a single edge service
 type EdgeRuntimeConfig struct {
-	Name           string
 	KubeconfigPath string
 	ContextName    string
 	EdgeConfig     *edgeConfig.Config
@@ -176,17 +175,17 @@ func prepareConfigFileRuntime(logger *slog.Logger, globalLogLevel, globalLogForm
 
 	// Prepare edge configurations
 	var edgeConfigs []EdgeRuntimeConfig
-	edgeNames := configManager.GetEdgeNames()
-	for _, edgeName := range edgeNames {
-		edgeCfg, err := configManager.GetEdgeConfig(edgeName, globalLogLevel, globalLogFormat)
+	edgeCount := configManager.GetEdgeCount()
+	for i := 0; i < edgeCount; i++ {
+		edgeCfg, err := configManager.GetEdgeConfig(i, globalLogLevel, globalLogFormat)
 		if err != nil {
-			logger.Error("failed to get edge config", "edge", edgeName, "error", err)
+			logger.Error("failed to get edge config", "edge_index", i, "error", err)
 			continue
 		}
 
-		kubeconfigPath, err := configManager.GetEdgeKubeconfig(edgeName)
+		kubeconfigPath, err := configManager.GetEdgeKubeconfig(i)
 		if err != nil {
-			logger.Error("failed to get kubeconfig path", "edge", edgeName, "error", err)
+			logger.Error("failed to get kubeconfig path", "edge_index", i, "error", err)
 			continue
 		}
 
@@ -197,14 +196,13 @@ func prepareConfigFileRuntime(logger *slog.Logger, globalLogLevel, globalLogForm
 			}
 		}
 
-		contextName, err := configManager.GetEdgeKubeContext(edgeName)
+		contextName, err := configManager.GetEdgeKubeContext(i)
 		if err != nil {
-			logger.Error("failed to get kube context", "edge", edgeName, "error", err)
+			logger.Error("failed to get kube context", "edge_index", i, "error", err)
 			continue
 		}
 
 		edgeConfigs = append(edgeConfigs, EdgeRuntimeConfig{
-			Name:           edgeName,
 			KubeconfigPath: kubeconfigPath,
 			ContextName:    contextName,
 			EdgeConfig:     edgeCfg,
@@ -263,7 +261,6 @@ func prepareCLIRuntime(logger *slog.Logger, globalLogLevel, globalLogFormat stri
 	var edgeConfigs []EdgeRuntimeConfig
 	for _, contextName := range contextsToUse {
 		edgeConfig := &edgeConfig.Config{
-			ClusterID:       contextName, // Use context as cluster ID for CLI mode
 			ManagerEndpoint: fmt.Sprintf("%s:%d", managerHost, managerPort),
 			SyncInterval:    30,
 			LogLevel:        globalLogLevel,
@@ -282,7 +279,6 @@ func prepareCLIRuntime(logger *slog.Logger, globalLogLevel, globalLogFormat stri
 		}
 
 		edgeConfigs = append(edgeConfigs, EdgeRuntimeConfig{
-			Name:           contextName,
 			KubeconfigPath: kubeconfig,
 			ContextName:    contextName,
 			EdgeConfig:     edgeConfig,
@@ -327,10 +323,10 @@ func runNavigatorServices(runtime *LocalRuntime) error {
 	// Start edge services
 	var edgeServices []*edgeService.EdgeService
 	for _, edgeConfig := range runtime.EdgeConfigs {
-		logger.Info("starting edge service", "edge", edgeConfig.Name)
+		logger.Info("starting edge service", "context", edgeConfig.ContextName)
 		edgeSvc, err := startEdgeServiceFromRuntime(ctx, edgeConfig, logger)
 		if err != nil {
-			logger.Error("failed to start edge service", "edge", edgeConfig.Name, "error", err)
+			logger.Error("failed to start edge service", "context", edgeConfig.ContextName, "error", err)
 			// Continue with other edges instead of failing completely
 			continue
 		}
@@ -408,51 +404,50 @@ func runNavigatorServices(runtime *LocalRuntime) error {
 // startEdgeServiceFromRuntime starts an edge service using EdgeRuntimeConfig
 func startEdgeServiceFromRuntime(ctx context.Context, edgeConfig EdgeRuntimeConfig, logger *slog.Logger) (*edgeService.EdgeService, error) {
 	// Create Kubernetes client with specific context
-	k8sLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "k8s")
+	k8sLogger := logging.For(logging.ComponentServer).With("context", edgeConfig.ContextName, "component", "k8s")
 	k8sClient, err := kubernetes.NewClientWithContext(edgeConfig.KubeconfigPath, edgeConfig.ContextName, k8sLogger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client for edge '%s': %w", edgeConfig.Name, err)
+		return nil, fmt.Errorf("failed to create kubernetes client for context '%s': %w", edgeConfig.ContextName, err)
 	}
+
+	// Auto-discover cluster name from Istio
+	clusterName, err := k8sClient.GetClusterName(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to auto-discover cluster name from Istio control plane: %w", err)
+	}
+
+	logger.Info("discovered cluster name from Istio", "cluster_name", clusterName, "context", edgeConfig.ContextName)
 
 	// Create admin client for proxy configuration access
 	adminClient := client.NewAdminClient(k8sClient.GetClientset(), k8sClient.GetRestConfig())
 
 	// Create proxy service
-	proxyLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "proxy")
+	proxyLogger := logging.For(logging.ComponentServer).With("cluster", clusterName, "component", "proxy")
 	proxyService := proxy.NewProxyService(adminClient, proxyLogger)
 
 	// Create metrics provider
-	metricsLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "metrics")
+	metricsLogger := logging.For(logging.ComponentServer).With("cluster", clusterName, "component", "metrics")
 	var metricsProvider interfaces.MetricsProvider
 	metricsConfig := edgeConfig.EdgeConfig.GetMetricsConfig()
 
 	if metricsConfig.Enabled && metricsConfig.Type == metrics.ProviderTypePrometheus {
-		// Get cluster name from Istio for metrics filtering
-		var clusterName string
-		if clusterName, err = k8sClient.GetClusterName(context.Background()); err != nil {
-			metricsLogger.Warn("failed to get cluster name from istiod, metrics will not be cluster-filtered", "error", err)
-			clusterName = ""
-		} else {
-			metricsLogger.Info("retrieved cluster name for metrics filtering", "cluster_name", clusterName)
-		}
-
 		metricsProvider, err = prometheus.Create(metricsConfig, metricsLogger, clusterName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create metrics provider for edge '%s': %w", edgeConfig.Name, err)
+			return nil, fmt.Errorf("failed to create metrics provider for cluster '%s': %w", clusterName, err)
 		}
 	}
 
 	// Create edge service
-	edgeLogger := logging.For(logging.ComponentServer).With("edge", edgeConfig.Name, "component", "edge")
+	edgeLogger := logging.For(logging.ComponentServer).With("cluster", clusterName, "component", "edge")
 	edgeSvc, err := edgeService.NewEdgeService(edgeConfig.EdgeConfig, k8sClient, proxyService, metricsProvider, edgeLogger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create edge service for edge '%s': %w", edgeConfig.Name, err)
+		return nil, fmt.Errorf("failed to create edge service for cluster '%s': %w", clusterName, err)
 	}
 
 	// Start edge service in goroutine
 	go func() {
 		if err := edgeSvc.Start(); err != nil {
-			logger.Error("edge service error", "edge", edgeConfig.Name, "error", err)
+			logger.Error("edge service error", "cluster", clusterName, "error", err)
 		}
 	}()
 

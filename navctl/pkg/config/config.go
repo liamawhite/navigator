@@ -62,19 +62,13 @@ func (m *Manager) GetManagerConfig() *managerConfig.Config {
 	}
 }
 
-// GetEdgeConfig returns an edge configuration for the specified edge name
-func (m *Manager) GetEdgeConfig(edgeName string, globalLogLevel, globalLogFormat string) (*edgeConfig.Config, error) {
-	var edge *EdgeConfig
-	for i := range m.config.Edges {
-		if m.config.Edges[i].Name == edgeName {
-			edge = &m.config.Edges[i]
-			break
-		}
+// GetEdgeConfig returns an edge configuration for the specified edge index
+func (m *Manager) GetEdgeConfig(edgeIndex int, globalLogLevel, globalLogFormat string) (*edgeConfig.Config, error) {
+	if edgeIndex < 0 || edgeIndex >= len(m.config.Edges) {
+		return nil, fmt.Errorf("edge index out of range: %d", edgeIndex)
 	}
 
-	if edge == nil {
-		return nil, fmt.Errorf("edge configuration not found: %s", edgeName)
-	}
+	edge := &m.config.Edges[edgeIndex]
 
 	// Build metrics config
 	metricsConfig := metrics.Config{
@@ -94,9 +88,9 @@ func (m *Manager) GetEdgeConfig(edgeName string, globalLogLevel, globalLogFormat
 
 		// Get bearer token
 		if edge.Metrics.Auth != nil {
-			token, err := m.tokenExecutor.GetBearerToken(edgeName, edge.Metrics.Auth)
+			token, err := m.tokenExecutor.GetBearerToken(fmt.Sprintf("edge-%d", edgeIndex), edge.Metrics.Auth)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get bearer token for edge %s: %w", edgeName, err)
+				return nil, fmt.Errorf("failed to get bearer token for edge %d: %w", edgeIndex, err)
 			}
 			metricsConfig.BearerToken = token
 		}
@@ -114,7 +108,6 @@ func (m *Manager) GetEdgeConfig(edgeName string, globalLogLevel, globalLogFormat
 	}
 
 	return &edgeConfig.Config{
-		ClusterID:       edge.ClusterID,
 		ManagerEndpoint: fmt.Sprintf("%s:%d", m.config.Manager.Host, m.config.Manager.Port),
 		SyncInterval:    edge.SyncInterval,
 		KubeconfigPath:  edge.Kubeconfig,
@@ -126,41 +119,33 @@ func (m *Manager) GetEdgeConfig(edgeName string, globalLogLevel, globalLogFormat
 }
 
 // GetEdgeNames returns a list of all configured edge names
-func (m *Manager) GetEdgeNames() []string {
-	names := make([]string, len(m.config.Edges))
-	for i, edge := range m.config.Edges {
-		names[i] = edge.Name
-	}
-	return names
+func (m *Manager) GetEdgeCount() int {
+	return len(m.config.Edges)
 }
 
-// GetEdgeKubeContext returns the kubeconfig context for the specified edge
-func (m *Manager) GetEdgeKubeContext(edgeName string) (string, error) {
-	for _, edge := range m.config.Edges {
-		if edge.Name == edgeName {
-			return edge.Context, nil
-		}
+// GetEdgeKubeContext returns the kubeconfig context for the specified edge index
+func (m *Manager) GetEdgeKubeContext(edgeIndex int) (string, error) {
+	if edgeIndex < 0 || edgeIndex >= len(m.config.Edges) {
+		return "", fmt.Errorf("edge index out of range: %d", edgeIndex)
 	}
-	return "", fmt.Errorf("edge not found: %s", edgeName)
+	return m.config.Edges[edgeIndex].Context, nil
 }
 
-// GetEdgeKubeconfig returns the kubeconfig path for the specified edge
-func (m *Manager) GetEdgeKubeconfig(edgeName string) (string, error) {
-	for _, edge := range m.config.Edges {
-		if edge.Name == edgeName {
-			return edge.Kubeconfig, nil
-		}
+// GetEdgeKubeconfig returns the kubeconfig path for the specified edge index
+func (m *Manager) GetEdgeKubeconfig(edgeIndex int) (string, error) {
+	if edgeIndex < 0 || edgeIndex >= len(m.config.Edges) {
+		return "", fmt.Errorf("edge index out of range: %d", edgeIndex)
 	}
-	return "", fmt.Errorf("edge not found: %s", edgeName)
+	return m.config.Edges[edgeIndex].Kubeconfig, nil
 }
 
 // RefreshTokens forces a refresh of all cached bearer tokens
 func (m *Manager) RefreshTokens() error {
-	for _, edge := range m.config.Edges {
+	for i, edge := range m.config.Edges {
 		if edge.Metrics != nil && edge.Metrics.Auth != nil {
-			_, err := m.tokenExecutor.RefreshToken(edge.Name, edge.Metrics.Auth)
+			_, err := m.tokenExecutor.RefreshToken(fmt.Sprintf("edge-%d", i), edge.Metrics.Auth)
 			if err != nil {
-				return fmt.Errorf("failed to refresh token for edge %s: %w", edge.Name, err)
+				return fmt.Errorf("failed to refresh token for edge %d: %w", i, err)
 			}
 		}
 	}
@@ -176,15 +161,6 @@ func (m *Manager) GetUIConfig() *UIConfig {
 func (m *Manager) ValidateEdges() error {
 	if len(m.config.Edges) == 0 {
 		return fmt.Errorf("no edges configured")
-	}
-
-	// Check for duplicate cluster IDs
-	clusterIDs := make(map[string]string)
-	for _, edge := range m.config.Edges {
-		if existingEdge, exists := clusterIDs[edge.ClusterID]; exists {
-			return fmt.Errorf("duplicate cluster ID %s used by edges %s and %s", edge.ClusterID, existingEdge, edge.Name)
-		}
-		clusterIDs[edge.ClusterID] = edge.Name
 	}
 
 	return nil

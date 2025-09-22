@@ -17,11 +17,10 @@ ui:
   noBrowser: false
 
 # Edge configurations for demo clusters
+# Cluster names are auto-discovered from the Istio control plane
 edges:
   # Demo cluster 1 with Prometheus metrics
-  - name: demo-cluster-1
-    clusterId: navigator-demo-1
-    context: kind-navigator-demo-1
+  - context: kind-navigator-demo-1
     syncInterval: 30
     logLevel: info
     logFormat: text
@@ -31,10 +30,8 @@ edges:
       queryInterval: 30
       timeout: 10
 
-  # Demo cluster 2 with Prometheus metrics
-  - name: demo-cluster-2
-    clusterId: navigator-demo-2
-    context: kind-navigator-demo-2
+  # Demo cluster 2 with Prometheus metrics  
+  - context: kind-navigator-demo-2
     syncInterval: 30
     logLevel: info
     logFormat: text

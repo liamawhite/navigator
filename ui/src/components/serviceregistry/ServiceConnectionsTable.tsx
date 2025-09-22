@@ -148,10 +148,12 @@ export const ServiceConnectionsTable: React.FC<
     };
 
     const formatSuccessRate = (rate: number): string => {
-        if (rate >= 10) {
-            return `${rate.toFixed(1)}%`;
+        // Floor negative values to zero to avoid floating point precision issues
+        const clampedRate = Math.max(0, rate);
+        if (clampedRate >= 10) {
+            return `${clampedRate.toFixed(1)}%`;
         } else {
-            return `${rate.toFixed(2)}%`;
+            return `${clampedRate.toFixed(2)}%`;
         }
     };
 
@@ -189,8 +191,10 @@ export const ServiceConnectionsTable: React.FC<
     };
 
     const getSuccessRateColor = (rate: number): string => {
-        if (rate >= SUCCESS_RATE_EXCELLENT) return 'text-green-600';
-        if (rate >= SUCCESS_RATE_GOOD) return 'text-amber-600';
+        // Floor negative values to zero to avoid floating point precision issues
+        const clampedRate = Math.max(0, rate);
+        if (clampedRate >= SUCCESS_RATE_EXCELLENT) return 'text-green-600';
+        if (clampedRate >= SUCCESS_RATE_GOOD) return 'text-amber-600';
         return 'text-red-600';
     };
 
@@ -223,7 +227,11 @@ export const ServiceConnectionsTable: React.FC<
                     const latencyP99 = conn.latencyP99;
                     const successRate =
                         requestRate > 0
-                            ? ((requestRate - errorRate) / requestRate) * 100
+                            ? Math.max(
+                                  0,
+                                  ((requestRate - errorRate) / requestRate) *
+                                      100
+                              )
                             : 100;
 
                     return {

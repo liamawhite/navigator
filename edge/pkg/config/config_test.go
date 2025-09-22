@@ -30,7 +30,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid config",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    30,
 				LogLevel:        "info",
@@ -40,21 +39,8 @@ func TestConfig_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing cluster ID",
-			config: Config{
-				ManagerEndpoint: "localhost:8080",
-				SyncInterval:    30,
-				LogLevel:        "info",
-				LogFormat:       "text",
-				MaxMessageSize:  10,
-			},
-			wantErr: true,
-			errMsg:  "cluster-id is required",
-		},
-		{
 			name: "missing manager endpoint",
 			config: Config{
-				ClusterID:      "test-cluster",
 				SyncInterval:   30,
 				LogLevel:       "info",
 				LogFormat:      "text",
@@ -66,7 +52,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid sync interval",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    0,
 				LogLevel:        "info",
@@ -79,7 +64,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "negative sync interval",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    -1,
 				LogLevel:        "info",
@@ -92,7 +76,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid log level",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    30,
 				LogLevel:        "invalid",
@@ -105,7 +88,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid log format",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    30,
 				LogLevel:        "info",
@@ -118,7 +100,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "invalid max message size",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    30,
 				LogLevel:        "info",
@@ -131,7 +112,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid debug log level",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    30,
 				LogLevel:        "debug",
@@ -143,7 +123,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid json log format",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    30,
 				LogLevel:        "info",
@@ -155,7 +134,6 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid with kubeconfig path",
 			config: Config{
-				ClusterID:       "test-cluster",
 				ManagerEndpoint: "localhost:8080",
 				SyncInterval:    30,
 				KubeconfigPath:  "/path/to/kubeconfig",
