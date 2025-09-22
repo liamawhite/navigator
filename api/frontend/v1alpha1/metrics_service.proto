@@ -57,11 +57,11 @@ message GetServiceConnectionsRequest {
 
 // GetServiceConnectionsResponse contains inbound and outbound service connections.
 message GetServiceConnectionsResponse {
-  // inbound contains services that call this service.
-  repeated navigator.types.v1alpha1.ServicePairMetrics inbound = 1;
+  // inbound contains aggregated metrics with detailed breakdown for services calling this service.
+  repeated navigator.types.v1alpha1.AggregatedServicePairMetrics inbound = 1;
   
-  // outbound contains services that this service calls.
-  repeated navigator.types.v1alpha1.ServicePairMetrics outbound = 2;
+  // outbound contains aggregated metrics with detailed breakdown for services this service calls.
+  repeated navigator.types.v1alpha1.AggregatedServicePairMetrics outbound = 2;
   
   // timestamp is when these metrics were collected (RFC3339 format).
   string timestamp = 3;

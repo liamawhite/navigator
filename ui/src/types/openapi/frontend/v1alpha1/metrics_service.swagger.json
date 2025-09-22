@@ -101,6 +101,77 @@
         }
       }
     },
+    "v1alpha1AggregatedServicePairMetrics": {
+      "type": "object",
+      "properties": {
+        "sourceNamespace": {
+          "type": "string",
+          "description": "source_namespace is the namespace of the source service."
+        },
+        "sourceService": {
+          "type": "string",
+          "description": "source_service is the service name of the source service."
+        },
+        "destinationNamespace": {
+          "type": "string",
+          "description": "destination_namespace is the namespace of the destination service."
+        },
+        "destinationService": {
+          "type": "string",
+          "description": "destination_service is the service name of the destination service."
+        },
+        "errorRate": {
+          "type": "number",
+          "format": "double",
+          "description": "error_rate is the aggregated error rate across all clusters."
+        },
+        "requestRate": {
+          "type": "number",
+          "format": "double",
+          "description": "request_rate is the aggregated request rate across all clusters."
+        },
+        "latencyP99": {
+          "type": "string",
+          "description": "latency_p99 is the properly calculated P99 from aggregated histogram."
+        },
+        "clusterPairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ClusterPairInfo"
+          },
+          "description": "cluster_pairs contains cluster relationship information."
+        },
+        "detailedBreakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+          },
+          "description": "detailed_breakdown contains per-cluster breakdown for drill-down analysis."
+        }
+      },
+      "description": "AggregatedServicePairMetrics represents properly aggregated metrics across clusters."
+    },
+    "v1alpha1ClusterPairInfo": {
+      "type": "object",
+      "properties": {
+        "sourceCluster": {
+          "type": "string",
+          "description": "source_cluster is the cluster name of the source service."
+        },
+        "destinationCluster": {
+          "type": "string",
+          "description": "destination_cluster is the cluster name of the destination service."
+        },
+        "requestRate": {
+          "type": "number",
+          "format": "double",
+          "description": "request_rate is the request rate for this specific cluster pair."
+        }
+      },
+      "description": "ClusterPairInfo describes a cluster-to-cluster relationship for a service pair."
+    },
     "v1alpha1GetServiceConnectionsResponse": {
       "type": "object",
       "properties": {
@@ -108,17 +179,17 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+            "$ref": "#/definitions/v1alpha1AggregatedServicePairMetrics"
           },
-          "description": "inbound contains services that call this service."
+          "description": "inbound contains aggregated metrics with detailed breakdown for services calling this service."
         },
         "outbound": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1alpha1ServicePairMetrics"
+            "$ref": "#/definitions/v1alpha1AggregatedServicePairMetrics"
           },
-          "description": "outbound contains services that this service calls."
+          "description": "outbound contains aggregated metrics with detailed breakdown for services this service calls."
         },
         "timestamp": {
           "type": "string",

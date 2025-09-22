@@ -18,12 +18,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/liamawhite/navigator/manager/pkg/providers"
 	frontendv1alpha1 "github.com/liamawhite/navigator/pkg/api/frontend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
+	"github.com/prometheus/prometheus/promql"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // MetricsService implements the frontend MetricsService
@@ -62,8 +66,8 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 	if !serviceExists {
 		m.logger.Debug("service not found", "service_name", req.ServiceName, "namespace", req.Namespace, "service_id", serviceID)
 		return &frontendv1alpha1.GetServiceConnectionsResponse{
-			Inbound:         []*typesv1alpha1.ServicePairMetrics{},
-			Outbound:        []*typesv1alpha1.ServicePairMetrics{},
+			Inbound:         []*typesv1alpha1.AggregatedServicePairMetrics{},
+			Outbound:        []*typesv1alpha1.AggregatedServicePairMetrics{},
 			Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
 			ClustersQueried: []string{},
 		}, nil
@@ -191,10 +195,188 @@ func (m *MetricsService) GetServiceConnections(ctx context.Context, req *fronten
 		"inbound_count", len(inbound),
 		"outbound_count", len(outbound))
 
+	// Aggregate the service pairs for the main overview
+	aggregatedInbound := m.aggregateServicePairs(inbound)
+	aggregatedOutbound := m.aggregateServicePairs(outbound)
+
 	return &frontendv1alpha1.GetServiceConnectionsResponse{
-		Inbound:         inbound,
-		Outbound:        outbound,
+		Inbound:         aggregatedInbound,
+		Outbound:        aggregatedOutbound,
 		Timestamp:       time.Now().Format("2006-01-02T15:04:05Z07:00"),
 		ClustersQueried: clustersQueried,
 	}, nil
+}
+
+// aggregateServicePairs groups service pairs by service name and properly aggregates their metrics
+func (m *MetricsService) aggregateServicePairs(pairs []*typesv1alpha1.ServicePairMetrics) []*typesv1alpha1.AggregatedServicePairMetrics {
+	if len(pairs) == 0 {
+		return []*typesv1alpha1.AggregatedServicePairMetrics{}
+	}
+
+	// Group by service pair (source_service:source_namespace -> dest_service:dest_namespace)
+	pairGroups := make(map[string][]*typesv1alpha1.ServicePairMetrics)
+
+	for _, pair := range pairs {
+		key := fmt.Sprintf("%s:%s->%s:%s",
+			pair.SourceService, pair.SourceNamespace,
+			pair.DestinationService, pair.DestinationNamespace)
+		pairGroups[key] = append(pairGroups[key], pair)
+	}
+
+	var aggregated []*typesv1alpha1.AggregatedServicePairMetrics
+
+	for _, group := range pairGroups {
+		if agg := m.aggregateGroup(group); agg != nil {
+			aggregated = append(aggregated, agg)
+		}
+	}
+
+	return aggregated
+}
+
+// aggregateGroup aggregates a group of service pairs representing the same service connection across different clusters
+func (m *MetricsService) aggregateGroup(pairs []*typesv1alpha1.ServicePairMetrics) *typesv1alpha1.AggregatedServicePairMetrics {
+	if len(pairs) == 0 {
+		return nil
+	}
+
+	first := pairs[0]
+
+	// Sum rates
+	var totalRequestRate, totalErrorRate float64
+	var clusterPairs []*typesv1alpha1.ClusterPairInfo
+
+	// Collect histogram distributions for proper aggregation
+	var distributions []*typesv1alpha1.LatencyDistribution
+
+	for _, pair := range pairs {
+		totalRequestRate += pair.RequestRate
+		totalErrorRate += pair.ErrorRate
+
+		// Track cluster relationships
+		clusterPairs = append(clusterPairs, &typesv1alpha1.ClusterPairInfo{
+			SourceCluster:      pair.SourceCluster,
+			DestinationCluster: pair.DestinationCluster,
+			RequestRate:        pair.RequestRate,
+		})
+
+		// Collect distributions for aggregation
+		if pair.LatencyDistribution != nil {
+			distributions = append(distributions, pair.LatencyDistribution)
+		}
+	}
+
+	// Properly aggregate histograms and calculate P99
+	aggregatedP99 := m.aggregateHistogramsAndCalculateP99(distributions)
+
+	return &typesv1alpha1.AggregatedServicePairMetrics{
+		SourceNamespace:      first.SourceNamespace,
+		SourceService:        first.SourceService,
+		DestinationNamespace: first.DestinationNamespace,
+		DestinationService:   first.DestinationService,
+		ErrorRate:            totalErrorRate,
+		RequestRate:          totalRequestRate,
+		LatencyP99:           aggregatedP99,
+		ClusterPairs:         clusterPairs,
+		DetailedBreakdown:    pairs,
+	}
+}
+
+// aggregateHistogramsAndCalculateP99 performs proper histogram aggregation and P99 calculation using Prometheus histogram_quantile
+func (m *MetricsService) aggregateHistogramsAndCalculateP99(distributions []*typesv1alpha1.LatencyDistribution) *durationpb.Duration {
+	if len(distributions) == 0 {
+		return durationpb.New(0)
+	}
+
+	// Collect all unique bucket boundaries
+	boundariesSet := make(map[float64]bool)
+	for _, dist := range distributions {
+		if dist != nil && dist.Buckets != nil {
+			for _, bucket := range dist.Buckets {
+				boundariesSet[bucket.Le] = true
+			}
+		}
+	}
+
+	// Convert to sorted slice
+	var boundaries []float64
+	for boundary := range boundariesSet {
+		boundaries = append(boundaries, boundary)
+	}
+	sort.Float64s(boundaries)
+
+	if len(boundaries) == 0 {
+		return durationpb.New(0)
+	}
+
+	// Aggregate cumulative counts directly (since they're already cumulative from Prometheus)
+	aggregatedBuckets := make(map[float64]float64)
+
+	// Initialize all boundaries to 0
+	for _, boundary := range boundaries {
+		aggregatedBuckets[boundary] = 0
+	}
+
+	// Sum up cumulative counts from all distributions
+	for _, dist := range distributions {
+		if dist == nil || dist.Buckets == nil {
+			continue
+		}
+
+		// Create a map for this distribution's buckets
+		distBuckets := make(map[float64]float64)
+		for _, bucket := range dist.Buckets {
+			distBuckets[bucket.Le] = bucket.Count
+		}
+
+		// For each boundary, add the cumulative count from this distribution
+		// If a boundary doesn't exist in this distribution, use the previous boundary's count
+		var previousCount float64
+		for _, boundary := range boundaries {
+			if count, exists := distBuckets[boundary]; exists {
+				aggregatedBuckets[boundary] += count
+				previousCount = count
+			} else {
+				// Use previous cumulative count if this boundary doesn't exist
+				aggregatedBuckets[boundary] += previousCount
+			}
+		}
+	}
+
+	// Convert aggregated buckets to Prometheus Buckets format for BucketQuantile
+	var buckets promql.Buckets
+	for _, boundary := range boundaries {
+		count := aggregatedBuckets[boundary]
+		buckets = append(buckets, promql.Bucket{
+			UpperBound: boundary,
+			Count:      count,
+		})
+	}
+
+	// Ensure we have +Inf bucket (required by BucketQuantile)
+	if len(buckets) > 0 {
+		lastBucket := buckets[len(buckets)-1]
+		if !math.IsInf(lastBucket.UpperBound, 1) {
+			// Add +Inf bucket with the same count as the last bucket
+			buckets = append(buckets, promql.Bucket{
+				UpperBound: math.Inf(1),
+				Count:      lastBucket.Count,
+			})
+		}
+	}
+
+	if len(buckets) == 0 {
+		return durationpb.New(0)
+	}
+
+	// Use Prometheus BucketQuantile function for mathematically correct P99 calculation
+	quantile, _, _ := promql.BucketQuantile(0.99, buckets)
+
+	// quantile is in milliseconds (from Istio), convert to nanoseconds for Duration
+	if math.IsNaN(quantile) || math.IsInf(quantile, 0) {
+		return durationpb.New(0)
+	}
+
+	latencyNanos := int64(quantile * 1000000) // ms to ns
+	return durationpb.New(time.Duration(latencyNanos))
 }

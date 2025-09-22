@@ -28,14 +28,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { formatLastUpdated } from '@/lib/utils';
-import type { v1alpha1ServicePairMetrics } from '../../types/generated/openapi-metrics_service';
+import type { v1alpha1AggregatedServicePairMetrics } from '../../types/generated/openapi-metrics_service';
 
 // Type definitions for service connections response
 type ServiceConnectionsResponse = {
-    inbound: v1alpha1ServicePairMetrics[];
-    outbound: v1alpha1ServicePairMetrics[];
+    inbound: v1alpha1AggregatedServicePairMetrics[];
+    outbound: v1alpha1AggregatedServicePairMetrics[];
     timestamp: string;
-    clusters_queried: string[];
+    clustersQueried: string[];
 };
 
 // Type guard to check if response is valid service connections
@@ -208,24 +208,31 @@ export const ServiceConnectionsCard: React.FC<ServiceConnectionsCardProps> = ({
                             </p>
                         </div>
                     ) : isServiceConnectionsResponse(connections) ? (
-                        connections.inbound?.length ||
-                        connections.outbound?.length ? (
-                            <ServiceConnectionsTable
-                                inbound={connections.inbound || []}
-                                outbound={connections.outbound || []}
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                                <Network className="w-16 h-16 mb-4" />
-                                <p className="text-center">
-                                    No service connections found
-                                </p>
-                                <p className="text-sm text-center mt-2">
-                                    This service has no inbound or outbound
-                                    traffic in the selected time range
-                                </p>
-                            </div>
-                        )
+                        (() => {
+                            // Use the aggregated data (which contains nested detailed breakdown for collapsible functionality)
+                            const inboundAggregated = connections.inbound || [];
+                            const outboundAggregated =
+                                connections.outbound || [];
+
+                            return inboundAggregated.length ||
+                                outboundAggregated.length ? (
+                                <ServiceConnectionsTable
+                                    inbound={inboundAggregated}
+                                    outbound={outboundAggregated}
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                                    <Network className="w-16 h-16 mb-4" />
+                                    <p className="text-center">
+                                        No service connections found
+                                    </p>
+                                    <p className="text-sm text-center mt-2">
+                                        This service has no inbound or outbound
+                                        traffic in the selected time range
+                                    </p>
+                                </div>
+                            );
+                        })()
                     ) : null}
                 </CardContent>
             )}

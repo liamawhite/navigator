@@ -2,19 +2,19 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { v1alpha1ServicePairMetrics } from './v1alpha1ServicePairMetrics';
+import type { v1alpha1AggregatedServicePairMetrics } from './v1alpha1AggregatedServicePairMetrics';
 /**
  * GetServiceConnectionsResponse contains inbound and outbound service connections.
  */
 export type v1alpha1GetServiceConnectionsResponse = {
     /**
-     * inbound contains services that call this service.
+     * inbound contains aggregated metrics with detailed breakdown for services calling this service.
      */
-    inbound?: Array<v1alpha1ServicePairMetrics>;
+    inbound?: Array<v1alpha1AggregatedServicePairMetrics>;
     /**
-     * outbound contains services that this service calls.
+     * outbound contains aggregated metrics with detailed breakdown for services this service calls.
      */
-    outbound?: Array<v1alpha1ServicePairMetrics>;
+    outbound?: Array<v1alpha1AggregatedServicePairMetrics>;
     /**
      * timestamp is when these metrics were collected (RFC3339 format).
      */

@@ -62,7 +62,10 @@
       "Bash(npm test:*)",
       "WebFetch(domain:pkg.go.dev)",
       "mcp__playwright__browser_resize",
-      "Bash(bin/navctl local:*)"
+      "Bash(bin/navctl local:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git checkout:*)",
+      "mcp__playwright__browser_press_key"
     ],
     "deny": []
   },
