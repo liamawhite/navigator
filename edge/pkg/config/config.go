@@ -23,7 +23,6 @@ import (
 
 // Config holds the configuration for the edge service
 type Config struct {
-	ClusterID       string
 	ManagerEndpoint string
 	SyncInterval    int
 	KubeconfigPath  string
@@ -37,7 +36,6 @@ type Config struct {
 func ParseFlags() (*Config, error) {
 	config := &Config{}
 
-	flag.StringVar(&config.ClusterID, "cluster-id", "", "Unique identifier for this cluster (required)")
 	flag.StringVar(&config.ManagerEndpoint, "manager-endpoint", "", "gRPC endpoint of the manager service (required)")
 	flag.IntVar(&config.SyncInterval, "sync-interval", 30, "Interval between cluster state sync operations (in seconds)")
 	flag.StringVar(&config.KubeconfigPath, "kubeconfig", "", "Path to kubeconfig file (uses in-cluster config if empty)")
@@ -60,10 +58,6 @@ func ParseFlags() (*Config, error) {
 
 // Validate checks that required configuration is provided
 func (c *Config) Validate() error {
-	if c.ClusterID == "" {
-		return fmt.Errorf("cluster-id is required")
-	}
-
 	if c.ManagerEndpoint == "" {
 		return fmt.Errorf("manager-endpoint is required")
 	}
@@ -90,11 +84,6 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
-}
-
-// GetClusterID returns the cluster ID
-func (c *Config) GetClusterID() string {
-	return c.ClusterID
 }
 
 // GetManagerEndpoint returns the manager endpoint

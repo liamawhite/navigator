@@ -197,29 +197,21 @@ func applyDefaultsAndValidate(config *Config) error {
 			}
 		}
 
-		// Validate required fields
-		if edge.Name == "" {
-			return fmt.Errorf("edge %d: name is required", i)
-		}
-		if edge.ClusterID == "" {
-			return fmt.Errorf("edge %s: clusterId is required", edge.Name)
-		}
-
 		// Validate metrics configuration
 		if edge.Metrics != nil {
 			if edge.Metrics.Endpoint == "" {
-				return fmt.Errorf("edge %s: metrics endpoint is required when metrics is configured", edge.Name)
+				return fmt.Errorf("edge %d: metrics endpoint is required when metrics is configured", i)
 			}
 
 			// Validate auth configuration
 			if edge.Metrics.Auth != nil {
 				if edge.Metrics.Auth.BearerToken != "" && edge.Metrics.Auth.BearerTokenExec != nil {
-					return fmt.Errorf("edge %s: cannot specify both bearerToken and bearerTokenExec", edge.Name)
+					return fmt.Errorf("edge %d: cannot specify both bearerToken and bearerTokenExec", i)
 				}
 
 				if edge.Metrics.Auth.BearerTokenExec != nil {
 					if edge.Metrics.Auth.BearerTokenExec.Command == "" {
-						return fmt.Errorf("edge %s: bearerTokenExec command is required", edge.Name)
+						return fmt.Errorf("edge %d: bearerTokenExec command is required", i)
 					}
 				}
 			}
@@ -229,24 +221,15 @@ func applyDefaultsAndValidate(config *Config) error {
 		validLogLevels := []string{"debug", "info", "warn", "error"}
 		validLevel := slices.Contains(validLogLevels, edge.LogLevel)
 		if !validLevel {
-			return fmt.Errorf("edge %s: invalid log level %s, must be one of: %v", edge.Name, edge.LogLevel, validLogLevels)
+			return fmt.Errorf("edge %d: invalid log level %s, must be one of: %v", i, edge.LogLevel, validLogLevels)
 		}
 
 		// Validate log format
 		validLogFormats := []string{"text", "json"}
 		validFormat := slices.Contains(validLogFormats, edge.LogFormat)
 		if !validFormat {
-			return fmt.Errorf("edge %s: invalid log format %s, must be one of: %v", edge.Name, edge.LogFormat, validLogFormats)
+			return fmt.Errorf("edge %d: invalid log format %s, must be one of: %v", i, edge.LogFormat, validLogFormats)
 		}
-	}
-
-	// Validate no duplicate edge names
-	edgeNames := make(map[string]bool)
-	for _, edge := range config.Edges {
-		if edgeNames[edge.Name] {
-			return fmt.Errorf("duplicate edge name: %s", edge.Name)
-		}
-		edgeNames[edge.Name] = true
 	}
 
 	return nil
@@ -267,7 +250,6 @@ func (c *Config) expandEnvVars() {
 	// Expand edge configs
 	for i := range c.Edges {
 		edge := &c.Edges[i]
-		edge.ClusterID = expandEnvVars(edge.ClusterID)
 		edge.Context = expandEnvVars(edge.Context)
 		edge.Kubeconfig = expandEnvVars(edge.Kubeconfig)
 

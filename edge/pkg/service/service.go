@@ -47,7 +47,6 @@ type ProxyService interface {
 
 // Config interface for dependency injection
 type Config interface {
-	GetClusterID() string
 	GetManagerEndpoint() string
 	GetSyncInterval() int
 	GetMaxMessageSize() int
@@ -62,6 +61,7 @@ type EdgeService struct {
 	proxyService    ProxyService
 	metricsProvider interfaces.MetricsProvider
 	logger          *slog.Logger
+	clusterName     string // Auto-discovered from Istio
 	client          v1alpha1.ManagerServiceClient
 	conn            *grpc.ClientConn
 	stream          v1alpha1.ManagerService_ConnectClient
@@ -93,7 +93,14 @@ func NewEdgeService(config Config, k8sClient KubernetesClient, proxyService Prox
 
 // Start starts the edge service and begins cluster state synchronization
 func (e *EdgeService) Start() error {
-	e.logger.Info("starting edge service", "cluster_id", e.config.GetClusterID(), "manager_endpoint", e.config.GetManagerEndpoint())
+	// Auto-discover cluster name from Istio
+	clusterName, err := e.k8sClient.GetClusterName(e.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to auto-discover cluster name from Istio control plane: %w", err)
+	}
+	e.clusterName = clusterName
+	
+	e.logger.Info("starting edge service", "cluster_name", e.clusterName, "manager_endpoint", e.config.GetManagerEndpoint())
 
 	// Connect to manager
 	if err := e.connect(); err != nil {
@@ -188,7 +195,7 @@ func (e *EdgeService) sendClusterIdentification() error {
 	req := &v1alpha1.ConnectRequest{
 		Message: &v1alpha1.ConnectRequest_ClusterIdentification{
 			ClusterIdentification: &v1alpha1.ClusterIdentification{
-				ClusterId: e.config.GetClusterID(),
+				ClusterId: e.clusterName,
 				Capabilities: &v1alpha1.EdgeCapabilities{
 					MetricsEnabled: e.metricsProvider != nil && e.metricsProvider.GetProviderInfo().Type != metrics.ProviderTypeNone,
 				},
