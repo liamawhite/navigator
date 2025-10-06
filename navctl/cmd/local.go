@@ -265,6 +265,7 @@ func prepareCLIRuntime(logger *slog.Logger, globalLogLevel, globalLogFormat stri
 			SyncInterval:    30,
 			LogLevel:        globalLogLevel,
 			LogFormat:       globalLogFormat,
+			MaxMessageSize:  maxMessageSize,
 			MetricsConfig: metrics.Config{
 				Enabled: metricsEndpoint != "",
 			},
