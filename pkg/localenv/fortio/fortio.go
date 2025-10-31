@@ -16,15 +16,17 @@ package fortio
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
+
+//go:embed manifests/*.yaml
+var manifestFS embed.FS
 
 const (
 	fortioNamespace = "load-generator"
@@ -168,42 +170,45 @@ func (f *FortioManager) GetFortioLogs(ctx context.Context) (string, error) {
 	return string(output), nil
 }
 
-// getNamespaceManifestPath returns the path to the namespace manifest file
+// getNamespaceManifestPath returns the path to a temporary file containing the namespace manifest
 func (f *FortioManager) getNamespaceManifestPath() (string, error) {
-	// Get the directory of this Go file
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("failed to get current file path")
-	}
-
-	// Build path to manifests directory
-	manifestPath := filepath.Join(filepath.Dir(currentFile), "manifests", "load-generator-namespace.yaml")
-
-	// Check if the file exists
-	if _, err := os.Stat(manifestPath); err != nil {
-		return "", fmt.Errorf("namespace manifest file not found at %s: %w", manifestPath, err)
-	}
-
-	return manifestPath, nil
+	return f.writeManifestToTempFile("manifests/load-generator-namespace.yaml", "namespace-*.yaml")
 }
 
-// getFortioManifestPath returns the path to the Fortio manifest file
+// getFortioManifestPath returns the path to a temporary file containing the Fortio manifest
 func (f *FortioManager) getFortioManifestPath() (string, error) {
-	// Get the directory of this Go file
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("failed to get current file path")
+	return f.writeManifestToTempFile("manifests/fortio.yaml", "fortio-*.yaml")
+}
+
+// writeManifestToTempFile reads a manifest from the embedded filesystem and writes it to a temporary file
+func (f *FortioManager) writeManifestToTempFile(embedPath, tempPattern string) (string, error) {
+	// Read manifest from embedded filesystem
+	data, err := manifestFS.ReadFile(embedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read embedded manifest %s: %w", embedPath, err)
 	}
 
-	// Build path to manifests directory
-	manifestPath := filepath.Join(filepath.Dir(currentFile), "manifests", "fortio.yaml")
+	// Create temporary file
+	tempFile, err := os.CreateTemp("", tempPattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	defer func() {
+		if err := tempFile.Close(); err != nil {
+			f.logger.Warn("Failed to close temporary file", "path", tempFile.Name(), "error", err)
+		}
+	}()
 
-	// Check if the file exists
-	if _, err := os.Stat(manifestPath); err != nil {
-		return "", fmt.Errorf("manifest file not found at %s: %w", manifestPath, err)
+	// Write manifest data to temporary file
+	if _, err := tempFile.Write(data); err != nil {
+		if removeErr := os.Remove(tempFile.Name()); removeErr != nil {
+			f.logger.Warn("Failed to remove temporary file after write error", "path", tempFile.Name(), "error", removeErr)
+		}
+		return "", fmt.Errorf("failed to write manifest to temporary file: %w", err)
 	}
 
-	return manifestPath, nil
+	f.logger.Debug("Created temporary manifest file", "path", tempFile.Name(), "source", embedPath)
+	return tempFile.Name(), nil
 }
 
 // applyManifest applies a Kubernetes manifest using kubectl
