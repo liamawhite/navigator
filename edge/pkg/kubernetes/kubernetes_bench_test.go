@@ -58,11 +58,11 @@ func benchmarkGetClusterState(b *testing.B, numServices, numPods int) {
 	for i := range services {
 		k8sObjects = append(k8sObjects, &services[i])
 	}
-	for i := range endpointSlices {
-		k8sObjects = append(k8sObjects, &endpointSlices[i])
+	for _, eps := range endpointSlices {
+		k8sObjects = append(k8sObjects, eps)
 	}
-	for i := range pods {
-		k8sObjects = append(k8sObjects, &pods[i])
+	for _, pod := range pods {
+		k8sObjects = append(k8sObjects, pod)
 	}
 
 	k8sClient := newTestClient(b, k8sObjects, nil)
@@ -72,7 +72,7 @@ func benchmarkGetClusterState(b *testing.B, numServices, numPods int) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := k8sClient.GetClusterState(context.TODO())
 		if err != nil {
 			b.Fatalf("GetClusterState failed: %v", err)
@@ -95,14 +95,14 @@ func BenchmarkMapOperations(b *testing.B) {
 
 	b.Run("BuildEndpointSliceMap", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = client.buildEndpointSliceMap(endpointSlices)
 		}
 	})
 
 	b.Run("BuildPodMap", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = client.buildPodMap(pods)
 		}
 	})
@@ -113,8 +113,8 @@ func BenchmarkMapOperations(b *testing.B) {
 
 	b.Run("MapLookups", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			for j := 0; j < 100; j++ {
+		for range b.N {
+			for j := range 100 {
 				serviceKey := fmt.Sprintf("default/service-%d", j%numServices)
 				podKey := fmt.Sprintf("default/pod-%d", j%numPods)
 
@@ -129,7 +129,7 @@ func BenchmarkMapOperations(b *testing.B) {
 func generateServices(count int) []corev1.Service {
 	services := make([]corev1.Service, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		services[i] = corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      fmt.Sprintf("service-%d", i),
@@ -153,76 +153,53 @@ func generateServices(count int) []corev1.Service {
 }
 
 // generateEndpointSlices creates test endpoint slices
-func generateEndpointSlices(numServices, numPods int) []discoveryv1.EndpointSlice {
-	endpointSlices := make([]discoveryv1.EndpointSlice, numServices)
-
-	for i := 0; i < numServices; i++ {
-		// Create 1-3 endpoints per service
+func generateEndpointSlices(numServices, numPods int) []*discoveryv1.EndpointSlice {
+	endpointSlices := make([]*discoveryv1.EndpointSlice, numServices)
+	for i := range numServices {
 		numEndpoints := 1 + (i % 3)
 		endpoints := make([]discoveryv1.Endpoint, numEndpoints)
-
-		for j := 0; j < numEndpoints; j++ {
+		for j := range numEndpoints {
 			podIndex := (i*3 + j) % numPods
 			endpoints[j] = discoveryv1.Endpoint{
-				Addresses: []string{fmt.Sprintf("10.0.%d.%d", i%256, j%256)},
-				Conditions: discoveryv1.EndpointConditions{
-					Ready: boolPtr(true),
-				},
+				Addresses:  []string{fmt.Sprintf("10.0.%d.%d", i%256, j%256)},
+				Conditions: discoveryv1.EndpointConditions{Ready: boolPtr(true)},
 				TargetRef: &corev1.ObjectReference{
 					Kind: "Pod",
 					Name: fmt.Sprintf("pod-%d", podIndex),
 				},
 			}
 		}
-
-		endpointSlices[i] = discoveryv1.EndpointSlice{
+		endpointSlices[i] = &discoveryv1.EndpointSlice{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      fmt.Sprintf("service-%d-abc123", i),
 				Namespace: "default",
-				Labels: map[string]string{
-					"kubernetes.io/service-name": fmt.Sprintf("service-%d", i),
-				},
+				Labels:    map[string]string{"kubernetes.io/service-name": fmt.Sprintf("service-%d", i)},
 			},
 			Endpoints: endpoints,
 		}
 	}
-
 	return endpointSlices
 }
 
 // generatePods creates test pods
-func generatePods(count int) []corev1.Pod {
-	pods := make([]corev1.Pod, count)
-
-	for i := 0; i < count; i++ {
-		containers := []corev1.Container{
-			{
-				Name:  "app",
-				Image: "nginx:latest",
-			},
-		}
-
-		// Every 3rd pod has an Envoy sidecar
+func generatePods(count int) []*corev1.Pod {
+	pods := make([]*corev1.Pod, count)
+	for i := range count {
+		containers := []corev1.Container{{Name: "app", Image: "nginx:latest"}}
 		if i%3 == 0 {
 			containers = append(containers, corev1.Container{
 				Name:  "envoy",
 				Image: "envoyproxy/envoy:v1.20.0",
 			})
 		}
-
-		pods[i] = corev1.Pod{
+		pods[i] = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      fmt.Sprintf("pod-%d", i),
 				Namespace: "default",
-				Labels: map[string]string{
-					"app": fmt.Sprintf("app-%d", i%100),
-				},
+				Labels:    map[string]string{"app": fmt.Sprintf("app-%d", i%100)},
 			},
-			Spec: corev1.PodSpec{
-				Containers: containers,
-			},
+			Spec: corev1.PodSpec{Containers: containers},
 		}
 	}
-
 	return pods
 }

@@ -16,6 +16,9 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
@@ -27,29 +30,25 @@ import (
 )
 
 // buildEndpointSliceMap creates a map of service name to endpoint slices for efficient lookup
-func (k *Client) buildEndpointSliceMap(endpointSlices []discoveryv1.EndpointSlice) map[string][]discoveryv1.EndpointSlice {
+func (k *Client) buildEndpointSliceMap(endpointSlices []*discoveryv1.EndpointSlice) map[string][]discoveryv1.EndpointSlice {
 	endpointSlicesByService := make(map[string][]discoveryv1.EndpointSlice)
-
 	for _, slice := range endpointSlices {
 		serviceName := slice.Labels["kubernetes.io/service-name"]
 		if serviceName != "" {
 			key := slice.Namespace + "/" + serviceName
-			endpointSlicesByService[key] = append(endpointSlicesByService[key], slice)
+			endpointSlicesByService[key] = append(endpointSlicesByService[key], *slice)
 		}
 	}
-
 	return endpointSlicesByService
 }
 
 // buildPodMap creates a map of namespace/podname to pod for efficient lookup
-func (k *Client) buildPodMap(pods []corev1.Pod) map[string]*corev1.Pod {
+func (k *Client) buildPodMap(pods []*corev1.Pod) map[string]*corev1.Pod {
 	podsByName := make(map[string]*corev1.Pod)
-
-	for i, pod := range pods {
+	for _, pod := range pods {
 		key := pod.Namespace + "/" + pod.Name
-		podsByName[key] = &pods[i]
+		podsByName[key] = pod
 	}
-
 	return podsByName
 }
 
@@ -132,14 +131,10 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 
 					// Copy labels and annotations (avoid nil maps)
 					if pod.Labels != nil {
-						for k, v := range pod.Labels {
-							lbls[k] = v
-						}
+						maps.Copy(lbls, pod.Labels)
 					}
 					if pod.Annotations != nil {
-						for k, v := range pod.Annotations {
-							annotations[k] = v
-						}
+						maps.Copy(annotations, pod.Annotations)
 					}
 				}
 			}
@@ -168,21 +163,8 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 
 // hasEnvoySidecarInPod checks if a pod has an Envoy sidecar container (no API call)
 func (k *Client) hasEnvoySidecarInPod(pod *corev1.Pod) bool {
-	// Check all containers for Envoy indicators
-	for _, container := range pod.Spec.Containers {
-		if k.isEnvoyContainer(container) {
-			return true
-		}
-	}
-
-	// Check init containers as well
-	for _, container := range pod.Spec.InitContainers {
-		if k.isEnvoyContainer(container) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(pod.Spec.Containers, k.isEnvoyContainer) ||
+		slices.ContainsFunc(pod.Spec.InitContainers, k.isEnvoyContainer)
 }
 
 // isEnvoyContainer checks if a container is an Envoy proxy
@@ -252,7 +234,12 @@ func (k *Client) extractContainerInfo(pod *corev1.Pod) []*backendv1alpha1.Contai
 
 // GetClusterState reads cluster state from the informer cache.
 // Start must be called before this method.
+// TODO: propagate ctx cancellation through lister reads once the interface supports it.
 func (k *Client) GetClusterState(_ context.Context) (*backendv1alpha1.ClusterState, error) {
+	if k.servicesLister == nil {
+		return nil, fmt.Errorf("informer cache not initialised: call Start first")
+	}
+
 	// Read k8s resources from the local cache
 	svcPtrs, err := k.servicesLister.List(labels.Everything())
 	if err != nil {
@@ -267,13 +254,18 @@ func (k *Client) GetClusterState(_ context.Context) (*backendv1alpha1.ClusterSta
 		return nil, err
 	}
 
-	podsByName := k.buildPodMap(derefPods(podPtrs))
-	endpointSlicesByService := k.buildEndpointSliceMap(derefEndpointSlices(epsPtrs))
+	podsByName := k.buildPodMap(podPtrs)
+	endpointSlicesByService := k.buildEndpointSliceMap(epsPtrs)
 
 	var protoServices []*backendv1alpha1.Service
 	for _, svc := range svcPtrs {
 		protoServices = append(protoServices, k.convertServiceWithMaps(svc, endpointSlicesByService, podsByName))
 	}
+
+	// k8s lister errors are hard failures: no services/pods means broken state.
+	// Istio lister errors in listXxx are logged and return nil (best-effort):
+	// Lister.List() on a synced in-memory cache never errors in practice, and
+	// missing Istio config is non-fatal — workload state is still reported.
 
 	// Read Istio resources from the local cache
 	protoDestinationRules := k.listDestinationRules()
@@ -382,20 +374,3 @@ func (k *Client) determineProxyMode(pod *corev1.Pod) typesv1alpha1.ProxyMode {
 	return typesv1alpha1.ProxyMode_NONE
 }
 
-// derefPods converts a slice of pod pointers to pod values
-func derefPods(ptrs []*corev1.Pod) []corev1.Pod {
-	out := make([]corev1.Pod, len(ptrs))
-	for i, p := range ptrs {
-		out[i] = *p
-	}
-	return out
-}
-
-// derefEndpointSlices converts a slice of EndpointSlice pointers to values
-func derefEndpointSlices(ptrs []*discoveryv1.EndpointSlice) []discoveryv1.EndpointSlice {
-	out := make([]discoveryv1.EndpointSlice, len(ptrs))
-	for i, p := range ptrs {
-		out[i] = *p
-	}
-	return out
-}

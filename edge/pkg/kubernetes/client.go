@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
+	"sync"
 
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
 	istioinformers "istio.io/client-go/pkg/informers/externalversions"
@@ -41,6 +41,9 @@ type Client struct {
 	istioClient istioclient.Interface
 	restConfig  *rest.Config
 	logger      *slog.Logger
+
+	mu      sync.Mutex
+	started bool
 
 	// informer factories (nil until Start is called)
 	k8sFactory   informers.SharedInformerFactory
@@ -130,6 +133,17 @@ func NewClientWithContext(kubeconfigPath string, contextName string, logger *slo
 // Start initialises informer factories, starts all informers, and waits for cache sync.
 // Must be called before GetClusterState.
 func (k *Client) Start(ctx context.Context) error {
+	k.mu.Lock()
+	if k.started {
+		k.mu.Unlock()
+		return fmt.Errorf("kubernetes client already started")
+	}
+	k.started = true
+	k.mu.Unlock()
+
+	// Resync period 0: rely on watch events only. Periodic full-resync would
+	// add redundant API server load; missed events are recoverable via re-list
+	// on watch reconnect, which the informer machinery handles automatically.
 	k.k8sFactory = informers.NewSharedInformerFactory(k.clientset, 0)
 	k.istioFactory = istioinformers.NewSharedInformerFactory(k.istioClient, 0)
 
@@ -156,16 +170,16 @@ func (k *Client) Start(ctx context.Context) error {
 	k.istioFactory.Start(ctx.Done())
 
 	k8sSynced := k.k8sFactory.WaitForCacheSync(ctx.Done())
-	for _, ok := range k8sSynced {
+	for t, ok := range k8sSynced {
 		if !ok {
-			return fmt.Errorf("k8s informer cache sync failed")
+			return fmt.Errorf("k8s informer cache sync failed for %v", t)
 		}
 	}
 
 	istioSynced := k.istioFactory.WaitForCacheSync(ctx.Done())
-	for _, ok := range istioSynced {
+	for t, ok := range istioSynced {
 		if !ok {
-			return fmt.Errorf("istio informer cache sync failed")
+			return fmt.Errorf("istio informer cache sync failed for %v", t)
 		}
 	}
 
@@ -198,21 +212,6 @@ func (k *Client) GetClientset() kubernetes.Interface {
 // GetRestConfig returns the underlying Kubernetes REST config
 func (k *Client) GetRestConfig() *rest.Config {
 	return k.restConfig
-}
-
-// mergeErrors combines multiple errors into a single error with detailed information
-func (k *Client) mergeErrors(errs []error) error {
-	if len(errs) == 0 {
-		return nil
-	}
-	if len(errs) == 1 {
-		return errs[0]
-	}
-	msgs := make([]string, 0, len(errs))
-	for _, e := range errs {
-		msgs = append(msgs, e.Error())
-	}
-	return fmt.Errorf("multiple errors occurred (%d total): %s", len(errs), strings.Join(msgs, "; "))
 }
 
 // GetClusterName retrieves the cluster name from Istio's CLUSTER_ID environment variable in istiod deployment.

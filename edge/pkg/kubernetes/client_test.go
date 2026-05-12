@@ -16,10 +16,8 @@ package kubernetes
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	extensionsapi "istio.io/api/extensions/v1alpha1"
@@ -152,48 +150,6 @@ func TestClient_GetClusterState(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, got)
 				assert.Len(t, got.Services, tt.wantServices)
-			}
-		})
-	}
-}
-
-func TestClient_mergeErrors(t *testing.T) {
-	client := &Client{logger: logging.For("test")}
-
-	tests := []struct {
-		name   string
-		errors []error
-		want   string
-	}{
-		{
-			name:   "no errors",
-			errors: nil,
-			want:   "",
-		},
-		{
-			name:   "single error",
-			errors: []error{errors.New("first error")},
-			want:   "first error",
-		},
-		{
-			name: "multiple errors",
-			errors: []error{
-				errors.New("first error"),
-				errors.New("second error"),
-				errors.New("third error"),
-			},
-			want: "multiple errors occurred (3 total): first error; second error; third error",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := client.mergeErrors(tt.errors)
-			if tt.want == "" {
-				assert.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Equal(t, tt.want, err.Error())
 			}
 		})
 	}

@@ -372,8 +372,12 @@ func TestClient_convertEndpointSlicesToInstancesWithMaps(t *testing.T) {
 				logger:    logging.For("test"),
 			}
 
-			// Build pod map from test data
-			podMap := k8sClient.buildPodMap(tt.pods)
+			// Build pod map from test data (convert value slice to pointer slice)
+			podPtrs := make([]*corev1.Pod, len(tt.pods))
+			for i := range tt.pods {
+				podPtrs[i] = &tt.pods[i]
+			}
+			podMap := k8sClient.buildPodMap(podPtrs)
 
 			got := k8sClient.convertEndpointSlicesToInstancesWithMaps(tt.endpointSlices, podMap)
 

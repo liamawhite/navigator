@@ -429,6 +429,61 @@ func TestClient_getIstioControlPlaneConfig(t *testing.T) {
 	}
 }
 
+func TestClient_selectActiveControlPlane(t *testing.T) {
+	client := &Client{logger: logging.For("test")}
+
+	dep := func(name string, ready int32) appsv1.Deployment {
+		return appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "istio-system"},
+			Status:     appsv1.DeploymentStatus{ReadyReplicas: ready},
+		}
+	}
+
+	tests := []struct {
+		name        string
+		deployments []appsv1.Deployment
+		wantName    string
+	}{
+		{
+			name:        "empty list returns nil",
+			deployments: nil,
+			wantName:    "",
+		},
+		{
+			name:        "single deployment selected",
+			deployments: []appsv1.Deployment{dep("istiod-1-26-0", 2)},
+			wantName:    "istiod-1-26-0",
+		},
+		{
+			name:        "traditional istiod preferred regardless of replica count",
+			deployments: []appsv1.Deployment{dep("istiod-1-26-0", 5), dep("istiod", 1)},
+			wantName:    "istiod",
+		},
+		{
+			name:        "highest ready replicas wins",
+			deployments: []appsv1.Deployment{dep("istiod-1-25-0", 1), dep("istiod-1-26-0", 3)},
+			wantName:    "istiod-1-26-0",
+		},
+		{
+			name:        "same ready replicas - first in slice selected",
+			deployments: []appsv1.Deployment{dep("istiod-1-25-0", 2), dep("istiod-1-26-0", 2)},
+			wantName:    "istiod-1-25-0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := client.selectActiveControlPlane(tt.deployments)
+			if tt.wantName == "" {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.wantName, result.Name)
+			}
+		})
+	}
+}
+
 func TestClient_convertVirtualService(t *testing.T) {
 	client := &Client{logger: logging.For("test")}
 
@@ -725,7 +780,7 @@ func TestClient_convertSidecar(t *testing.T) {
 			assert.NotEmpty(t, result.RawConfig)
 
 			// Verify RawConfig contains valid JSON
-			var spec map[string]interface{}
+			var spec map[string]any
 			err = json.Unmarshal([]byte(result.RawConfig), &spec)
 			assert.NoError(t, err, "RawConfig should be valid JSON")
 		})
@@ -969,7 +1024,7 @@ func TestClient_convertPeerAuthentication(t *testing.T) {
 			assert.NotEmpty(t, result.RawConfig)
 
 			// Verify RawConfig contains valid JSON
-			var spec map[string]interface{}
+			var spec map[string]any
 			err = json.Unmarshal([]byte(result.RawConfig), &spec)
 			assert.NoError(t, err, "RawConfig should be valid JSON")
 		})
@@ -1227,7 +1282,7 @@ func TestClient_convertWasmPlugin(t *testing.T) {
 			assert.Equal(t, tt.wantNamespace, result.Namespace)
 
 			// Verify that RawConfig is valid JSON
-			var spec map[string]interface{}
+			var spec map[string]any
 			err = json.Unmarshal([]byte(result.RawConfig), &spec)
 			assert.NoError(t, err, "RawConfig should be valid JSON")
 
@@ -1425,7 +1480,7 @@ func TestClient_convertServiceEntry(t *testing.T) {
 			assert.NotEmpty(t, result.RawConfig)
 
 			// Verify RawConfig contains valid JSON
-			var spec map[string]interface{}
+			var spec map[string]any
 			err = json.Unmarshal([]byte(result.RawConfig), &spec)
 			assert.NoError(t, err, "RawConfig should be valid JSON")
 		})
@@ -1698,7 +1753,7 @@ func TestClient_convertAuthorizationPolicy(t *testing.T) {
 			assert.Equal(t, tt.wantTargetRefs, result.TargetRefs)
 
 			// Verify RawConfig is valid JSON
-			var jsonData interface{}
+			var jsonData any
 			err = json.Unmarshal([]byte(result.RawConfig), &jsonData)
 			assert.NoError(t, err, "RawConfig should be valid JSON")
 		})
