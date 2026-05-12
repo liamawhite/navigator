@@ -373,4 +373,3 @@ func (k *Client) determineProxyMode(pod *corev1.Pod) typesv1alpha1.ProxyMode {
 
 	return typesv1alpha1.ProxyMode_NONE
 }
-
