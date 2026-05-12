@@ -22,15 +22,15 @@ import (
 
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
 	istioinformers "istio.io/client-go/pkg/informers/externalversions"
+	istioextlisters "istio.io/client-go/pkg/listers/extensions/v1alpha1"
 	istiov1alpha3listers "istio.io/client-go/pkg/listers/networking/v1alpha3"
 	istiov1beta1listers "istio.io/client-go/pkg/listers/networking/v1beta1"
-	istioextlisters "istio.io/client-go/pkg/listers/extensions/v1alpha1"
 	istioseclisters "istio.io/client-go/pkg/listers/security/v1beta1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	appsv1lister "k8s.io/client-go/listers/apps/v1"
 	corev1lister "k8s.io/client-go/listers/core/v1"
 	discoveryv1lister "k8s.io/client-go/listers/discovery/v1"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -127,8 +127,6 @@ func NewClientWithContext(kubeconfigPath string, contextName string, logger *slo
 	}, nil
 }
 
-// Start initialises informer factories, starts all informers, and waits for cache sync.
-// Must be called before GetClusterState.
 // Start initialises informer factories, starts all informers, and waits for cache sync.
 // Must be called before GetClusterState.
 func (k *Client) Start(ctx context.Context) error {
