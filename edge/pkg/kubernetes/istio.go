@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	istioextensionsv1alpha1 "istio.io/client-go/pkg/apis/extensions/v1alpha1"
@@ -27,620 +26,261 @@ import (
 	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
-// fetchDestinationRules fetches and converts all destination rules from the cluster
-func (k *Client) fetchDestinationRules(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.DestinationRule, errChan chan<- error) {
-	defer wg.Done()
-	drList, err := k.istioClient.NetworkingV1beta1().DestinationRules("").List(ctx, metav1.ListOptions{})
+// listDestinationRules reads DestinationRules from the informer cache and converts them.
+func (k *Client) listDestinationRules() []*typesv1alpha1.DestinationRule {
+	items, err := k.destinationRulesLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list destination rules: %w", err)
-		return
+		k.logger.Error("failed to list destination rules from cache", "error", err)
+		return nil
 	}
-
-	var protoDestinationRules []*typesv1alpha1.DestinationRule
-	for i := range drList.Items {
-		dr := drList.Items[i]
-		protoDR, convertErr := k.convertDestinationRule(dr)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert destination rule", "name", dr.Name, "namespace", dr.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.DestinationRule
+	for _, dr := range items {
+		proto, err := k.convertDestinationRule(dr)
+		if err != nil {
+			k.logger.Warn("failed to convert destination rule", "name", dr.Name, "namespace", dr.Namespace, "error", err)
 			continue
 		}
-		protoDestinationRules = append(protoDestinationRules, protoDR)
+		result = append(result, proto)
 	}
-	*result = protoDestinationRules
+	return result
 }
 
-// fetchEnvoyFilters fetches and converts all envoy filters from the cluster
-func (k *Client) fetchEnvoyFilters(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.EnvoyFilter, errChan chan<- error) {
-	defer wg.Done()
-	efList, err := k.istioClient.NetworkingV1alpha3().EnvoyFilters("").List(ctx, metav1.ListOptions{})
+// listEnvoyFilters reads EnvoyFilters from the informer cache and converts them.
+func (k *Client) listEnvoyFilters() []*typesv1alpha1.EnvoyFilter {
+	items, err := k.envoyFiltersLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list envoy filters: %w", err)
-		return
+		k.logger.Error("failed to list envoy filters from cache", "error", err)
+		return nil
 	}
-
-	var protoEnvoyFilters []*typesv1alpha1.EnvoyFilter
-	for i := range efList.Items {
-		ef := efList.Items[i]
-		protoEF, convertErr := k.convertEnvoyFilter(ef)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert envoy filter", "name", ef.Name, "namespace", ef.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.EnvoyFilter
+	for _, ef := range items {
+		proto, err := k.convertEnvoyFilter(ef)
+		if err != nil {
+			k.logger.Warn("failed to convert envoy filter", "name", ef.Name, "namespace", ef.Namespace, "error", err)
 			continue
 		}
-		protoEnvoyFilters = append(protoEnvoyFilters, protoEF)
+		result = append(result, proto)
 	}
-	*result = protoEnvoyFilters
+	return result
 }
 
-// fetchRequestAuthentications fetches and converts all request authentications from the cluster
-func (k *Client) fetchRequestAuthentications(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.RequestAuthentication, errChan chan<- error) {
-	defer wg.Done()
-	raList, err := k.istioClient.SecurityV1beta1().RequestAuthentications("").List(ctx, metav1.ListOptions{})
+// listRequestAuthentications reads RequestAuthentications from the informer cache and converts them.
+func (k *Client) listRequestAuthentications() []*typesv1alpha1.RequestAuthentication {
+	items, err := k.requestAuthenticationsLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list request authentications: %w", err)
-		return
+		k.logger.Error("failed to list request authentications from cache", "error", err)
+		return nil
 	}
-
-	var protoRequestAuthentications []*typesv1alpha1.RequestAuthentication
-	for i := range raList.Items {
-		ra := raList.Items[i]
-		protoRA, convertErr := k.convertRequestAuthentication(ra)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert request authentication", "name", ra.Name, "namespace", ra.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.RequestAuthentication
+	for _, ra := range items {
+		proto, err := k.convertRequestAuthentication(ra)
+		if err != nil {
+			k.logger.Warn("failed to convert request authentication", "name", ra.Name, "namespace", ra.Namespace, "error", err)
 			continue
 		}
-		protoRequestAuthentications = append(protoRequestAuthentications, protoRA)
+		result = append(result, proto)
 	}
-	*result = protoRequestAuthentications
+	return result
 }
 
-// fetchPeerAuthentications fetches and converts all peer authentications from the cluster
-func (k *Client) fetchPeerAuthentications(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.PeerAuthentication, errChan chan<- error) {
-	defer wg.Done()
-	paList, err := k.istioClient.SecurityV1beta1().PeerAuthentications("").List(ctx, metav1.ListOptions{})
+// listPeerAuthentications reads PeerAuthentications from the informer cache and converts them.
+func (k *Client) listPeerAuthentications() []*typesv1alpha1.PeerAuthentication {
+	items, err := k.peerAuthenticationsLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list peer authentications: %w", err)
-		return
+		k.logger.Error("failed to list peer authentications from cache", "error", err)
+		return nil
 	}
-
-	var protoPeerAuthentications []*typesv1alpha1.PeerAuthentication
-	for i := range paList.Items {
-		pa := paList.Items[i]
-		protoPA, convertErr := k.convertPeerAuthentication(pa)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert peer authentication", "name", pa.Name, "namespace", pa.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.PeerAuthentication
+	for _, pa := range items {
+		proto, err := k.convertPeerAuthentication(pa)
+		if err != nil {
+			k.logger.Warn("failed to convert peer authentication", "name", pa.Name, "namespace", pa.Namespace, "error", err)
 			continue
 		}
-		protoPeerAuthentications = append(protoPeerAuthentications, protoPA)
+		result = append(result, proto)
 	}
-	*result = protoPeerAuthentications
+	return result
 }
 
-// fetchAuthorizationPolicies fetches and converts all authorization policies from the cluster
-func (k *Client) fetchAuthorizationPolicies(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.AuthorizationPolicy, errChan chan<- error) {
-	defer wg.Done()
-	apList, err := k.istioClient.SecurityV1beta1().AuthorizationPolicies("").List(ctx, metav1.ListOptions{})
+// listAuthorizationPolicies reads AuthorizationPolicies from the informer cache and converts them.
+func (k *Client) listAuthorizationPolicies() []*typesv1alpha1.AuthorizationPolicy {
+	items, err := k.authorizationPoliciesLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list authorization policies: %w", err)
-		return
+		k.logger.Error("failed to list authorization policies from cache", "error", err)
+		return nil
 	}
-
-	var protoAuthorizationPolicies []*typesv1alpha1.AuthorizationPolicy
-	for i := range apList.Items {
-		ap := apList.Items[i]
-		protoAP, convertErr := k.convertAuthorizationPolicy(ap)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert authorization policy", "name", ap.Name, "namespace", ap.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.AuthorizationPolicy
+	for _, ap := range items {
+		proto, err := k.convertAuthorizationPolicy(ap)
+		if err != nil {
+			k.logger.Warn("failed to convert authorization policy", "name", ap.Name, "namespace", ap.Namespace, "error", err)
 			continue
 		}
-		protoAuthorizationPolicies = append(protoAuthorizationPolicies, protoAP)
+		result = append(result, proto)
 	}
-	*result = protoAuthorizationPolicies
+	return result
 }
 
-// fetchWasmPlugins fetches and converts all wasm plugins from the cluster
-func (k *Client) fetchWasmPlugins(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.WasmPlugin, errChan chan<- error) {
-	defer wg.Done()
-	wpList, err := k.istioClient.ExtensionsV1alpha1().WasmPlugins("").List(ctx, metav1.ListOptions{})
+// listWasmPlugins reads WasmPlugins from the informer cache and converts them.
+func (k *Client) listWasmPlugins() []*typesv1alpha1.WasmPlugin {
+	items, err := k.wasmPluginsLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list wasm plugins: %w", err)
-		return
+		k.logger.Error("failed to list wasm plugins from cache", "error", err)
+		return nil
 	}
-
-	var protoWasmPlugins []*typesv1alpha1.WasmPlugin
-	for i := range wpList.Items {
-		wp := wpList.Items[i]
-		protoWP, convertErr := k.convertWasmPlugin(wp)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert wasm plugin", "name", wp.Name, "namespace", wp.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.WasmPlugin
+	for _, wp := range items {
+		proto, err := k.convertWasmPlugin(wp)
+		if err != nil {
+			k.logger.Warn("failed to convert wasm plugin", "name", wp.Name, "namespace", wp.Namespace, "error", err)
 			continue
 		}
-		protoWasmPlugins = append(protoWasmPlugins, protoWP)
+		result = append(result, proto)
 	}
-	*result = protoWasmPlugins
+	return result
 }
 
-// fetchGateways fetches and converts all gateways from the cluster
-func (k *Client) fetchGateways(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.Gateway, errChan chan<- error) {
-	defer wg.Done()
-	gwList, err := k.istioClient.NetworkingV1beta1().Gateways("").List(ctx, metav1.ListOptions{})
+// listGateways reads Gateways from the informer cache and converts them.
+func (k *Client) listGateways() []*typesv1alpha1.Gateway {
+	items, err := k.gatewaysLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list gateways: %w", err)
-		return
+		k.logger.Error("failed to list gateways from cache", "error", err)
+		return nil
 	}
-
-	var protoGateways []*typesv1alpha1.Gateway
-	for i := range gwList.Items {
-		gw := gwList.Items[i]
-		protoGW, convertErr := k.convertGateway(gw)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert gateway", "name", gw.Name, "namespace", gw.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.Gateway
+	for _, gw := range items {
+		proto, err := k.convertGateway(gw)
+		if err != nil {
+			k.logger.Warn("failed to convert gateway", "name", gw.Name, "namespace", gw.Namespace, "error", err)
 			continue
 		}
-		protoGateways = append(protoGateways, protoGW)
+		result = append(result, proto)
 	}
-	*result = protoGateways
+	return result
 }
 
-// fetchSidecars fetches and converts all sidecars from the cluster
-func (k *Client) fetchSidecars(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.Sidecar, errChan chan<- error) {
-	defer wg.Done()
-	scList, err := k.istioClient.NetworkingV1beta1().Sidecars("").List(ctx, metav1.ListOptions{})
+// listSidecars reads Sidecars from the informer cache and converts them.
+func (k *Client) listSidecars() []*typesv1alpha1.Sidecar {
+	items, err := k.sidecarsLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list sidecars: %w", err)
-		return
+		k.logger.Error("failed to list sidecars from cache", "error", err)
+		return nil
 	}
-
-	var protoSidecars []*typesv1alpha1.Sidecar
-	for i := range scList.Items {
-		sc := scList.Items[i]
-		protoSC, convertErr := k.convertSidecar(sc)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert sidecar", "name", sc.Name, "namespace", sc.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.Sidecar
+	for _, sc := range items {
+		proto, err := k.convertSidecar(sc)
+		if err != nil {
+			k.logger.Warn("failed to convert sidecar", "name", sc.Name, "namespace", sc.Namespace, "error", err)
 			continue
 		}
-		protoSidecars = append(protoSidecars, protoSC)
+		result = append(result, proto)
 	}
-	*result = protoSidecars
+	return result
 }
 
-// fetchVirtualServices fetches and converts all virtual services from the cluster
-func (k *Client) fetchVirtualServices(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.VirtualService, errChan chan<- error) {
-	defer wg.Done()
-	vsList, err := k.istioClient.NetworkingV1beta1().VirtualServices("").List(ctx, metav1.ListOptions{})
+// listVirtualServices reads VirtualServices from the informer cache and converts them.
+func (k *Client) listVirtualServices() []*typesv1alpha1.VirtualService {
+	items, err := k.virtualServicesLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list virtual services: %w", err)
-		return
+		k.logger.Error("failed to list virtual services from cache", "error", err)
+		return nil
 	}
-
-	var protoVirtualServices []*typesv1alpha1.VirtualService
-	for i := range vsList.Items {
-		vs := vsList.Items[i]
-		protoVS, convertErr := k.convertVirtualService(vs)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert virtual service", "name", vs.Name, "namespace", vs.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.VirtualService
+	for _, vs := range items {
+		proto, err := k.convertVirtualService(vs)
+		if err != nil {
+			k.logger.Warn("failed to convert virtual service", "name", vs.Name, "namespace", vs.Namespace, "error", err)
 			continue
 		}
-		protoVirtualServices = append(protoVirtualServices, protoVS)
+		result = append(result, proto)
 	}
-	*result = protoVirtualServices
+	return result
 }
 
-// fetchServiceEntries fetches and converts all service entries from the cluster
-func (k *Client) fetchServiceEntries(ctx context.Context, wg *sync.WaitGroup, result *[]*typesv1alpha1.ServiceEntry, errChan chan<- error) {
-	defer wg.Done()
-	seList, err := k.istioClient.NetworkingV1beta1().ServiceEntries("").List(ctx, metav1.ListOptions{})
+// listServiceEntries reads ServiceEntries from the informer cache and converts them.
+func (k *Client) listServiceEntries() []*typesv1alpha1.ServiceEntry {
+	items, err := k.serviceEntriesLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list service entries: %w", err)
-		return
+		k.logger.Error("failed to list service entries from cache", "error", err)
+		return nil
 	}
-
-	var protoServiceEntries []*typesv1alpha1.ServiceEntry
-	for i := range seList.Items {
-		se := seList.Items[i]
-		protoSE, convertErr := k.convertServiceEntry(se)
-		if convertErr != nil {
-			k.logger.Warn("failed to convert service entry", "name", se.Name, "namespace", se.Namespace, "error", convertErr)
+	var result []*typesv1alpha1.ServiceEntry
+	for _, se := range items {
+		proto, err := k.convertServiceEntry(se)
+		if err != nil {
+			k.logger.Warn("failed to convert service entry", "name", se.Name, "namespace", se.Namespace, "error", err)
 			continue
 		}
-		protoServiceEntries = append(protoServiceEntries, protoSE)
+		result = append(result, proto)
 	}
-	*result = protoServiceEntries
+	return result
 }
 
-// convertDestinationRule converts an Istio DestinationRule to a protobuf DestinationRule
-func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRule) (*typesv1alpha1.DestinationRule, error) {
-	resourceBytes, err := json.Marshal(dr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal destination rule resource: %w", err)
-	}
-
-	// Extract host from the spec
-	var host string
-	if dr.Spec.Host != "" {
-		host = dr.Spec.Host
-	}
-
-	// Extract subsets from the spec
-	var subsets []*typesv1alpha1.DestinationRuleSubset
-	for _, subset := range dr.Spec.Subsets {
-		protoSubset := &typesv1alpha1.DestinationRuleSubset{
-			Name:   subset.Name,
-			Labels: make(map[string]string),
-		}
-		if subset.Labels != nil {
-			for key, value := range subset.Labels {
-				protoSubset.Labels[key] = value
-			}
-		}
-		subsets = append(subsets, protoSubset)
-	}
-
-	// Default for exportTo is ["*"] if not specified or empty
-	var exportTo []string
-	if len(dr.Spec.ExportTo) > 0 {
-		exportTo = dr.Spec.ExportTo
-	} else {
-		exportTo = []string{"*"}
-	}
-
-	// Extract workload selector from the spec
-	var workloadSelector *typesv1alpha1.WorkloadSelector
-	if dr.Spec.WorkloadSelector != nil && dr.Spec.WorkloadSelector.MatchLabels != nil {
-		matchLabels := make(map[string]string)
-		for key, value := range dr.Spec.WorkloadSelector.MatchLabels {
-			matchLabels[key] = value
-		}
-		workloadSelector = &typesv1alpha1.WorkloadSelector{
-			MatchLabels: matchLabels,
-		}
-	}
-
-	return &typesv1alpha1.DestinationRule{
-		Name:             dr.Name,
-		Namespace:        dr.Namespace,
-		RawConfig:        string(resourceBytes),
-		Host:             host,
-		Subsets:          subsets,
-		ExportTo:         exportTo,
-		WorkloadSelector: workloadSelector,
-	}, nil
-}
-
-// convertEnvoyFilter converts an Istio EnvoyFilter to a protobuf EnvoyFilter
-func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*typesv1alpha1.EnvoyFilter, error) {
-	resourceBytes, err := json.Marshal(ef)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal envoy filter resource: %w", err)
-	}
-
-	// Extract workload selector from the spec
-	var workloadSelector *typesv1alpha1.WorkloadSelector
-	if ef.Spec.WorkloadSelector != nil && ef.Spec.WorkloadSelector.Labels != nil {
-		matchLabels := make(map[string]string)
-		for key, value := range ef.Spec.WorkloadSelector.Labels {
-			matchLabels[key] = value
-		}
-		workloadSelector = &typesv1alpha1.WorkloadSelector{
-			MatchLabels: matchLabels,
-		}
-	}
-
-	// Extract target refs from the spec
-	var targetRefs []*typesv1alpha1.PolicyTargetReference
-	for _, targetRef := range ef.Spec.TargetRefs {
-		if targetRef != nil {
-			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
-				Group:     targetRef.Group,
-				Kind:      targetRef.Kind,
-				Name:      targetRef.Name,
-				Namespace: targetRef.Namespace,
-			}
-			targetRefs = append(targetRefs, protoTargetRef)
-		}
-	}
-
-	return &typesv1alpha1.EnvoyFilter{
-		Name:             ef.Name,
-		Namespace:        ef.Namespace,
-		RawConfig:        string(resourceBytes),
-		WorkloadSelector: workloadSelector,
-		TargetRefs:       targetRefs,
-	}, nil
-}
-
-// convertRequestAuthentication converts an Istio RequestAuthentication to a protobuf RequestAuthentication
-func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAuthentication) (*typesv1alpha1.RequestAuthentication, error) {
-	resourceBytes, err := json.Marshal(ra)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request authentication resource: %w", err)
-	}
-
-	// Extract selector from the spec
-	var selector *typesv1alpha1.WorkloadSelector
-	if ra.Spec.Selector != nil && ra.Spec.Selector.MatchLabels != nil {
-		matchLabels := make(map[string]string)
-		for key, value := range ra.Spec.Selector.MatchLabels {
-			matchLabels[key] = value
-		}
-		selector = &typesv1alpha1.WorkloadSelector{
-			MatchLabels: matchLabels,
-		}
-	}
-
-	// Extract target refs from the spec
-	var targetRefs []*typesv1alpha1.PolicyTargetReference
-	for _, targetRef := range ra.Spec.TargetRefs {
-		if targetRef != nil {
-			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
-				Group:     targetRef.Group,
-				Kind:      targetRef.Kind,
-				Name:      targetRef.Name,
-				Namespace: targetRef.Namespace,
-			}
-			targetRefs = append(targetRefs, protoTargetRef)
-		}
-	}
-
-	return &typesv1alpha1.RequestAuthentication{
-		Name:       ra.Name,
-		Namespace:  ra.Namespace,
-		RawConfig:  string(resourceBytes),
-		Selector:   selector,
-		TargetRefs: targetRefs,
-	}, nil
-}
-
-// convertPeerAuthentication converts an Istio PeerAuthentication to a protobuf PeerAuthentication
-func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthentication) (*typesv1alpha1.PeerAuthentication, error) {
-	resourceBytes, err := json.Marshal(pa)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal peer authentication resource: %w", err)
-	}
-
-	// Extract selector from the spec
-	var selector *typesv1alpha1.WorkloadSelector
-	if pa.Spec.Selector != nil && pa.Spec.Selector.MatchLabels != nil {
-		matchLabels := make(map[string]string)
-		for key, value := range pa.Spec.Selector.MatchLabels {
-			matchLabels[key] = value
-		}
-		selector = &typesv1alpha1.WorkloadSelector{
-			MatchLabels: matchLabels,
-		}
-	}
-
-	return &typesv1alpha1.PeerAuthentication{
-		Name:      pa.Name,
-		Namespace: pa.Namespace,
-		RawConfig: string(resourceBytes),
-		Selector:  selector,
-	}, nil
-}
-
-// convertAuthorizationPolicy converts an Istio AuthorizationPolicy to a protobuf AuthorizationPolicy
-func (k *Client) convertAuthorizationPolicy(ap *istiosecurityv1beta1.AuthorizationPolicy) (*typesv1alpha1.AuthorizationPolicy, error) {
-	resourceBytes, err := json.Marshal(ap)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal authorization policy resource: %w", err)
-	}
-
-	// Extract selector from the spec
-	var selector *typesv1alpha1.WorkloadSelector
-	if ap.Spec.Selector != nil && ap.Spec.Selector.MatchLabels != nil {
-		matchLabels := make(map[string]string)
-		for key, value := range ap.Spec.Selector.MatchLabels {
-			matchLabels[key] = value
-		}
-		selector = &typesv1alpha1.WorkloadSelector{
-			MatchLabels: matchLabels,
-		}
-	}
-
-	// Extract target refs from the spec
-	var targetRefs []*typesv1alpha1.PolicyTargetReference
-
-	// Handle TargetRef (singular) - older API
-	if ap.Spec.TargetRef != nil {
-		protoTargetRef := &typesv1alpha1.PolicyTargetReference{
-			Group:     ap.Spec.TargetRef.Group,
-			Kind:      ap.Spec.TargetRef.Kind,
-			Name:      ap.Spec.TargetRef.Name,
-			Namespace: ap.Spec.TargetRef.Namespace,
-		}
-		targetRefs = append(targetRefs, protoTargetRef)
-	}
-
-	// Handle TargetRefs (plural) - newer API
-	for _, targetRef := range ap.Spec.TargetRefs {
-		if targetRef != nil {
-			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
-				Group:     targetRef.Group,
-				Kind:      targetRef.Kind,
-				Name:      targetRef.Name,
-				Namespace: targetRef.Namespace,
-			}
-			targetRefs = append(targetRefs, protoTargetRef)
-		}
-	}
-
-	return &typesv1alpha1.AuthorizationPolicy{
-		Name:       ap.Name,
-		Namespace:  ap.Namespace,
-		RawConfig:  string(resourceBytes),
-		Selector:   selector,
-		TargetRefs: targetRefs,
-	}, nil
-}
-
-// convertWasmPlugin converts an Istio WasmPlugin to a protobuf WasmPlugin
-func (k *Client) convertWasmPlugin(wp *istioextensionsv1alpha1.WasmPlugin) (*typesv1alpha1.WasmPlugin, error) {
-	resourceBytes, err := json.Marshal(wp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal wasm plugin resource: %w", err)
-	}
-
-	// Extract selector from the spec
-	var selector *typesv1alpha1.WorkloadSelector
-	if wp.Spec.Selector != nil && wp.Spec.Selector.MatchLabels != nil {
-		matchLabels := make(map[string]string)
-		for key, value := range wp.Spec.Selector.MatchLabels {
-			matchLabels[key] = value
-		}
-		selector = &typesv1alpha1.WorkloadSelector{
-			MatchLabels: matchLabels,
-		}
-	}
-
-	// Extract target refs from the spec
-	var targetRefs []*typesv1alpha1.PolicyTargetReference
-	for _, targetRef := range wp.Spec.TargetRefs {
-		if targetRef != nil {
-			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
-				Group:     targetRef.Group,
-				Kind:      targetRef.Kind,
-				Name:      targetRef.Name,
-				Namespace: targetRef.Namespace,
-			}
-			targetRefs = append(targetRefs, protoTargetRef)
-		}
-	}
-
-	return &typesv1alpha1.WasmPlugin{
-		Name:       wp.Name,
-		Namespace:  wp.Namespace,
-		RawConfig:  string(resourceBytes),
-		Selector:   selector,
-		TargetRefs: targetRefs,
-	}, nil
-}
-
-// convertGateway converts an Istio Gateway to a protobuf Gateway
-func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*typesv1alpha1.Gateway, error) {
-	resourceBytes, err := json.Marshal(gw)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal gateway resource: %w", err)
-	}
-
-	// Extract selector from gateway spec
-	selector := make(map[string]string)
-	if gw.Spec.Selector != nil {
-		for key, value := range gw.Spec.Selector {
-			selector[key] = value
-		}
-	}
-
-	return &typesv1alpha1.Gateway{
-		Name:      gw.Name,
-		Namespace: gw.Namespace,
-		RawConfig: string(resourceBytes),
-		Selector:  selector,
-	}, nil
-}
-
-// convertSidecar converts an Istio Sidecar to a protobuf Sidecar
-func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*typesv1alpha1.Sidecar, error) {
-	resourceBytes, err := json.Marshal(sc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal sidecar resource: %w", err)
-	}
-
-	// Extract workload selector from the spec
-	var workloadSelector *typesv1alpha1.WorkloadSelector
-	if sc.Spec.WorkloadSelector != nil && sc.Spec.WorkloadSelector.Labels != nil {
-		matchLabels := make(map[string]string)
-		for key, value := range sc.Spec.WorkloadSelector.Labels {
-			matchLabels[key] = value
-		}
-		workloadSelector = &typesv1alpha1.WorkloadSelector{
-			MatchLabels: matchLabels,
-		}
-	}
-
-	return &typesv1alpha1.Sidecar{
-		Name:             sc.Name,
-		Namespace:        sc.Namespace,
-		RawConfig:        string(resourceBytes),
-		WorkloadSelector: workloadSelector,
-	}, nil
-}
-
-// convertVirtualService converts an Istio VirtualService to a protobuf VirtualService
-func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService) (*typesv1alpha1.VirtualService, error) {
-	resourceBytes, err := json.Marshal(vs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal virtual service resource: %w", err)
-	}
-
-	// Extract hosts, gateways, and exportTo from the spec
-	var hosts []string
-	if vs.Spec.Hosts != nil {
-		hosts = vs.Spec.Hosts
-	}
-
-	// Default for gateways is ["mesh"] if not specified or empty
-	var gateways []string
-	if len(vs.Spec.Gateways) > 0 {
-		gateways = vs.Spec.Gateways
-	} else {
-		gateways = []string{"mesh"}
-	}
-
-	// Default for exportTo is ["*"] if not specified or empty
-	var exportTo []string
-	if len(vs.Spec.ExportTo) > 0 {
-		exportTo = vs.Spec.ExportTo
-	} else {
-		exportTo = []string{"*"}
-	}
-
-	return &typesv1alpha1.VirtualService{
-		Name:      vs.Name,
-		Namespace: vs.Namespace,
-		RawConfig: string(resourceBytes),
-		Hosts:     hosts,
-		Gateways:  gateways,
-		ExportTo:  exportTo,
-	}, nil
-}
-
-// fetchIstioControlPlaneConfig fetches Istio control plane configuration.
-// Supports canary upgrades and revision-based Istio installations by discovering
-// all istiod deployments and selecting the active control plane.
-func (k *Client) fetchIstioControlPlaneConfig(ctx context.Context, wg *sync.WaitGroup, result **typesv1alpha1.IstioControlPlaneConfig, errChan chan<- error) {
-	defer wg.Done()
-
+// getIstioControlPlaneConfig reads Istio control plane config from the informer cache.
+func (k *Client) getIstioControlPlaneConfig() *typesv1alpha1.IstioControlPlaneConfig {
 	config := &typesv1alpha1.IstioControlPlaneConfig{
-		PilotScopeGatewayToNamespace: false,          // default value
-		RootNamespace:                "istio-system", // default fallback
+		PilotScopeGatewayToNamespace: false,
+		RootNamespace:                "istio-system",
 	}
 
-	// First, try to find the root namespace by searching across multiple common namespaces
-	rootNamespace, activeDeployment := k.discoverIstioControlPlane(ctx)
-	if rootNamespace != "" {
-		config.RootNamespace = rootNamespace
-		k.logger.Debug("discovered Istio root namespace", "namespace", rootNamespace)
+	// List all deployments with label app=istiod from the cache
+	selector := labels.Set{"app": "istiod"}.AsSelector()
+	allDeps, err := k.deploymentsLister.List(selector)
+	if err != nil {
+		k.logger.Debug("failed to list deployments from cache, using defaults", "error", err)
+		return config
 	}
 
-	if activeDeployment == nil {
-		k.logger.Debug("no active istiod deployment found, using default Istio configuration")
-		*result = config
-		return
+	if len(allDeps) == 0 {
+		k.logger.Debug("no istiod deployments found in cache, using default Istio configuration")
+		return config
 	}
 
-	k.logger.Debug("selected active istiod deployment", "name", activeDeployment.Name, "namespace", activeDeployment.Namespace)
+	// Group by namespace to replicate discoverIstioControlPlane logic
+	byNamespace := make(map[string][]*appsv1.Deployment)
+	for _, d := range allDeps {
+		byNamespace[d.Namespace] = append(byNamespace[d.Namespace], d)
+	}
 
-	// Extract configuration from the active deployment
-	k.extractPilotConfiguration(activeDeployment, config)
+	// Prefer istio-system namespace
+	if deps, ok := byNamespace["istio-system"]; ok {
+		active := k.selectActiveControlPlane(derefDeployments(deps))
+		if active != nil {
+			config.RootNamespace = "istio-system"
+			k.logger.Debug("selected active istiod deployment", "name", active.Name, "namespace", active.Namespace)
+			k.extractPilotConfiguration(active, config)
+			return config
+		}
+	}
 
-	*result = config
+	// Fall back to namespace with most-ready-replica deployment
+	var bestDep *appsv1.Deployment
+	var bestNS string
+	maxReady := int32(-1)
+	for ns, deps := range byNamespace {
+		active := k.selectActiveControlPlane(derefDeployments(deps))
+		if active != nil && active.Status.ReadyReplicas > maxReady {
+			maxReady = active.Status.ReadyReplicas
+			bestDep = active
+			bestNS = ns
+		}
+	}
+
+	if bestDep != nil {
+		config.RootNamespace = bestNS
+		k.logger.Debug("discovered Istio control plane", "namespace", bestNS, "deployment", bestDep.Name)
+		k.extractPilotConfiguration(bestDep, config)
+	}
+
+	return config
 }
 
-// discoverIstioControlPlane discovers the Istio control plane by searching across multiple
-// potential namespaces and returns the root namespace and active deployment.
+// discoverIstioControlPlane discovers the Istio control plane via direct API calls.
+// Used by GetClusterName before informers are started.
 func (k *Client) discoverIstioControlPlane(ctx context.Context) (string, *appsv1.Deployment) {
-	// Common namespaces where Istio control plane might be installed
 	candidateNamespaces := []string{
 		"istio-system",
 		"istio-control-plane",
@@ -652,7 +292,6 @@ func (k *Client) discoverIstioControlPlane(ctx context.Context) (string, *appsv1
 	allNamespaces, err := k.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err == nil {
 		for _, ns := range allNamespaces.Items {
-			// Add any namespace that looks like it could contain Istio control plane
 			if ns.Name != "istio-system" &&
 				ns.Name != "istio-control-plane" &&
 				ns.Name != "istiod" &&
@@ -666,7 +305,6 @@ func (k *Client) discoverIstioControlPlane(ctx context.Context) (string, *appsv1
 	var bestNamespace string
 	maxReadyReplicas := int32(-1)
 
-	// Search each namespace for istiod deployments
 	for _, namespace := range candidateNamespaces {
 		deployments, err := k.clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: "app=istiod",
@@ -679,19 +317,16 @@ func (k *Client) discoverIstioControlPlane(ctx context.Context) (string, *appsv1
 			continue
 		}
 
-		// Select the best deployment from this namespace
 		activeDeployment := k.selectActiveControlPlane(deployments.Items)
 		if activeDeployment == nil {
 			continue
 		}
 
-		// Prioritize traditional "istio-system" namespace
 		if namespace == "istio-system" {
 			k.logger.Debug("found istiod in traditional istio-system namespace")
 			return namespace, activeDeployment
 		}
 
-		// Otherwise, prefer deployment with most ready replicas
 		if activeDeployment.Status.ReadyReplicas > maxReadyReplicas {
 			maxReadyReplicas = activeDeployment.Status.ReadyReplicas
 			bestDeployment = activeDeployment
@@ -757,7 +392,6 @@ func (k *Client) selectActiveControlPlane(deployments []appsv1.Deployment) *apps
 
 // extractPilotConfiguration extracts pilot configuration from an istiod deployment
 func (k *Client) extractPilotConfiguration(deployment *appsv1.Deployment, config *typesv1alpha1.IstioControlPlaneConfig) {
-	// Check for PILOT_SCOPE_GATEWAY_TO_NAMESPACE environment variable in istiod deployment
 	for _, container := range deployment.Spec.Template.Spec.Containers {
 		if container.Name == "discovery" {
 			for _, env := range container.Env {
@@ -774,6 +408,344 @@ func (k *Client) extractPilotConfiguration(deployment *appsv1.Deployment, config
 	}
 }
 
+// convertDestinationRule converts an Istio DestinationRule to a protobuf DestinationRule
+func (k *Client) convertDestinationRule(dr *istionetworkingv1beta1.DestinationRule) (*typesv1alpha1.DestinationRule, error) {
+	resourceBytes, err := json.Marshal(dr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal destination rule resource: %w", err)
+	}
+
+	var host string
+	if dr.Spec.Host != "" {
+		host = dr.Spec.Host
+	}
+
+	var subsets []*typesv1alpha1.DestinationRuleSubset
+	for _, subset := range dr.Spec.Subsets {
+		protoSubset := &typesv1alpha1.DestinationRuleSubset{
+			Name:   subset.Name,
+			Labels: make(map[string]string),
+		}
+		if subset.Labels != nil {
+			for key, value := range subset.Labels {
+				protoSubset.Labels[key] = value
+			}
+		}
+		subsets = append(subsets, protoSubset)
+	}
+
+	var exportTo []string
+	if len(dr.Spec.ExportTo) > 0 {
+		exportTo = dr.Spec.ExportTo
+	} else {
+		exportTo = []string{"*"}
+	}
+
+	var workloadSelector *typesv1alpha1.WorkloadSelector
+	if dr.Spec.WorkloadSelector != nil && dr.Spec.WorkloadSelector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range dr.Spec.WorkloadSelector.MatchLabels {
+			matchLabels[key] = value
+		}
+		workloadSelector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	return &typesv1alpha1.DestinationRule{
+		Name:             dr.Name,
+		Namespace:        dr.Namespace,
+		RawConfig:        string(resourceBytes),
+		Host:             host,
+		Subsets:          subsets,
+		ExportTo:         exportTo,
+		WorkloadSelector: workloadSelector,
+	}, nil
+}
+
+// convertEnvoyFilter converts an Istio EnvoyFilter to a protobuf EnvoyFilter
+func (k *Client) convertEnvoyFilter(ef *istionetworkingv1alpha3.EnvoyFilter) (*typesv1alpha1.EnvoyFilter, error) {
+	resourceBytes, err := json.Marshal(ef)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal envoy filter resource: %w", err)
+	}
+
+	var workloadSelector *typesv1alpha1.WorkloadSelector
+	if ef.Spec.WorkloadSelector != nil && ef.Spec.WorkloadSelector.Labels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range ef.Spec.WorkloadSelector.Labels {
+			matchLabels[key] = value
+		}
+		workloadSelector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
+	for _, targetRef := range ef.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
+	return &typesv1alpha1.EnvoyFilter{
+		Name:             ef.Name,
+		Namespace:        ef.Namespace,
+		RawConfig:        string(resourceBytes),
+		WorkloadSelector: workloadSelector,
+		TargetRefs:       targetRefs,
+	}, nil
+}
+
+// convertRequestAuthentication converts an Istio RequestAuthentication to a protobuf RequestAuthentication
+func (k *Client) convertRequestAuthentication(ra *istiosecurityv1beta1.RequestAuthentication) (*typesv1alpha1.RequestAuthentication, error) {
+	resourceBytes, err := json.Marshal(ra)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request authentication resource: %w", err)
+	}
+
+	var selector *typesv1alpha1.WorkloadSelector
+	if ra.Spec.Selector != nil && ra.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range ra.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
+	for _, targetRef := range ra.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
+	return &typesv1alpha1.RequestAuthentication{
+		Name:       ra.Name,
+		Namespace:  ra.Namespace,
+		RawConfig:  string(resourceBytes),
+		Selector:   selector,
+		TargetRefs: targetRefs,
+	}, nil
+}
+
+// convertPeerAuthentication converts an Istio PeerAuthentication to a protobuf PeerAuthentication
+func (k *Client) convertPeerAuthentication(pa *istiosecurityv1beta1.PeerAuthentication) (*typesv1alpha1.PeerAuthentication, error) {
+	resourceBytes, err := json.Marshal(pa)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal peer authentication resource: %w", err)
+	}
+
+	var selector *typesv1alpha1.WorkloadSelector
+	if pa.Spec.Selector != nil && pa.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range pa.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	return &typesv1alpha1.PeerAuthentication{
+		Name:      pa.Name,
+		Namespace: pa.Namespace,
+		RawConfig: string(resourceBytes),
+		Selector:  selector,
+	}, nil
+}
+
+// convertAuthorizationPolicy converts an Istio AuthorizationPolicy to a protobuf AuthorizationPolicy
+func (k *Client) convertAuthorizationPolicy(ap *istiosecurityv1beta1.AuthorizationPolicy) (*typesv1alpha1.AuthorizationPolicy, error) {
+	resourceBytes, err := json.Marshal(ap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal authorization policy resource: %w", err)
+	}
+
+	var selector *typesv1alpha1.WorkloadSelector
+	if ap.Spec.Selector != nil && ap.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range ap.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
+
+	// Handle TargetRef (singular) - older API
+	if ap.Spec.TargetRef != nil {
+		protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+			Group:     ap.Spec.TargetRef.Group,
+			Kind:      ap.Spec.TargetRef.Kind,
+			Name:      ap.Spec.TargetRef.Name,
+			Namespace: ap.Spec.TargetRef.Namespace,
+		}
+		targetRefs = append(targetRefs, protoTargetRef)
+	}
+
+	// Handle TargetRefs (plural) - newer API
+	for _, targetRef := range ap.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
+	return &typesv1alpha1.AuthorizationPolicy{
+		Name:       ap.Name,
+		Namespace:  ap.Namespace,
+		RawConfig:  string(resourceBytes),
+		Selector:   selector,
+		TargetRefs: targetRefs,
+	}, nil
+}
+
+// convertWasmPlugin converts an Istio WasmPlugin to a protobuf WasmPlugin
+func (k *Client) convertWasmPlugin(wp *istioextensionsv1alpha1.WasmPlugin) (*typesv1alpha1.WasmPlugin, error) {
+	resourceBytes, err := json.Marshal(wp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal wasm plugin resource: %w", err)
+	}
+
+	var selector *typesv1alpha1.WorkloadSelector
+	if wp.Spec.Selector != nil && wp.Spec.Selector.MatchLabels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range wp.Spec.Selector.MatchLabels {
+			matchLabels[key] = value
+		}
+		selector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	var targetRefs []*typesv1alpha1.PolicyTargetReference
+	for _, targetRef := range wp.Spec.TargetRefs {
+		if targetRef != nil {
+			protoTargetRef := &typesv1alpha1.PolicyTargetReference{
+				Group:     targetRef.Group,
+				Kind:      targetRef.Kind,
+				Name:      targetRef.Name,
+				Namespace: targetRef.Namespace,
+			}
+			targetRefs = append(targetRefs, protoTargetRef)
+		}
+	}
+
+	return &typesv1alpha1.WasmPlugin{
+		Name:       wp.Name,
+		Namespace:  wp.Namespace,
+		RawConfig:  string(resourceBytes),
+		Selector:   selector,
+		TargetRefs: targetRefs,
+	}, nil
+}
+
+// convertGateway converts an Istio Gateway to a protobuf Gateway
+func (k *Client) convertGateway(gw *istionetworkingv1beta1.Gateway) (*typesv1alpha1.Gateway, error) {
+	resourceBytes, err := json.Marshal(gw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal gateway resource: %w", err)
+	}
+
+	selector := make(map[string]string)
+	if gw.Spec.Selector != nil {
+		for key, value := range gw.Spec.Selector {
+			selector[key] = value
+		}
+	}
+
+	return &typesv1alpha1.Gateway{
+		Name:      gw.Name,
+		Namespace: gw.Namespace,
+		RawConfig: string(resourceBytes),
+		Selector:  selector,
+	}, nil
+}
+
+// convertSidecar converts an Istio Sidecar to a protobuf Sidecar
+func (k *Client) convertSidecar(sc *istionetworkingv1beta1.Sidecar) (*typesv1alpha1.Sidecar, error) {
+	resourceBytes, err := json.Marshal(sc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal sidecar resource: %w", err)
+	}
+
+	var workloadSelector *typesv1alpha1.WorkloadSelector
+	if sc.Spec.WorkloadSelector != nil && sc.Spec.WorkloadSelector.Labels != nil {
+		matchLabels := make(map[string]string)
+		for key, value := range sc.Spec.WorkloadSelector.Labels {
+			matchLabels[key] = value
+		}
+		workloadSelector = &typesv1alpha1.WorkloadSelector{
+			MatchLabels: matchLabels,
+		}
+	}
+
+	return &typesv1alpha1.Sidecar{
+		Name:             sc.Name,
+		Namespace:        sc.Namespace,
+		RawConfig:        string(resourceBytes),
+		WorkloadSelector: workloadSelector,
+	}, nil
+}
+
+// convertVirtualService converts an Istio VirtualService to a protobuf VirtualService
+func (k *Client) convertVirtualService(vs *istionetworkingv1beta1.VirtualService) (*typesv1alpha1.VirtualService, error) {
+	resourceBytes, err := json.Marshal(vs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal virtual service resource: %w", err)
+	}
+
+	var hosts []string
+	if vs.Spec.Hosts != nil {
+		hosts = vs.Spec.Hosts
+	}
+
+	var gateways []string
+	if len(vs.Spec.Gateways) > 0 {
+		gateways = vs.Spec.Gateways
+	} else {
+		gateways = []string{"mesh"}
+	}
+
+	var exportTo []string
+	if len(vs.Spec.ExportTo) > 0 {
+		exportTo = vs.Spec.ExportTo
+	} else {
+		exportTo = []string{"*"}
+	}
+
+	return &typesv1alpha1.VirtualService{
+		Name:      vs.Name,
+		Namespace: vs.Namespace,
+		RawConfig: string(resourceBytes),
+		Hosts:     hosts,
+		Gateways:  gateways,
+		ExportTo:  exportTo,
+	}, nil
+}
+
 // convertServiceEntry converts an Istio ServiceEntry to a protobuf ServiceEntry
 func (k *Client) convertServiceEntry(se *istionetworkingv1beta1.ServiceEntry) (*typesv1alpha1.ServiceEntry, error) {
 	resourceBytes, err := json.Marshal(se)
@@ -781,7 +753,6 @@ func (k *Client) convertServiceEntry(se *istionetworkingv1beta1.ServiceEntry) (*
 		return nil, fmt.Errorf("failed to marshal service entry resource: %w", err)
 	}
 
-	// Default for exportTo is ["*"] if not specified or empty
 	var exportTo []string
 	if len(se.Spec.ExportTo) > 0 {
 		exportTo = se.Spec.ExportTo
@@ -795,4 +766,13 @@ func (k *Client) convertServiceEntry(se *istionetworkingv1beta1.ServiceEntry) (*
 		RawConfig: string(resourceBytes),
 		ExportTo:  exportTo,
 	}, nil
+}
+
+// derefDeployments converts a slice of Deployment pointers to values
+func derefDeployments(ptrs []*appsv1.Deployment) []appsv1.Deployment {
+	out := make([]appsv1.Deployment, len(ptrs))
+	for i, p := range ptrs {
+		out[i] = *p
+	}
+	return out
 }

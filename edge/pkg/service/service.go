@@ -34,6 +34,7 @@ import (
 
 // KubernetesClient interface for dependency injection
 type KubernetesClient interface {
+	Start(ctx context.Context) error
 	GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error)
 	GetClusterStateWithMetrics(ctx context.Context, metricsProvider interfaces.MetricsProvider) (*v1alpha1.ClusterState, error)
 	GetClusterName(ctx context.Context) (string, error)
@@ -93,7 +94,7 @@ func NewEdgeService(config Config, k8sClient KubernetesClient, proxyService Prox
 
 // Start starts the edge service and begins cluster state synchronization
 func (e *EdgeService) Start() error {
-	// Auto-discover cluster name from Istio
+	// Auto-discover cluster name from Istio (direct API call, before informers start)
 	clusterName, err := e.k8sClient.GetClusterName(e.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to auto-discover cluster name from Istio control plane: %w", err)
@@ -101,6 +102,11 @@ func (e *EdgeService) Start() error {
 	e.clusterName = clusterName
 
 	e.logger.Info("starting edge service", "cluster_name", e.clusterName, "manager_endpoint", e.config.GetManagerEndpoint())
+
+	// Start informers and wait for cache sync
+	if err := e.k8sClient.Start(e.ctx); err != nil {
+		return fmt.Errorf("failed to start kubernetes informers: %w", err)
+	}
 
 	// Connect to manager
 	if err := e.connect(); err != nil {

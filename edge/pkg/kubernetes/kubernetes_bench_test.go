@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/liamawhite/navigator/pkg/logging"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/liamawhite/navigator/pkg/logging"
 )
 
 // BenchmarkGetClusterState_SmallCluster benchmarks cluster state retrieval for a small cluster
@@ -48,32 +49,25 @@ func BenchmarkGetClusterState_VeryLargeCluster(b *testing.B) {
 
 // benchmarkGetClusterState is a helper function that benchmarks cluster state retrieval
 func benchmarkGetClusterState(b *testing.B, numServices, numPods int) {
-	// Create fake clientset with test data
-	clientset := fake.NewSimpleClientset()
-
-	// Create services
+	// Pre-populate all objects so the informer cache is seeded before the benchmark loop
 	services := generateServices(numServices)
-	for _, svc := range services {
-		_, _ = clientset.CoreV1().Services(svc.Namespace).Create(context.TODO(), &svc, metav1.CreateOptions{})
-	}
-
-	// Create endpoint slices
 	endpointSlices := generateEndpointSlices(numServices, numPods)
-	for _, eps := range endpointSlices {
-		_, _ = clientset.DiscoveryV1().EndpointSlices(eps.Namespace).Create(context.TODO(), &eps, metav1.CreateOptions{})
-	}
-
-	// Create pods
 	pods := generatePods(numPods)
-	for _, pod := range pods {
-		_, _ = clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+
+	var k8sObjects []runtime.Object
+	for i := range services {
+		k8sObjects = append(k8sObjects, &services[i])
+	}
+	for i := range endpointSlices {
+		k8sObjects = append(k8sObjects, &endpointSlices[i])
+	}
+	for i := range pods {
+		k8sObjects = append(k8sObjects, &pods[i])
 	}
 
-	// Create kubernetes client
-	k8sClient := &Client{
-		clientset: clientset,
-		logger:    logging.For("bench"),
-	}
+	k8sClient := newTestClient(b, k8sObjects, nil)
+
+	_ = logging.For("bench") // ensure logger is initialised
 
 	b.ResetTimer()
 	b.ReportAllocs()

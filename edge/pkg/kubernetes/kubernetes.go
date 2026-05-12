@@ -16,16 +16,14 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"strings"
-	"sync"
 
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"istio.io/api/label"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // buildEndpointSliceMap creates a map of service name to endpoint slices for efficient lookup
@@ -112,7 +110,7 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 			podStatus := ""
 			nodeName := ""
 			createdAt := ""
-			labels := make(map[string]string)
+			lbls := make(map[string]string)
 			annotations := make(map[string]string)
 			proxyMode := typesv1alpha1.ProxyMode_NONE
 
@@ -135,7 +133,7 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 					// Copy labels and annotations (avoid nil maps)
 					if pod.Labels != nil {
 						for k, v := range pod.Labels {
-							labels[k] = v
+							lbls[k] = v
 						}
 					}
 					if pod.Annotations != nil {
@@ -156,7 +154,7 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 					PodStatus:    podStatus,
 					NodeName:     nodeName,
 					CreatedAt:    createdAt,
-					Labels:       labels,
+					Labels:       lbls,
 					Annotations:  annotations,
 					ProxyMode:    proxyMode,
 				}
@@ -252,36 +250,58 @@ func (k *Client) extractContainerInfo(pod *corev1.Pod) []*backendv1alpha1.Contai
 	return containers
 }
 
-// fetchServices fetches all services from the cluster
-func (k *Client) fetchServices(ctx context.Context, wg *sync.WaitGroup, result **corev1.ServiceList, errChan chan<- error) {
-	defer wg.Done()
-	servicesList, err := k.clientset.CoreV1().Services("").List(ctx, metav1.ListOptions{})
-	*result = servicesList
+// GetClusterState reads cluster state from the informer cache.
+// Start must be called before this method.
+func (k *Client) GetClusterState(_ context.Context) (*backendv1alpha1.ClusterState, error) {
+	// Read k8s resources from the local cache
+	svcPtrs, err := k.servicesLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list services: %w", err)
+		return nil, err
 	}
-}
+	podPtrs, err := k.podsLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	epsPtrs, err := k.endpointSlicesLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
 
-// fetchEndpointSlices fetches all endpoint slices and builds a service map
-func (k *Client) fetchEndpointSlices(ctx context.Context, wg *sync.WaitGroup, endpointSlicesByService *map[string][]discoveryv1.EndpointSlice, errChan chan<- error) {
-	defer wg.Done()
-	endpointSlicesResult, err := k.clientset.DiscoveryV1().EndpointSlices("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		errChan <- fmt.Errorf("failed to list endpoint slices: %w", err)
-		return
-	}
-	*endpointSlicesByService = k.buildEndpointSliceMap(endpointSlicesResult.Items)
-}
+	podsByName := k.buildPodMap(derefPods(podPtrs))
+	endpointSlicesByService := k.buildEndpointSliceMap(derefEndpointSlices(epsPtrs))
 
-// fetchPods fetches all pods and builds a name map
-func (k *Client) fetchPods(ctx context.Context, wg *sync.WaitGroup, podsByName *map[string]*corev1.Pod, errChan chan<- error) {
-	defer wg.Done()
-	podsResult, err := k.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		errChan <- fmt.Errorf("failed to list pods: %w", err)
-		return
+	var protoServices []*backendv1alpha1.Service
+	for _, svc := range svcPtrs {
+		protoServices = append(protoServices, k.convertServiceWithMaps(svc, endpointSlicesByService, podsByName))
 	}
-	*podsByName = k.buildPodMap(podsResult.Items)
+
+	// Read Istio resources from the local cache
+	protoDestinationRules := k.listDestinationRules()
+	protoEnvoyFilters := k.listEnvoyFilters()
+	protoRequestAuthentications := k.listRequestAuthentications()
+	protoPeerAuthentications := k.listPeerAuthentications()
+	protoAuthorizationPolicies := k.listAuthorizationPolicies()
+	protoWasmPlugins := k.listWasmPlugins()
+	protoGateways := k.listGateways()
+	protoSidecars := k.listSidecars()
+	protoVirtualServices := k.listVirtualServices()
+	protoServiceEntries := k.listServiceEntries()
+	protoIstioControlPlaneConfig := k.getIstioControlPlaneConfig()
+
+	return &backendv1alpha1.ClusterState{
+		Services:                protoServices,
+		DestinationRules:        protoDestinationRules,
+		EnvoyFilters:            protoEnvoyFilters,
+		RequestAuthentications:  protoRequestAuthentications,
+		Gateways:                protoGateways,
+		Sidecars:                protoSidecars,
+		VirtualServices:         protoVirtualServices,
+		IstioControlPlaneConfig: protoIstioControlPlaneConfig,
+		PeerAuthentications:     protoPeerAuthentications,
+		AuthorizationPolicies:   protoAuthorizationPolicies,
+		WasmPlugins:             protoWasmPlugins,
+		ServiceEntries:          protoServiceEntries,
+	}, nil
 }
 
 // convertServiceType converts Kubernetes service type to protobuf ServiceType enum
@@ -325,20 +345,20 @@ func (k *Client) determineProxyMode(pod *corev1.Pod) typesv1alpha1.ProxyMode {
 		return typesv1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
 	}
 
-	labels := pod.Labels
+	lbls := pod.Labels
 
 	// Check for waypoint first (to exclude them from being identified as gateways)
 	// The istio.io/waypoint-for label is the definitive waypoint indicator
-	if labels[label.IoIstioWaypointFor.Name] != "" {
+	if lbls[label.IoIstioWaypointFor.Name] != "" {
 		return typesv1alpha1.ProxyMode_SIDECAR // Waypoints are L7 proxies, not gateways
 	}
 
 	// Check for gateway labels using constants where available - these indicate router mode
-	if labels["istio.io/gateway-name"] != "" ||
-		labels[label.IoK8sNetworkingGatewayGatewayName.Name] != "" ||
-		labels["app"] == "istio-ingressgateway" ||
-		labels["app"] == "istio-egressgateway" ||
-		labels["istio"] == "ingressgateway" {
+	if lbls["istio.io/gateway-name"] != "" ||
+		lbls[label.IoK8sNetworkingGatewayGatewayName.Name] != "" ||
+		lbls["app"] == "istio-ingressgateway" ||
+		lbls["app"] == "istio-egressgateway" ||
+		lbls["istio"] == "ingressgateway" {
 		return typesv1alpha1.ProxyMode_ROUTER
 	}
 
@@ -360,4 +380,22 @@ func (k *Client) determineProxyMode(pod *corev1.Pod) typesv1alpha1.ProxyMode {
 	}
 
 	return typesv1alpha1.ProxyMode_NONE
+}
+
+// derefPods converts a slice of pod pointers to pod values
+func derefPods(ptrs []*corev1.Pod) []corev1.Pod {
+	out := make([]corev1.Pod, len(ptrs))
+	for i, p := range ptrs {
+		out[i] = *p
+	}
+	return out
+}
+
+// derefEndpointSlices converts a slice of EndpointSlice pointers to values
+func derefEndpointSlices(ptrs []*discoveryv1.EndpointSlice) []discoveryv1.EndpointSlice {
+	out := make([]discoveryv1.EndpointSlice, len(ptrs))
+	for i, p := range ptrs {
+		out[i] = *p
+	}
+	return out
 }

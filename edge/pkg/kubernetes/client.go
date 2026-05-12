@@ -19,13 +19,17 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync"
 
-	v1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
-	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
-	discoveryv1 "k8s.io/api/discovery/v1"
+	istioinformers "istio.io/client-go/pkg/informers/externalversions"
+	istiov1alpha3listers "istio.io/client-go/pkg/listers/networking/v1alpha3"
+	istiov1beta1listers "istio.io/client-go/pkg/listers/networking/v1beta1"
+	istioextlisters "istio.io/client-go/pkg/listers/extensions/v1alpha1"
+	istioseclisters "istio.io/client-go/pkg/listers/security/v1beta1"
+	appsv1lister "k8s.io/client-go/listers/apps/v1"
+	corev1lister "k8s.io/client-go/listers/core/v1"
+	discoveryv1lister "k8s.io/client-go/listers/discovery/v1"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -37,6 +41,29 @@ type Client struct {
 	istioClient istioclient.Interface
 	restConfig  *rest.Config
 	logger      *slog.Logger
+
+	// informer factories (nil until Start is called)
+	k8sFactory   informers.SharedInformerFactory
+	istioFactory istioinformers.SharedInformerFactory
+
+	// k8s listers (populated by Start)
+	servicesLister       corev1lister.ServiceLister
+	podsLister           corev1lister.PodLister
+	endpointSlicesLister discoveryv1lister.EndpointSliceLister
+	deploymentsLister    appsv1lister.DeploymentLister
+	namespacesLister     corev1lister.NamespaceLister
+
+	// Istio listers (populated by Start)
+	destinationRulesLister       istiov1beta1listers.DestinationRuleLister
+	gatewaysLister               istiov1beta1listers.GatewayLister
+	sidecarsLister               istiov1beta1listers.SidecarLister
+	virtualServicesLister        istiov1beta1listers.VirtualServiceLister
+	serviceEntriesLister         istiov1beta1listers.ServiceEntryLister
+	envoyFiltersLister           istiov1alpha3listers.EnvoyFilterLister
+	requestAuthenticationsLister istioseclisters.RequestAuthenticationLister
+	peerAuthenticationsLister    istioseclisters.PeerAuthenticationLister
+	authorizationPoliciesLister  istioseclisters.AuthorizationPolicyLister
+	wasmPluginsLister            istioextlisters.WasmPluginLister
 }
 
 // NewClient creates a new Kubernetes client
@@ -100,6 +127,71 @@ func NewClientWithContext(kubeconfigPath string, contextName string, logger *slo
 	}, nil
 }
 
+// Start initialises informer factories, starts all informers, and waits for cache sync.
+// Must be called before GetClusterState.
+// Start initialises informer factories, starts all informers, and waits for cache sync.
+// Must be called before GetClusterState.
+func (k *Client) Start(ctx context.Context) error {
+	k.k8sFactory = informers.NewSharedInformerFactory(k.clientset, 0)
+	k.istioFactory = istioinformers.NewSharedInformerFactory(k.istioClient, 0)
+
+	// Call .Informer() on each to register them with the factory before Start.
+	// The factory only starts informers that have been registered via InformerFor.
+	k.k8sFactory.Core().V1().Services().Informer()
+	k.k8sFactory.Core().V1().Pods().Informer()
+	k.k8sFactory.Discovery().V1().EndpointSlices().Informer()
+	k.k8sFactory.Apps().V1().Deployments().Informer()
+	k.k8sFactory.Core().V1().Namespaces().Informer()
+
+	k.istioFactory.Networking().V1beta1().DestinationRules().Informer()
+	k.istioFactory.Networking().V1beta1().Gateways().Informer()
+	k.istioFactory.Networking().V1beta1().Sidecars().Informer()
+	k.istioFactory.Networking().V1beta1().VirtualServices().Informer()
+	k.istioFactory.Networking().V1beta1().ServiceEntries().Informer()
+	k.istioFactory.Networking().V1alpha3().EnvoyFilters().Informer()
+	k.istioFactory.Security().V1beta1().RequestAuthentications().Informer()
+	k.istioFactory.Security().V1beta1().PeerAuthentications().Informer()
+	k.istioFactory.Security().V1beta1().AuthorizationPolicies().Informer()
+	k.istioFactory.Extensions().V1alpha1().WasmPlugins().Informer()
+
+	k.k8sFactory.Start(ctx.Done())
+	k.istioFactory.Start(ctx.Done())
+
+	k8sSynced := k.k8sFactory.WaitForCacheSync(ctx.Done())
+	for _, ok := range k8sSynced {
+		if !ok {
+			return fmt.Errorf("k8s informer cache sync failed")
+		}
+	}
+
+	istioSynced := k.istioFactory.WaitForCacheSync(ctx.Done())
+	for _, ok := range istioSynced {
+		if !ok {
+			return fmt.Errorf("istio informer cache sync failed")
+		}
+	}
+
+	// InformerFor is idempotent; these calls return the already-registered informers.
+	k.servicesLister = k.k8sFactory.Core().V1().Services().Lister()
+	k.podsLister = k.k8sFactory.Core().V1().Pods().Lister()
+	k.endpointSlicesLister = k.k8sFactory.Discovery().V1().EndpointSlices().Lister()
+	k.deploymentsLister = k.k8sFactory.Apps().V1().Deployments().Lister()
+	k.namespacesLister = k.k8sFactory.Core().V1().Namespaces().Lister()
+
+	k.destinationRulesLister = k.istioFactory.Networking().V1beta1().DestinationRules().Lister()
+	k.gatewaysLister = k.istioFactory.Networking().V1beta1().Gateways().Lister()
+	k.sidecarsLister = k.istioFactory.Networking().V1beta1().Sidecars().Lister()
+	k.virtualServicesLister = k.istioFactory.Networking().V1beta1().VirtualServices().Lister()
+	k.serviceEntriesLister = k.istioFactory.Networking().V1beta1().ServiceEntries().Lister()
+	k.envoyFiltersLister = k.istioFactory.Networking().V1alpha3().EnvoyFilters().Lister()
+	k.requestAuthenticationsLister = k.istioFactory.Security().V1beta1().RequestAuthentications().Lister()
+	k.peerAuthenticationsLister = k.istioFactory.Security().V1beta1().PeerAuthentications().Lister()
+	k.authorizationPoliciesLister = k.istioFactory.Security().V1beta1().AuthorizationPolicies().Lister()
+	k.wasmPluginsLister = k.istioFactory.Extensions().V1alpha1().WasmPlugins().Lister()
+
+	return nil
+}
+
 // GetClientset returns the underlying Kubernetes clientset
 func (k *Client) GetClientset() kubernetes.Interface {
 	return k.clientset
@@ -110,15 +202,29 @@ func (k *Client) GetRestConfig() *rest.Config {
 	return k.restConfig
 }
 
-// GetClusterName retrieves the cluster name from Istio's CLUSTER_ID environment variable in istiod deployment
+// mergeErrors combines multiple errors into a single error with detailed information
+func (k *Client) mergeErrors(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	msgs := make([]string, 0, len(errs))
+	for _, e := range errs {
+		msgs = append(msgs, e.Error())
+	}
+	return fmt.Errorf("multiple errors occurred (%d total): %s", len(errs), strings.Join(msgs, "; "))
+}
+
+// GetClusterName retrieves the cluster name from Istio's CLUSTER_ID environment variable in istiod deployment.
+// This uses direct API calls and must be called before Start.
 func (k *Client) GetClusterName(ctx context.Context) (string, error) {
-	// Discover the active Istio control plane
 	rootNamespace, activeDeployment := k.discoverIstioControlPlane(ctx)
 	if activeDeployment == nil {
 		return "", fmt.Errorf("no active istiod deployment found in namespace %s", rootNamespace)
 	}
 
-	// Extract CLUSTER_ID from the deployment
 	for _, container := range activeDeployment.Spec.Template.Spec.Containers {
 		if container.Name == "discovery" {
 			for _, env := range container.Env {
@@ -136,104 +242,4 @@ func (k *Client) GetClusterName(ctx context.Context) (string, error) {
 	}
 
 	return "", fmt.Errorf("CLUSTER_ID environment variable not found in istiod deployment %s/%s", activeDeployment.Namespace, activeDeployment.Name)
-}
-
-// GetClusterState discovers all services in the cluster and returns the cluster state
-func (k *Client) GetClusterState(ctx context.Context) (*v1alpha1.ClusterState, error) {
-	// Parallelize API calls and map building in single goroutines
-	var wg sync.WaitGroup
-	var servicesResult *corev1.ServiceList
-	var endpointSlicesByService map[string][]discoveryv1.EndpointSlice
-	var podsByName map[string]*corev1.Pod
-	var protoDestinationRules []*typesv1alpha1.DestinationRule
-	var protoEnvoyFilters []*typesv1alpha1.EnvoyFilter
-	var protoRequestAuthentications []*typesv1alpha1.RequestAuthentication
-	var protoPeerAuthentications []*typesv1alpha1.PeerAuthentication
-	var protoAuthorizationPolicies []*typesv1alpha1.AuthorizationPolicy
-	var protoWasmPlugins []*typesv1alpha1.WasmPlugin
-	var protoGateways []*typesv1alpha1.Gateway
-	var protoSidecars []*typesv1alpha1.Sidecar
-	var protoVirtualServices []*typesv1alpha1.VirtualService
-	var protoServiceEntries []*typesv1alpha1.ServiceEntry
-	var protoIstioControlPlaneConfig *typesv1alpha1.IstioControlPlaneConfig
-
-	// Create error channel to collect errors from all goroutines
-	errChan := make(chan error, 14)
-	wg.Add(14)
-
-	// Fetch Kubernetes resources concurrently
-	go k.fetchServices(ctx, &wg, &servicesResult, errChan)
-	go k.fetchEndpointSlices(ctx, &wg, &endpointSlicesByService, errChan)
-	go k.fetchPods(ctx, &wg, &podsByName, errChan)
-
-	// Fetch and convert Istio resources concurrently
-	go k.fetchDestinationRules(ctx, &wg, &protoDestinationRules, errChan)
-	go k.fetchEnvoyFilters(ctx, &wg, &protoEnvoyFilters, errChan)
-	go k.fetchRequestAuthentications(ctx, &wg, &protoRequestAuthentications, errChan)
-	go k.fetchPeerAuthentications(ctx, &wg, &protoPeerAuthentications, errChan)
-	go k.fetchAuthorizationPolicies(ctx, &wg, &protoAuthorizationPolicies, errChan)
-	go k.fetchWasmPlugins(ctx, &wg, &protoWasmPlugins, errChan)
-	go k.fetchGateways(ctx, &wg, &protoGateways, errChan)
-	go k.fetchSidecars(ctx, &wg, &protoSidecars, errChan)
-	go k.fetchVirtualServices(ctx, &wg, &protoVirtualServices, errChan)
-	go k.fetchServiceEntries(ctx, &wg, &protoServiceEntries, errChan)
-	go k.fetchIstioControlPlaneConfig(ctx, &wg, &protoIstioControlPlaneConfig, errChan)
-
-	// Wait for all goroutines to complete
-	wg.Wait()
-	close(errChan)
-
-	// Collect all errors from the channel
-	var errors []error
-	for err := range errChan {
-		if err != nil {
-			errors = append(errors, err)
-		}
-	}
-
-	// If we have any errors, merge them and return
-	if len(errors) > 0 {
-		return nil, k.mergeErrors(errors)
-	}
-
-	// Convert services using the fetched data
-	var protoServices []*v1alpha1.Service
-	for _, svc := range servicesResult.Items {
-		protoService := k.convertServiceWithMaps(&svc, endpointSlicesByService, podsByName)
-		protoServices = append(protoServices, protoService)
-	}
-
-	return &v1alpha1.ClusterState{
-		Services:                protoServices,
-		DestinationRules:        protoDestinationRules,
-		EnvoyFilters:            protoEnvoyFilters,
-		RequestAuthentications:  protoRequestAuthentications,
-		Gateways:                protoGateways,
-		Sidecars:                protoSidecars,
-		VirtualServices:         protoVirtualServices,
-		IstioControlPlaneConfig: protoIstioControlPlaneConfig,
-		PeerAuthentications:     protoPeerAuthentications,
-		AuthorizationPolicies:   protoAuthorizationPolicies,
-		WasmPlugins:             protoWasmPlugins,
-		ServiceEntries:          protoServiceEntries,
-	}, nil
-}
-
-// mergeErrors combines multiple errors into a single error with detailed information
-func (k *Client) mergeErrors(errors []error) error {
-	if len(errors) == 0 {
-		return nil
-	}
-	if len(errors) == 1 {
-		return errors[0]
-	}
-
-	var errorMessages []string
-	for _, err := range errors {
-		errorMessages = append(errorMessages, err.Error())
-	}
-
-	return fmt.Errorf("multiple errors occurred (%d total): %s",
-		len(errors),
-		strings.Join(errorMessages, "; "))
 }

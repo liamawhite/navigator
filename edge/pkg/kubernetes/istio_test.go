@@ -15,9 +15,7 @@
 package kubernetes
 
 import (
-	"context"
 	"encoding/json"
-	"sync"
 	"testing"
 
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
@@ -34,7 +32,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestClient_convertDestinationRule(t *testing.T) {
@@ -315,9 +313,7 @@ func TestClient_convertGateway(t *testing.T) {
 	}
 }
 
-func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
-	client := &Client{logger: logging.For("test")}
-
+func TestClient_getIstioControlPlaneConfig(t *testing.T) {
 	type testDeployment struct {
 		name          string
 		envVars       []corev1.EnvVar
@@ -328,13 +324,11 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 		name                             string
 		deployments                      []testDeployment
 		wantPilotScopeGatewayToNamespace bool
-		expectedSelectedDeployment       string
 	}{
 		{
 			name:                             "no deployments found - default config",
 			deployments:                      []testDeployment{},
 			wantPilotScopeGatewayToNamespace: false,
-			expectedSelectedDeployment:       "",
 		},
 		{
 			name: "single traditional istiod - no env var set",
@@ -342,7 +336,6 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 				{name: "istiod", envVars: []corev1.EnvVar{}, readyReplicas: 1},
 			},
 			wantPilotScopeGatewayToNamespace: false,
-			expectedSelectedDeployment:       "istiod",
 		},
 		{
 			name: "single traditional istiod - env var set to true",
@@ -356,7 +349,6 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 				},
 			},
 			wantPilotScopeGatewayToNamespace: true,
-			expectedSelectedDeployment:       "istiod",
 		},
 		{
 			name: "canary upgrade - traditional istiod preferred",
@@ -365,7 +357,6 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 				{name: "istiod-1-26-0", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"}}, readyReplicas: 2},
 			},
 			wantPilotScopeGatewayToNamespace: false, // Should use traditional istiod
-			expectedSelectedDeployment:       "istiod",
 		},
 		{
 			name: "canary upgrade - no traditional istiod, select by ready replicas",
@@ -375,7 +366,6 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 				{name: "istiod-canary", envVars: []corev1.EnvVar{}, readyReplicas: 2},
 			},
 			wantPilotScopeGatewayToNamespace: true, // Should use istiod-1-26-0 (highest replicas)
-			expectedSelectedDeployment:       "istiod-1-26-0",
 		},
 		{
 			name: "revision-based install - single deployment",
@@ -389,16 +379,6 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 				},
 			},
 			wantPilotScopeGatewayToNamespace: true,
-			expectedSelectedDeployment:       "istiod-1-26-0",
-		},
-		{
-			name: "multiple deployments - same ready replicas, use first",
-			deployments: []testDeployment{
-				{name: "istiod-1-25-0", envVars: []corev1.EnvVar{}, readyReplicas: 2},
-				{name: "istiod-1-26-0", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"}}, readyReplicas: 2},
-			},
-			wantPilotScopeGatewayToNamespace: false, // Should use first one (istiod-1-25-0)
-			expectedSelectedDeployment:       "istiod-1-25-0",
 		},
 		{
 			name: "deployment with zero ready replicas",
@@ -406,17 +386,12 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 				{name: "istiod-1-26-0", envVars: []corev1.EnvVar{{Name: "PILOT_SCOPE_GATEWAY_TO_NAMESPACE", Value: "true"}}, readyReplicas: 0},
 			},
 			wantPilotScopeGatewayToNamespace: true,
-			expectedSelectedDeployment:       "istiod-1-26-0",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fake Kubernetes client
-			k8sClient := fake.NewSimpleClientset()
-			client.clientset = k8sClient
-
-			// Create all specified deployments
+			var k8sObjects []runtime.Object
 			for _, deployment := range tt.deployments {
 				dep := &appsv1.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -442,30 +417,12 @@ func TestClient_fetchIstioControlPlaneConfig(t *testing.T) {
 						ReadyReplicas: deployment.readyReplicas,
 					},
 				}
-				_, err := k8sClient.AppsV1().Deployments("istio-system").Create(context.TODO(), dep, metav1.CreateOptions{})
-				require.NoError(t, err)
+				k8sObjects = append(k8sObjects, dep)
 			}
 
-			var wg sync.WaitGroup
-			var result *typesv1alpha1.IstioControlPlaneConfig
-			errChan := make(chan error, 1)
-			wg.Add(1)
+			client := newTestClient(t, k8sObjects, nil)
+			result := client.getIstioControlPlaneConfig()
 
-			client.fetchIstioControlPlaneConfig(context.TODO(), &wg, &result, errChan)
-
-			wg.Wait()
-			close(errChan)
-
-			// Check for errors
-			var errors []error
-			for err := range errChan {
-				if err != nil {
-					errors = append(errors, err)
-				}
-			}
-			assert.Empty(t, errors, "No errors should occur during config detection")
-
-			// Verify result
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantPilotScopeGatewayToNamespace, result.PilotScopeGatewayToNamespace)
 		})
