@@ -316,7 +316,7 @@ func TestExpandEnvVars(t *testing.T) {
 				// ClusterID removed - auto-discovery from Istio
 				Metrics: &MetricsConfig{
 					Endpoint: "http://${TEST_HOST}:9090",
-					Auth: &MetricsAuth{
+					Auth: &MetricsAuth{ //nolint:gosec
 						BearerToken: "${TEST_HOST}-token",
 					},
 				},

@@ -38,7 +38,7 @@ func generateConfigDocs() error {
 	fset := token.NewFileSet()
 	pkgPath := "./navctl/pkg/config"
 
-	pkgs, err := parser.ParseDir(fset, pkgPath, func(info os.FileInfo) bool {
+	pkgs, err := parser.ParseDir(fset, pkgPath, func(info os.FileInfo) bool { //nolint:staticcheck
 		return strings.HasSuffix(info.Name(), ".go") && !strings.HasSuffix(info.Name(), "_test.go")
 	}, parser.ParseComments)
 	if err != nil {

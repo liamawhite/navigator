@@ -213,7 +213,7 @@ func (f *FortioManager) writeManifestToTempFile(embedPath, tempPattern string) (
 
 // applyManifest applies a Kubernetes manifest using kubectl
 func (f *FortioManager) applyManifest(ctx context.Context, manifestPath string) error {
-	cmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", manifestPath)
+	cmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", manifestPath) //nolint:gosec
 	if f.kubeconfig != "" {
 		cmd.Args = append([]string{"kubectl", "--kubeconfig", f.kubeconfig}, cmd.Args[1:]...)
 	}
