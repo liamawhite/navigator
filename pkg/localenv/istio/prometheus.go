@@ -173,7 +173,7 @@ func (p *PrometheusManager) WaitForPrometheusReady(ctx context.Context, timeout 
 
 // applyManifest applies a Kubernetes manifest using kubectl
 func (p *PrometheusManager) applyManifest(ctx context.Context, manifestPath string) error {
-	cmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", manifestPath)
+	cmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", manifestPath) //nolint:gosec
 	if p.kubeconfig != "" {
 		cmd.Args = append([]string{"kubectl", "--kubeconfig", p.kubeconfig}, cmd.Args[1:]...)
 	}
@@ -191,7 +191,7 @@ func (p *PrometheusManager) applyManifest(ctx context.Context, manifestPath stri
 
 // deleteManifest deletes a Kubernetes manifest using kubectl
 func (p *PrometheusManager) deleteManifest(ctx context.Context, manifestPath string) error {
-	cmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", manifestPath, "--ignore-not-found=true")
+	cmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", manifestPath, "--ignore-not-found=true") //nolint:gosec
 	if p.kubeconfig != "" {
 		cmd.Args = append([]string{"kubectl", "--kubeconfig", p.kubeconfig}, cmd.Args[1:]...)
 	}

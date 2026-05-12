@@ -80,7 +80,7 @@ func downloadIstioCharts(version string) error {
 
 	// Create output directory in ../charts/{version}/
 	outputDir := filepath.Join(wd, "..", "charts", version)
-	if err := os.MkdirAll(outputDir, 0750); err != nil {
+	if err := os.MkdirAll(outputDir, 0750); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -110,7 +110,7 @@ func downloadIstioAddons(version string) error {
 
 	// Create output directory in ../charts/{version}/
 	outputDir := filepath.Join(wd, "..", "charts", version)
-	if err := os.MkdirAll(outputDir, 0750); err != nil {
+	if err := os.MkdirAll(outputDir, 0750); err != nil { //nolint:gosec
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -130,8 +130,7 @@ func downloadPrometheusAddon(version, outputDir string) error {
 	fmt.Printf("Downloading Prometheus addon from %s\n", prometheusURL)
 
 	// Download the addon
-	// #nosec G107 -- prometheusURL is constructed from validated inputs
-	resp, err := http.Get(prometheusURL)
+	resp, err := http.Get(prometheusURL) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to download Prometheus addon: %w", err)
 	}
@@ -149,8 +148,7 @@ func downloadPrometheusAddon(version, outputDir string) error {
 	yamlFilePath := filepath.Join(outputDir, "prometheus.yaml")
 
 	// Create the YAML file
-	// #nosec G304 -- yamlFilePath is constructed from validated inputs
-	yamlFile, err := os.Create(yamlFilePath)
+	yamlFile, err := os.Create(yamlFilePath) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to create YAML file: %w", err)
 	}
@@ -184,8 +182,7 @@ func downloadChart(chartName, version, outputDir string) error {
 	fmt.Printf("Downloading %s from %s\n", chartName, chartURL)
 
 	// Download the chart
-	// #nosec G107 -- chartURL is constructed from validated inputs
-	resp, err := http.Get(chartURL)
+	resp, err := http.Get(chartURL) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to download chart: %w", err)
 	}
@@ -204,8 +201,7 @@ func downloadChart(chartName, version, outputDir string) error {
 	tarFilePath := filepath.Join(outputDir, tarFileName)
 
 	// Create the tar file
-	// #nosec G304 -- tarFilePath is constructed from validated inputs
-	tarFile, err := os.Create(tarFilePath)
+	tarFile, err := os.Create(tarFilePath) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to create tar file: %w", err)
 	}

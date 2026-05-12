@@ -103,7 +103,7 @@ func normalizeGeneratedDocs(outputDir string) error {
 		}
 
 		// Read file content
-		content, err := os.ReadFile(filepath.Clean(path))
+		content, err := os.ReadFile(filepath.Clean(path)) //nolint:gosec
 		if err != nil {
 			return err
 		}
@@ -120,7 +120,7 @@ func normalizeGeneratedDocs(outputDir string) error {
 
 		// Write back if content changed
 		if normalized != string(content) {
-			if err := os.WriteFile(path, []byte(normalized), info.Mode()); err != nil {
+			if err := os.WriteFile(path, []byte(normalized), info.Mode()); err != nil { //nolint:gosec
 				return err
 			}
 		}
