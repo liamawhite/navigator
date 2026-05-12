@@ -32,7 +32,6 @@
               protobuf
               git
               nodejs
-              nodePackages.npm
               licenser
             ];
           };
