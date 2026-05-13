@@ -16,7 +16,6 @@ package kubernetes
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/liamawhite/navigator/pkg/logging"
@@ -29,11 +28,10 @@ import (
 	istioextensionsv1alpha1 "istio.io/client-go/pkg/apis/extensions/v1alpha1"
 	istionetworkingv1beta1 "istio.io/client-go/pkg/apis/networking/v1beta1"
 	istiosecurityv1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
-	istiofake "istio.io/client-go/pkg/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Helper function to create a bool pointer
@@ -132,27 +130,20 @@ func TestClient_GetClusterState(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fake clientset
-			clientset := fake.NewSimpleClientset()
-
-			// Add objects to fake clientset
-			for _, svc := range tt.services {
-				_, _ = clientset.CoreV1().Services(svc.Namespace).Create(context.TODO(), &svc, metav1.CreateOptions{})
+			var k8sObjects []runtime.Object
+			for i := range tt.services {
+				k8sObjects = append(k8sObjects, &tt.services[i])
 			}
-			for _, eps := range tt.endpointSlices {
-				_, _ = clientset.DiscoveryV1().EndpointSlices(eps.Namespace).Create(context.TODO(), &eps, metav1.CreateOptions{})
+			for i := range tt.endpointSlices {
+				k8sObjects = append(k8sObjects, &tt.endpointSlices[i])
 			}
-			for _, pod := range tt.pods {
-				_, _ = clientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), &pod, metav1.CreateOptions{})
+			for i := range tt.pods {
+				k8sObjects = append(k8sObjects, &tt.pods[i])
 			}
 
-			k8sClient := &Client{
-				clientset:   clientset,
-				istioClient: istiofake.NewSimpleClientset(),
-				logger:      logging.For("test"),
-			}
+			client := newTestClient(t, k8sObjects, nil)
 
-			got, err := k8sClient.GetClusterState(context.TODO())
+			got, err := client.GetClusterState(context.TODO())
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -165,50 +156,7 @@ func TestClient_GetClusterState(t *testing.T) {
 	}
 }
 
-func TestClient_mergeErrors(t *testing.T) {
-	client := &Client{logger: logging.For("test")}
-
-	tests := []struct {
-		name   string
-		errors []error
-		want   string
-	}{
-		{
-			name:   "no errors",
-			errors: nil,
-			want:   "",
-		},
-		{
-			name:   "single error",
-			errors: []error{errors.New("first error")},
-			want:   "first error",
-		},
-		{
-			name: "multiple errors",
-			errors: []error{
-				errors.New("first error"),
-				errors.New("second error"),
-				errors.New("third error"),
-			},
-			want: "multiple errors occurred (3 total): first error; second error; third error",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := client.mergeErrors(tt.errors)
-			if tt.want == "" {
-				assert.NoError(t, err)
-			} else {
-				require.Error(t, err)
-				assert.Equal(t, tt.want, err.Error())
-			}
-		})
-	}
-}
-
 func TestClient_GetClusterStateWithIstio(t *testing.T) {
-	// Create test Kubernetes resources
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-service",
@@ -216,7 +164,6 @@ func TestClient_GetClusterStateWithIstio(t *testing.T) {
 		},
 	}
 
-	// Create test Istio resources
 	dr := &istionetworkingv1beta1.DestinationRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dr",
@@ -227,33 +174,25 @@ func TestClient_GetClusterStateWithIstio(t *testing.T) {
 		},
 	}
 
-	// Create fake clients
-	k8sClient := fake.NewSimpleClientset(&service)
-	istioClient := istiofake.NewSimpleClientset(dr)
-
-	client := &Client{
-		clientset:   k8sClient,
-		istioClient: istioClient,
-		logger:      logging.For("test"),
-	}
+	client := newTestClient(t,
+		[]runtime.Object{&service},
+		[]runtime.Object{dr},
+	)
 
 	result, err := client.GetClusterState(context.Background())
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	// Verify Kubernetes resources
 	assert.Len(t, result.Services, 1)
 	assert.Equal(t, "test-service", result.Services[0].Name)
 
-	// Verify Istio resources
 	assert.Len(t, result.DestinationRules, 1)
 	assert.Equal(t, "test-dr", result.DestinationRules[0].Name)
 	assert.Contains(t, result.DestinationRules[0].RawConfig, "test-service")
 }
 
 func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
-	// Create test Kubernetes resources
 	service := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-service",
@@ -261,7 +200,6 @@ func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
 		},
 	}
 
-	// Create test WasmPlugin
 	wasmPlugin := &istioextensionsv1alpha1.WasmPlugin{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-wasm-plugin",
@@ -277,7 +215,6 @@ func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
 		},
 	}
 
-	// Create test RequestAuthentication for comparison
 	requestAuth := &istiosecurityv1beta1.RequestAuthentication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-request-auth",
@@ -292,26 +229,19 @@ func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
 		},
 	}
 
-	// Create fake clients
-	k8sClient := fake.NewSimpleClientset(&service)
-	istioClient := istiofake.NewSimpleClientset(wasmPlugin, requestAuth)
-
-	client := &Client{
-		clientset:   k8sClient,
-		istioClient: istioClient,
-		logger:      logging.For("test"),
-	}
+	client := newTestClient(t,
+		[]runtime.Object{&service},
+		[]runtime.Object{wasmPlugin, requestAuth},
+	)
 
 	result, err := client.GetClusterState(context.Background())
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	// Verify Kubernetes resources
 	assert.Len(t, result.Services, 1)
 	assert.Equal(t, "test-service", result.Services[0].Name)
 
-	// Verify WasmPlugin resources
 	assert.Len(t, result.WasmPlugins, 1)
 	assert.Equal(t, "test-wasm-plugin", result.WasmPlugins[0].Name)
 	assert.Equal(t, "default", result.WasmPlugins[0].Namespace)
@@ -319,7 +249,20 @@ func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
 	assert.Equal(t, "test-service", result.WasmPlugins[0].Selector.MatchLabels["app"])
 	assert.Contains(t, result.WasmPlugins[0].RawConfig, "oci://docker.io/istio/test-plugin:latest")
 
-	// Verify RequestAuthentication is still working (regression test)
 	assert.Len(t, result.RequestAuthentications, 1)
 	assert.Equal(t, "test-request-auth", result.RequestAuthentications[0].Name)
+}
+
+func TestClient_StartTwiceReturnsError(t *testing.T) {
+	c := newTestClient(t, nil, nil)
+	err := c.Start(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already started")
+}
+
+func TestClient_GetClusterStateBeforeStartReturnsError(t *testing.T) {
+	c := &Client{logger: logging.For("test")}
+	_, err := c.GetClusterState(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "call Start first")
 }

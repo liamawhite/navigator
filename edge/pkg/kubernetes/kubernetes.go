@@ -17,21 +17,21 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
-	"sync"
 
 	backendv1alpha1 "github.com/liamawhite/navigator/pkg/api/backend/v1alpha1"
 	typesv1alpha1 "github.com/liamawhite/navigator/pkg/api/types/v1alpha1"
 	"istio.io/api/label"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 // buildEndpointSliceMap creates a map of service name to endpoint slices for efficient lookup
-func (k *Client) buildEndpointSliceMap(endpointSlices []discoveryv1.EndpointSlice) map[string][]discoveryv1.EndpointSlice {
-	endpointSlicesByService := make(map[string][]discoveryv1.EndpointSlice)
-
+func (k *Client) buildEndpointSliceMap(endpointSlices []*discoveryv1.EndpointSlice) map[string][]*discoveryv1.EndpointSlice {
+	endpointSlicesByService := make(map[string][]*discoveryv1.EndpointSlice)
 	for _, slice := range endpointSlices {
 		serviceName := slice.Labels["kubernetes.io/service-name"]
 		if serviceName != "" {
@@ -39,26 +39,23 @@ func (k *Client) buildEndpointSliceMap(endpointSlices []discoveryv1.EndpointSlic
 			endpointSlicesByService[key] = append(endpointSlicesByService[key], slice)
 		}
 	}
-
 	return endpointSlicesByService
 }
 
 // buildPodMap creates a map of namespace/podname to pod for efficient lookup
-func (k *Client) buildPodMap(pods []corev1.Pod) map[string]*corev1.Pod {
+func (k *Client) buildPodMap(pods []*corev1.Pod) map[string]*corev1.Pod {
 	podsByName := make(map[string]*corev1.Pod)
-
-	for i, pod := range pods {
+	for _, pod := range pods {
 		key := pod.Namespace + "/" + pod.Name
-		podsByName[key] = &pods[i]
+		podsByName[key] = pod
 	}
-
 	return podsByName
 }
 
 // convertServiceWithMaps converts a Kubernetes Service to a protobuf Service using prebuilt maps
 func (k *Client) convertServiceWithMaps(
 	svc *corev1.Service,
-	endpointSlicesByService map[string][]discoveryv1.EndpointSlice,
+	endpointSlicesByService map[string][]*discoveryv1.EndpointSlice,
 	podsByName map[string]*corev1.Pod,
 ) *backendv1alpha1.Service {
 	protoService := &backendv1alpha1.Service{
@@ -88,7 +85,7 @@ func (k *Client) convertServiceWithMaps(
 
 // convertEndpointSlicesToInstancesWithMaps converts EndpointSlices to ServiceInstances using prebuilt maps
 func (k *Client) convertEndpointSlicesToInstancesWithMaps(
-	endpointSlices []discoveryv1.EndpointSlice,
+	endpointSlices []*discoveryv1.EndpointSlice,
 	podsByName map[string]*corev1.Pod,
 ) []*backendv1alpha1.ServiceInstance {
 	var instances []*backendv1alpha1.ServiceInstance
@@ -112,7 +109,7 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 			podStatus := ""
 			nodeName := ""
 			createdAt := ""
-			labels := make(map[string]string)
+			lbls := make(map[string]string)
 			annotations := make(map[string]string)
 			proxyMode := typesv1alpha1.ProxyMode_NONE
 
@@ -134,14 +131,10 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 
 					// Copy labels and annotations (avoid nil maps)
 					if pod.Labels != nil {
-						for k, v := range pod.Labels {
-							labels[k] = v
-						}
+						maps.Copy(lbls, pod.Labels)
 					}
 					if pod.Annotations != nil {
-						for k, v := range pod.Annotations {
-							annotations[k] = v
-						}
+						maps.Copy(annotations, pod.Annotations)
 					}
 				}
 			}
@@ -156,7 +149,7 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 					PodStatus:    podStatus,
 					NodeName:     nodeName,
 					CreatedAt:    createdAt,
-					Labels:       labels,
+					Labels:       lbls,
 					Annotations:  annotations,
 					ProxyMode:    proxyMode,
 				}
@@ -170,21 +163,8 @@ func (k *Client) convertEndpointSlicesToInstancesWithMaps(
 
 // hasEnvoySidecarInPod checks if a pod has an Envoy sidecar container (no API call)
 func (k *Client) hasEnvoySidecarInPod(pod *corev1.Pod) bool {
-	// Check all containers for Envoy indicators
-	for _, container := range pod.Spec.Containers {
-		if k.isEnvoyContainer(container) {
-			return true
-		}
-	}
-
-	// Check init containers as well
-	for _, container := range pod.Spec.InitContainers {
-		if k.isEnvoyContainer(container) {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(pod.Spec.Containers, k.isEnvoyContainer) ||
+		slices.ContainsFunc(pod.Spec.InitContainers, k.isEnvoyContainer)
 }
 
 // isEnvoyContainer checks if a container is an Envoy proxy
@@ -252,36 +232,68 @@ func (k *Client) extractContainerInfo(pod *corev1.Pod) []*backendv1alpha1.Contai
 	return containers
 }
 
-// fetchServices fetches all services from the cluster
-func (k *Client) fetchServices(ctx context.Context, wg *sync.WaitGroup, result **corev1.ServiceList, errChan chan<- error) {
-	defer wg.Done()
-	servicesList, err := k.clientset.CoreV1().Services("").List(ctx, metav1.ListOptions{})
-	*result = servicesList
-	if err != nil {
-		errChan <- fmt.Errorf("failed to list services: %w", err)
+// GetClusterState reads cluster state from the informer cache.
+// Start must be called before this method.
+// TODO: propagate ctx cancellation through lister reads once the interface supports it.
+func (k *Client) GetClusterState(_ context.Context) (*backendv1alpha1.ClusterState, error) {
+	if !k.started {
+		return nil, fmt.Errorf("informer cache not initialised: call Start first")
 	}
-}
 
-// fetchEndpointSlices fetches all endpoint slices and builds a service map
-func (k *Client) fetchEndpointSlices(ctx context.Context, wg *sync.WaitGroup, endpointSlicesByService *map[string][]discoveryv1.EndpointSlice, errChan chan<- error) {
-	defer wg.Done()
-	endpointSlicesResult, err := k.clientset.DiscoveryV1().EndpointSlices("").List(ctx, metav1.ListOptions{})
+	// Read k8s resources from the local cache
+	svcPtrs, err := k.servicesLister.List(labels.Everything())
 	if err != nil {
-		errChan <- fmt.Errorf("failed to list endpoint slices: %w", err)
-		return
+		return nil, err
 	}
-	*endpointSlicesByService = k.buildEndpointSliceMap(endpointSlicesResult.Items)
-}
+	podPtrs, err := k.podsLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	epsPtrs, err := k.endpointSlicesLister.List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
 
-// fetchPods fetches all pods and builds a name map
-func (k *Client) fetchPods(ctx context.Context, wg *sync.WaitGroup, podsByName *map[string]*corev1.Pod, errChan chan<- error) {
-	defer wg.Done()
-	podsResult, err := k.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		errChan <- fmt.Errorf("failed to list pods: %w", err)
-		return
+	podsByName := k.buildPodMap(podPtrs)
+	endpointSlicesByService := k.buildEndpointSliceMap(epsPtrs)
+
+	var protoServices []*backendv1alpha1.Service
+	for _, svc := range svcPtrs {
+		protoServices = append(protoServices, k.convertServiceWithMaps(svc, endpointSlicesByService, podsByName))
 	}
-	*podsByName = k.buildPodMap(podsResult.Items)
+
+	// k8s lister errors are hard failures: no services/pods means broken state.
+	// Istio lister errors in listXxx are logged and return nil (best-effort):
+	// Lister.List() on a synced in-memory cache never errors in practice, and
+	// missing Istio config is non-fatal — workload state is still reported.
+
+	// Read Istio resources from the local cache
+	protoDestinationRules := k.listDestinationRules()
+	protoEnvoyFilters := k.listEnvoyFilters()
+	protoRequestAuthentications := k.listRequestAuthentications()
+	protoPeerAuthentications := k.listPeerAuthentications()
+	protoAuthorizationPolicies := k.listAuthorizationPolicies()
+	protoWasmPlugins := k.listWasmPlugins()
+	protoGateways := k.listGateways()
+	protoSidecars := k.listSidecars()
+	protoVirtualServices := k.listVirtualServices()
+	protoServiceEntries := k.listServiceEntries()
+	protoIstioControlPlaneConfig := k.getIstioControlPlaneConfig()
+
+	return &backendv1alpha1.ClusterState{
+		Services:                protoServices,
+		DestinationRules:        protoDestinationRules,
+		EnvoyFilters:            protoEnvoyFilters,
+		RequestAuthentications:  protoRequestAuthentications,
+		Gateways:                protoGateways,
+		Sidecars:                protoSidecars,
+		VirtualServices:         protoVirtualServices,
+		IstioControlPlaneConfig: protoIstioControlPlaneConfig,
+		PeerAuthentications:     protoPeerAuthentications,
+		AuthorizationPolicies:   protoAuthorizationPolicies,
+		WasmPlugins:             protoWasmPlugins,
+		ServiceEntries:          protoServiceEntries,
+	}, nil
 }
 
 // convertServiceType converts Kubernetes service type to protobuf ServiceType enum
@@ -325,20 +337,20 @@ func (k *Client) determineProxyMode(pod *corev1.Pod) typesv1alpha1.ProxyMode {
 		return typesv1alpha1.ProxyMode_UNKNOWN_PROXY_MODE
 	}
 
-	labels := pod.Labels
+	lbls := pod.Labels
 
 	// Check for waypoint first (to exclude them from being identified as gateways)
 	// The istio.io/waypoint-for label is the definitive waypoint indicator
-	if labels[label.IoIstioWaypointFor.Name] != "" {
+	if lbls[label.IoIstioWaypointFor.Name] != "" {
 		return typesv1alpha1.ProxyMode_SIDECAR // Waypoints are L7 proxies, not gateways
 	}
 
 	// Check for gateway labels using constants where available - these indicate router mode
-	if labels["istio.io/gateway-name"] != "" ||
-		labels[label.IoK8sNetworkingGatewayGatewayName.Name] != "" ||
-		labels["app"] == "istio-ingressgateway" ||
-		labels["app"] == "istio-egressgateway" ||
-		labels["istio"] == "ingressgateway" {
+	if lbls["istio.io/gateway-name"] != "" ||
+		lbls[label.IoK8sNetworkingGatewayGatewayName.Name] != "" ||
+		lbls["app"] == "istio-ingressgateway" ||
+		lbls["app"] == "istio-egressgateway" ||
+		lbls["istio"] == "ingressgateway" {
 		return typesv1alpha1.ProxyMode_ROUTER
 	}
 
