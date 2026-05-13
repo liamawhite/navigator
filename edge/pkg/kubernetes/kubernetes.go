@@ -30,13 +30,13 @@ import (
 )
 
 // buildEndpointSliceMap creates a map of service name to endpoint slices for efficient lookup
-func (k *Client) buildEndpointSliceMap(endpointSlices []*discoveryv1.EndpointSlice) map[string][]discoveryv1.EndpointSlice {
-	endpointSlicesByService := make(map[string][]discoveryv1.EndpointSlice)
+func (k *Client) buildEndpointSliceMap(endpointSlices []*discoveryv1.EndpointSlice) map[string][]*discoveryv1.EndpointSlice {
+	endpointSlicesByService := make(map[string][]*discoveryv1.EndpointSlice)
 	for _, slice := range endpointSlices {
 		serviceName := slice.Labels["kubernetes.io/service-name"]
 		if serviceName != "" {
 			key := slice.Namespace + "/" + serviceName
-			endpointSlicesByService[key] = append(endpointSlicesByService[key], *slice)
+			endpointSlicesByService[key] = append(endpointSlicesByService[key], slice)
 		}
 	}
 	return endpointSlicesByService
@@ -55,7 +55,7 @@ func (k *Client) buildPodMap(pods []*corev1.Pod) map[string]*corev1.Pod {
 // convertServiceWithMaps converts a Kubernetes Service to a protobuf Service using prebuilt maps
 func (k *Client) convertServiceWithMaps(
 	svc *corev1.Service,
-	endpointSlicesByService map[string][]discoveryv1.EndpointSlice,
+	endpointSlicesByService map[string][]*discoveryv1.EndpointSlice,
 	podsByName map[string]*corev1.Pod,
 ) *backendv1alpha1.Service {
 	protoService := &backendv1alpha1.Service{
@@ -85,7 +85,7 @@ func (k *Client) convertServiceWithMaps(
 
 // convertEndpointSlicesToInstancesWithMaps converts EndpointSlices to ServiceInstances using prebuilt maps
 func (k *Client) convertEndpointSlicesToInstancesWithMaps(
-	endpointSlices []discoveryv1.EndpointSlice,
+	endpointSlices []*discoveryv1.EndpointSlice,
 	podsByName map[string]*corev1.Pod,
 ) []*backendv1alpha1.ServiceInstance {
 	var instances []*backendv1alpha1.ServiceInstance
@@ -236,7 +236,7 @@ func (k *Client) extractContainerInfo(pod *corev1.Pod) []*backendv1alpha1.Contai
 // Start must be called before this method.
 // TODO: propagate ctx cancellation through lister reads once the interface supports it.
 func (k *Client) GetClusterState(_ context.Context) (*backendv1alpha1.ClusterState, error) {
-	if k.servicesLister == nil {
+	if !k.started {
 		return nil, fmt.Errorf("informer cache not initialised: call Start first")
 	}
 

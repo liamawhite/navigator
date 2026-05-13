@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/liamawhite/navigator/pkg/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	extensionsapi "istio.io/api/extensions/v1alpha1"
@@ -250,4 +251,18 @@ func TestClient_GetClusterStateWithWasmPlugins(t *testing.T) {
 
 	assert.Len(t, result.RequestAuthentications, 1)
 	assert.Equal(t, "test-request-auth", result.RequestAuthentications[0].Name)
+}
+
+func TestClient_StartTwiceReturnsError(t *testing.T) {
+	c := newTestClient(t, nil, nil)
+	err := c.Start(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already started")
+}
+
+func TestClient_GetClusterStateBeforeStartReturnsError(t *testing.T) {
+	c := &Client{logger: logging.For("test")}
+	_, err := c.GetClusterState(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "call Start first")
 }

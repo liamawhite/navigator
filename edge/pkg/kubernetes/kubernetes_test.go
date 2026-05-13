@@ -379,7 +379,11 @@ func TestClient_convertEndpointSlicesToInstancesWithMaps(t *testing.T) {
 			}
 			podMap := k8sClient.buildPodMap(podPtrs)
 
-			got := k8sClient.convertEndpointSlicesToInstancesWithMaps(tt.endpointSlices, podMap)
+			epsPtrs := make([]*discoveryv1.EndpointSlice, len(tt.endpointSlices))
+			for i := range tt.endpointSlices {
+				epsPtrs[i] = &tt.endpointSlices[i]
+			}
+			got := k8sClient.convertEndpointSlicesToInstancesWithMaps(epsPtrs, podMap)
 
 			// No error expected since we removed the context parameter
 			if tt.wantErr {
@@ -945,7 +949,7 @@ func TestClient_convertServiceWithMaps_WithIPs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Empty maps for endpoint slices and pods since we're only testing service IP extraction
-			endpointSlicesByService := make(map[string][]discoveryv1.EndpointSlice)
+			endpointSlicesByService := make(map[string][]*discoveryv1.EndpointSlice)
 			podsByName := make(map[string]*corev1.Pod)
 
 			result := client.convertServiceWithMaps(tt.service, endpointSlicesByService, podsByName)

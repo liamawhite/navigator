@@ -215,7 +215,7 @@ func (k *Client) GetRestConfig() *rest.Config {
 }
 
 // GetClusterName retrieves the cluster name from Istio's CLUSTER_ID environment variable in istiod deployment.
-// This uses direct API calls and must be called before Start.
+// This uses direct API calls and may be called before or after Start.
 func (k *Client) GetClusterName(ctx context.Context) (string, error) {
 	rootNamespace, activeDeployment := k.discoverIstioControlPlane(ctx)
 	if activeDeployment == nil {
