@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Install Nix
-      uses: cachix/install-nix-action@v25
+      uses: cachix/install-nix-action@v27
     
     - name: Run unit tests
       run: make test-unit
@@ -30,7 +30,7 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Install Nix
-      uses: cachix/install-nix-action@v25
+      uses: cachix/install-nix-action@v27
     
     - name: Run UI tests
       run: make test-ui
@@ -46,7 +46,7 @@ jobs:
         fetch-depth: 0
     
     - name: Install Nix
-      uses: cachix/install-nix-action@v25
+      uses: cachix/install-nix-action@v27
     
     - name: Test release build
       run: nix develop --command goreleaser release --snapshot --clean --parallelism 2
