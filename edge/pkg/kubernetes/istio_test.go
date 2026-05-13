@@ -432,8 +432,8 @@ func TestClient_getIstioControlPlaneConfig(t *testing.T) {
 func TestClient_selectActiveControlPlane(t *testing.T) {
 	client := &Client{logger: logging.For("test")}
 
-	dep := func(name string, ready int32) appsv1.Deployment {
-		return appsv1.Deployment{
+	dep := func(name string, ready int32) *appsv1.Deployment {
+		return &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "istio-system"},
 			Status:     appsv1.DeploymentStatus{ReadyReplicas: ready},
 		}
@@ -441,7 +441,7 @@ func TestClient_selectActiveControlPlane(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		deployments []appsv1.Deployment
+		deployments []*appsv1.Deployment
 		wantName    string
 	}{
 		{
@@ -451,22 +451,22 @@ func TestClient_selectActiveControlPlane(t *testing.T) {
 		},
 		{
 			name:        "single deployment selected",
-			deployments: []appsv1.Deployment{dep("istiod-1-26-0", 2)},
+			deployments: []*appsv1.Deployment{dep("istiod-1-26-0", 2)},
 			wantName:    "istiod-1-26-0",
 		},
 		{
 			name:        "traditional istiod preferred regardless of replica count",
-			deployments: []appsv1.Deployment{dep("istiod-1-26-0", 5), dep("istiod", 1)},
+			deployments: []*appsv1.Deployment{dep("istiod-1-26-0", 5), dep("istiod", 1)},
 			wantName:    "istiod",
 		},
 		{
 			name:        "highest ready replicas wins",
-			deployments: []appsv1.Deployment{dep("istiod-1-25-0", 1), dep("istiod-1-26-0", 3)},
+			deployments: []*appsv1.Deployment{dep("istiod-1-25-0", 1), dep("istiod-1-26-0", 3)},
 			wantName:    "istiod-1-26-0",
 		},
 		{
 			name:        "same ready replicas - first in slice selected",
-			deployments: []appsv1.Deployment{dep("istiod-1-25-0", 2), dep("istiod-1-26-0", 2)},
+			deployments: []*appsv1.Deployment{dep("istiod-1-25-0", 2), dep("istiod-1-26-0", 2)},
 			wantName:    "istiod-1-25-0",
 		},
 	}

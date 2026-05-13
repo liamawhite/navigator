@@ -247,7 +247,7 @@ func (k *Client) getIstioControlPlaneConfig() *typesv1alpha1.IstioControlPlaneCo
 
 	// Prefer istio-system namespace
 	if deps, ok := byNamespace["istio-system"]; ok {
-		active := k.selectActiveControlPlane(derefDeployments(deps))
+		active := k.selectActiveControlPlane(deps)
 		if active != nil {
 			config.RootNamespace = "istio-system"
 			k.logger.Debug("selected active istiod deployment", "name", active.Name, "namespace", active.Namespace)
@@ -261,7 +261,7 @@ func (k *Client) getIstioControlPlaneConfig() *typesv1alpha1.IstioControlPlaneCo
 	var bestNS string
 	maxReady := int32(-1)
 	for ns, deps := range byNamespace {
-		active := k.selectActiveControlPlane(derefDeployments(deps))
+		active := k.selectActiveControlPlane(deps)
 		if active != nil && active.Status.ReadyReplicas > maxReady {
 			maxReady = active.Status.ReadyReplicas
 			bestDep = active
@@ -317,7 +317,11 @@ func (k *Client) discoverIstioControlPlane(ctx context.Context) (string, *appsv1
 			continue
 		}
 
-		activeDeployment := k.selectActiveControlPlane(deployments.Items)
+		depPtrs := make([]*appsv1.Deployment, len(deployments.Items))
+		for i := range deployments.Items {
+			depPtrs[i] = &deployments.Items[i]
+		}
+		activeDeployment := k.selectActiveControlPlane(depPtrs)
 		if activeDeployment == nil {
 			continue
 		}
@@ -351,16 +355,16 @@ func (k *Client) discoverIstioControlPlane(ctx context.Context) (string, *appsv1
 // 1. Deployment named "istiod" (traditional default)
 // 2. Deployment with highest ready replicas
 // 3. First deployment (fallback)
-func (k *Client) selectActiveControlPlane(deployments []appsv1.Deployment) *appsv1.Deployment {
+func (k *Client) selectActiveControlPlane(deployments []*appsv1.Deployment) *appsv1.Deployment {
 	if len(deployments) == 0 {
 		return nil
 	}
 
 	// Priority 1: Look for traditional "istiod" deployment
-	for i := range deployments {
-		if deployments[i].Name == "istiod" {
+	for _, d := range deployments {
+		if d.Name == "istiod" {
 			k.logger.Debug("found traditional istiod deployment")
-			return &deployments[i]
+			return d
 		}
 	}
 
@@ -368,13 +372,10 @@ func (k *Client) selectActiveControlPlane(deployments []appsv1.Deployment) *apps
 	var bestDeployment *appsv1.Deployment
 	maxReadyReplicas := int32(-1)
 
-	for i := range deployments {
-		deployment := &deployments[i]
-		readyReplicas := deployment.Status.ReadyReplicas
-
-		if readyReplicas > maxReadyReplicas {
-			maxReadyReplicas = readyReplicas
-			bestDeployment = deployment
+	for _, d := range deployments {
+		if d.Status.ReadyReplicas > maxReadyReplicas {
+			maxReadyReplicas = d.Status.ReadyReplicas
+			bestDeployment = d
 		}
 	}
 
@@ -387,7 +388,7 @@ func (k *Client) selectActiveControlPlane(deployments []appsv1.Deployment) *apps
 
 	// Priority 3: Fallback to first deployment
 	k.logger.Debug("using first available deployment as fallback", "name", deployments[0].Name)
-	return &deployments[0]
+	return deployments[0]
 }
 
 // extractPilotConfiguration extracts pilot configuration from an istiod deployment
@@ -766,13 +767,4 @@ func (k *Client) convertServiceEntry(se *istionetworkingv1beta1.ServiceEntry) (*
 		RawConfig: string(resourceBytes),
 		ExportTo:  exportTo,
 	}, nil
-}
-
-// derefDeployments converts a slice of Deployment pointers to values
-func derefDeployments(ptrs []*appsv1.Deployment) []appsv1.Deployment {
-	out := make([]appsv1.Deployment, len(ptrs))
-	for i, p := range ptrs {
-		out[i] = *p
-	}
-	return out
 }
